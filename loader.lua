@@ -55,7 +55,8 @@ local function wipeFolder(path)
 		print('Wiping', path)
 		for _, v in listfiles(path) do
 			if isfile(v) then
-				pcall(function() delfile(v); end)
+				warn('Deleting', v)
+				delfile(v)
 				print('Deleted', v)
 			end
 		end
