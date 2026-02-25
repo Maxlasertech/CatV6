@@ -1,8 +1,8 @@
-PROPRIETARY LICENSE AGREEMENT: CatV5
+PROPRIETARY LICENSE AGREEMENT: CatV6
 
-Copyright (c) 2026 new-qwertyui
+Copyright (c) 2026 MaxlaserTech
 
-By accessing, viewing, downloading, or interacting with the code in the CatV5 repository (hosted at https://github.com/new-qwertyui/CatV5), you agree to the terms and conditions set forth below.
+By accessing, viewing, downloading, or interacting with the code in the CatV6 repository (hosted at https://github.com/MaxlaserTech/CatV6), you agree to the terms and conditions set forth below.
 
 1. PERMISSIONS
 Permission is hereby granted to view and execute the code strictly for personal, private use, subject to the restrictions listed below.
@@ -22,11 +22,11 @@ No Distribution: You are not allowed to share, transfer, or distribute this code
 No Modifications or Contributions: This repository does not accept contributions. You are not permitted to modify the source code for the purpose of submitting Pull Requests.
 
 3. MANDATORY CONDITIONS
-Forking Requirement: The only authorized method to interact with the CatV5 codebase on GitHub is via the official Fork button on the new-qwertyui/CatV5 repository.
+Forking Requirement: The only authorized method to interact with the CatV6 codebase on GitHub is via the official Fork button on the MaxlaserTech/CatV6 repository.
 
 Unauthorized Copies: Any repository found containing this code that is not a direct fork of the original will be subject to an immediate DMCA takedown request.
 
-Revocability: The Licensor (new-qwertyui) and authorized maintainers (Maxlasertech) reserve the right to revoke this license at any time, for any reason. Upon revocation, or if the repository is taken down by the Licensor, all rights to use the code are immediately terminated.
+Revocability: The Licensor (MaxlaserTech) and authorized maintainers (Maxlasertech) reserve the right to revoke this license at any time, for any reason. Upon revocation, or if the repository is taken down by the Licensor, all rights to use the code are immediately terminated.
 
 4. DISCLAIMER
 THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS, COPYRIGHT HOLDERS, OR MAINTAINERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
