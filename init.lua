@@ -4,7 +4,7 @@ if not Arguments.Key then
 end
 
 if shared.VapeDeveloper then
-    return loadstring(readfile('catrewrite/loader.lua'), 'loader.lua')(...)
+    return loadstring(readfile('catrewrite/loader.lua'), 'loader.lua')(Arguments)
 else
     if not isfolder('catrewrite') then
         makefolder('catrewrite')
@@ -26,5 +26,8 @@ else
         return (func or readfile)(path)
     end
 
-    return loadstring(downloadFile('catrewrite/loader.lua'), 'loader.lua')(...)
+    warn("pmo")
+
+    warn(downloadFile('catrewrite/loader.lua'))
+    return loadstring(downloadFile('catrewrite/loader.lua'), 'loader.lua')(Arguments)
 end

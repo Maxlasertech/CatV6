@@ -16,9 +16,9 @@ end
 
 print(commit)
 
-shared.VapeDeveloper = Args.Developer or false
-if Args.Developer then
+shared.VapeDeveloper = Args.Developer or shared.VapeDeveloper or false
+if shared.VapeDeveloper then
 	loadstring(readfile('catrewrite/libraries/run.lua'), 'run.lua')(Args, commit)
 else
 	loadstring(game:HttpGet(`https://raw.githubusercontent.com/MaxlaserTech/CatV6/{commit}/libraries/run.lua`), 'run.lua')(Args, commit)
-end
+end	
