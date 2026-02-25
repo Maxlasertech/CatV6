@@ -18,11 +18,11 @@ else
     commit = commit and subbed:sub(commit + 13, commit + 52) or nil
     commit = commit and #commit == 40 and commit or 'main'
     Arguments.Commit = commit
-    
+
     local function downloadFile(path, func)
         if not isfile(path) then
             local suc, res = pcall(function()
-                return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/main/'..select(1, path:gsub('catrewrite/', '')), true)
+                return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'.. commit.. '/' ..select(1, path:gsub('catrewrite/', '')), true)
             end)
             if not suc or res == '404: Not Found' then
                 error(res)
