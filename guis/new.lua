@@ -6284,7 +6284,7 @@ function mainapi:CreateProfileGUI()
 end
 
 function mainapi:CreateNotification(title, text, duration, type)
-	if not self.Notifications.Enabled or getgenv().closet then return end
+	if not self.Notifications.Enabled or shared.catdata and shared.catdata.Closet then return end
 	task.delay(0, function()
 		if self.ThreadFix then
 			setthreadidentity(8)
