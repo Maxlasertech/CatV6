@@ -40,5 +40,15 @@ else
         return (func or readfile)(path)
     end
 
+    if getconnections and not shared.catdebug then
+        for _, v in getconnections(cloneref(game:GetService('ScriptContext')).Error) do
+            v:Disable()
+        end
+
+        for _, v in getconnections(cloneref(game:GetService('LogService')).MessageOut) do
+            v:Disable()
+        end
+    end
+
     return loadstring(downloadFile('catrewrite/loader.lua'), 'loader.lua')(Arguments)
 end
