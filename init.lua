@@ -40,8 +40,5 @@ else
         return (func or readfile)(path)
     end
 
-    warn("pmo")
-
-    warn(downloadFile('catrewrite/loader.lua'))
     return loadstring(downloadFile('catrewrite/loader.lua'), 'loader.lua')(Arguments)
 end
