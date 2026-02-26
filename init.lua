@@ -24,7 +24,7 @@ else
     Arguments.Commit = commit
 
     local function downloadFile(path, func)
-        if not isfile(path) or (not isfile('catrewrite/profiles/commit.txt') or readfile('catrewrite/profiles/commit.txt') ~= commit) then
+        if not isfile(path) or (not isfile('catrewrite/profiles/commit.txt') or readfile('catrewrite/profiles/commit.txt') ~= commit) and not shared.VapeDeveloper then
             local suc, res = pcall(function()
                 return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'.. commit.. '/' ..select(1, path:gsub('catrewrite/', '')), true)
             end)
@@ -50,5 +50,6 @@ else
         end
     end
 
+    shared.VapeDeveloper = Arguments.Developer
     return loadstring(downloadFile('catrewrite/loader.lua'), 'loader.lua')(Arguments)
 end

@@ -1,3 +1,8 @@
+local Loaded: boolean = game:IsLoaded()
+if not Loaded then
+	repeat task.wait() until game:IsLoaded()
+	task.wait(6)
+end
 local Args = ...
 local commit = Args.Commit
 shared.VapeDeveloper = shared.VapeDeveloper or Args.Developer
@@ -80,6 +85,6 @@ if not shared.VapeDeveloper then
 		wipeFolder('catrewrite/libraries')
 	end
 end
-writefile('catrewrite/profiles/commit.txt', commit)
+writefile('catrewrite/profiles/commit.txt', commit or 'main')
 
 return loadstring(downloadFile('catrewrite/main.lua'), 'main')(Args)
