@@ -1172,6 +1172,14 @@ run(function()
 
 	local storeChanged = bedwars.Store.changed:connect(updateStore)
 	updateStore(bedwars.Store:getState(), {})
+	if not canDebug then
+		vape:Clean(task.spawn(function()
+			repeat
+				updateStore(bedwars.Store:getState(), {})
+				task.wait(1)
+			until false
+		end))
+	end
 
 	for _, event in {'MatchEndEvent', 'EntityDeathEvent', 'BedwarsBedBreak', 'BalloonPopped', 'AngelProgress', 'GrapplingHookFunctions'} do
 		if not vape.Connections then return end
@@ -1304,12 +1312,12 @@ run(function()
 		until vape.Loaded == nil
 	end)
 
-	pcall(function() -- idk why xylex chose the hard way but wtv
+	pcall(function()
 		bedwars.Shop = require(replicatedStorage.TS.games.bedwars.shop['bedwars-shop']).BedwarsShop
 		bedwars.ShopItems = bedwars.Shop.ShopItems
 		bedwars.Shop.getShopItem('iron_sword', lplr)
-		store.shopLoaded = true
 	end)
+	store.shopLoaded = true
 
 	vape:Clean(function()
 		Client.Get = OldGet
@@ -4879,7 +4887,6 @@ run(function()
 
 	AutoPearl = vape.Categories.Utility:CreateModule({
 		Name = 'Auto Pearl',
-		Tags = getModTags(nil, isNewUser('Auto Pearl')),
 		Function = function(callback)
 			if callback then
 				local lastThrowTime = 0
@@ -11261,7 +11268,7 @@ run(function()
 
     AutoAdetunde = vape.Categories.Kits:CreateModule({
         Name = 'Auto Adetunde',
-		Tags = getModTags(nil, isNewUser('Auto Adetunde')),
+		Tags = isNewUser('Auto Adetunde') and {'new'} or {},
         Function = function(callback)
             if callback then
                 if currentThread then
