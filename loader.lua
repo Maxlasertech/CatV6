@@ -1,4 +1,8 @@
-repeat task.wait() until game:IsLoaded()
+local Loaded: boolean = game:IsLoaded()
+if not Loaded then
+	repeat task.wait() until game:IsLoaded()
+	task.wait(6)
+end
 local Args = ...
 local commit = Args.Commit
 shared.VapeDeveloper = shared.VapeDeveloper or Args.Developer
@@ -55,7 +59,7 @@ local function wipeFolder(path)
 	if isfolder(path) then
 		print('Wiping', path)
 		for _, v in listfiles(path) do
-			if isfile(v) and not v:find('/profiles') then
+			if isfile(v) then
 				warn('Deleting', v)
 				delfile(v)
 				print('Deleted', v)

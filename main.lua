@@ -6,6 +6,7 @@ print(shared.VapeDeveloper)
 
 if identifyexecutor then
 	if table.find({'Argon', 'Wave', 'Seliware', 'Volt'}, ({identifyexecutor()})[1]) then
+		print('thanks bro')
 		getgenv().setthreadidentity = nil
 	end
 end
@@ -98,35 +99,31 @@ local function finishLoading()
 		local body = httpService:JSONEncode({
 			nonce = httpService:GenerateGUID(false),
 			args = {
-				invite = {code = 'vxpe'},
-				code = 'vxpe'
+				invite = {code = 'catvape'},
+				code = 'catvape'
 			},
 			cmd = 'INVITE_BROWSER'
 		})
 
-		if not isfile('warfdf4whr') then
-			for i = 1, 2 do
-				task.spawn(pcall, function()
-					request({
-						Method = 'POST',
-						Url = 'http://127.0.0.1:6463/rpc?v=1',
-						Headers = {
-							['Content-Type'] = 'application/json',
-							Origin = 'https://discord.com'
-						},
-						Body = body
-					})
-				end)
-			end
-
-			writefile('warfdf4whr', 'True')
+		for i = 1, 2 do
+			task.spawn(pcall, function()
+				request({
+					Method = 'POST',
+					Url = 'http://127.0.0.1:6463/rpc?v=1',
+					Headers = {
+						['Content-Type'] = 'application/json',
+						Origin = 'https://discord.com'
+					},
+					Body = body
+				})
+			end)
 		end
+		vape:CreateNotification('Cat', 'Our last server got limited, Join our backup server discord.gg/catvape', 30, 'warning')
 		
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
+			task.wait(0.5)
 			vape:CreateNotification('Finished Loading', vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
-			task.wait(0.1)
-			vape:CreateNotification('Cat', 'We have switched to a new discord server, discord.gg/vxpe', 30, 'info')
-			task.wait(0.1)
+			task.wait(0.5)
 			vape:CreateNotification('Cat', `Initalized as {getgenv().catname} with {getgenv().catrole}`, 5, 'info')
 		end
 	end
