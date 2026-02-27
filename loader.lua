@@ -1,8 +1,4 @@
-local Loaded: boolean = game:IsLoaded()
-if not Loaded then
-	repeat task.wait() until game:IsLoaded()
-	task.wait(6)
-end
+repeat task.wait() until game:IsLoaded()
 local Args = ...
 local commit = Args.Commit
 shared.VapeDeveloper = shared.VapeDeveloper or Args.Developer
