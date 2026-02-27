@@ -1171,14 +1171,15 @@ run(function()
 	end
 
 	local storeChanged = bedwars.Store.changed:connect(updateStore)
-	updateStore(bedwars.Store:getState(), {})
 	if not canDebug then
 		vape:Clean(task.spawn(function()
 			repeat
-				updateStore(bedwars.Store:getState(), {})
+				pcall(updateStore, bedwars.Store:getState(), {})
 				task.wait(1)
 			until false
 		end))
+	else
+		updateStore(bedwars.Store:getState(), {})
 	end
 
 	for _, event in {'MatchEndEvent', 'EntityDeathEvent', 'BedwarsBedBreak', 'BalloonPopped', 'AngelProgress', 'GrapplingHookFunctions'} do
@@ -1202,7 +1203,7 @@ run(function()
 			disableDamageHighlight = select(13, ...)
 		})
 	end))
-
+	
 	pcall(function()
 		vape:Clean(bedwars.ZapNetworking.ProjectileLaunchZap.On(function(...)
 			vapeEvents.ProjectileLaunchEvent:Fire({
