@@ -59,7 +59,7 @@ local function wipeFolder(path)
 	if isfolder(path) then
 		print('Wiping', path)
 		for _, v in listfiles(path) do
-			if isfile(v) then
+			if isfile(v) and not v:find('/profiles') then
 				warn('Deleting', v)
 				delfile(v)
 				print('Deleted', v)

@@ -703,7 +703,6 @@ local canDebug, require, cheatenginelib = true, require, nil
 
 if not require or not debug.getupvalue or table.find({'Xeno', 'Solara'}, ({identifyexecutor()})[1]) then
 	canDebug = false
-	getgenv().canDebug = canDebug
 end
 
 run(function()	
