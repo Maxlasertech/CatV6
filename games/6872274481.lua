@@ -1203,13 +1203,15 @@ run(function()
 		})
 	end))
 
-	vape:Clean(bedwars.ZapNetworking.ProjectileLaunchZap.On(function(...)
-		vapeEvents.ProjectileLaunchEvent:Fire({
-			projectile = select(3, ...),
-			projectileId = select(4, ...),
-			fromEntity = select(7, ...)
-		})
-	end))
+	pcall(function()
+		vape:Clean(bedwars.ZapNetworking.ProjectileLaunchZap.On(function(...)
+			vapeEvents.ProjectileLaunchEvent:Fire({
+				projectile = select(3, ...),
+				projectileId = select(4, ...),
+				fromEntity = select(7, ...)
+			})
+		end))
+	end)
 
 	for _, event in {'PlaceBlockEvent', 'BreakBlockEvent'} do
 		vape:Clean(bedwars.ZapNetworking[event..'Zap'].On(function(...)
