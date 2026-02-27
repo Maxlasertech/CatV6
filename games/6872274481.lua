@@ -822,6 +822,7 @@ run(function()
 		return success and result or function() end
 	end
 
+	warn('beasty ur so kind')
 	local remoteNames = {
 		AfkStatus = getproto(Knit.Controllers.AfkController.KnitStart, 1),
 		AttackEntity = Knit.Controllers.SwordController.sendServerRequest or '',
@@ -837,7 +838,7 @@ run(function()
 		DragonEndFly = getproto(Knit.Controllers.VoidDragonController.flapWings, 1),
 		DragonFly = Knit.Controllers.VoidDragonController.flapWings or '',
 		DropItem = Knit.Controllers.ItemDropController.dropItemInHand or '',
-		EquipItem = getproto(require(replicatedStorage.TS.entity.entities['inventory-entity']).InventoryEntity.equipItem, 4),
+		EquipItem = canDebug and getproto(require(replicatedStorage.TS.entity.entities['inventory-entity']).InventoryEntity.equipItem, 4) or function() end,
 		FireProjectile = canDebug and debug.getupvalue(Knit.Controllers.ProjectileController.launchProjectileWithValues, 2) or '',
 		GroundHit = Knit.Controllers.FallDamageController.KnitStart or '',
 		GuitarHeal = Knit.Controllers.GuitarController.performHeal or '',
