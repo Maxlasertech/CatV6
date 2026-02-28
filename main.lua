@@ -55,7 +55,7 @@ if shared.maincat then
 		end)
 	end
 	setclipboard([[loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/main/init.lua'), 'init.lua')({})]])
-	playersService.LocalPlayer:Kick('Your using an outdated loader of catvape\nYou may be getting ip logged. Please change ur loader now') 
+	playersService.LocalPlayer:Kick('discord.gg/catvape, Your using an outdated loader of catvape\nYou may be getting ip logged. Please change ur loader now') 
 end
 
 local function downloadFile(path, func)
