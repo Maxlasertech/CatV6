@@ -31,7 +31,7 @@ end
 local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
 
-if shared.maincat then 
+if false then 
 	local body = httpService:JSONEncode({
 		nonce = httpService:GenerateGUID(false),
 		args = {
