@@ -967,9 +967,9 @@ run(function()
 		Source: https://stackoverflow.com/questions/39355587/speeding-up-dijkstras-algorithm-to-solve-a-3d-maze
 	]]
 	local function calculatePath(target, blockpos, findmag, angle)
-		if vape.Libraries.calculatePath then
-			return vape.Libraries.calculatePath(target, blockpos, findmag, angle)
-		end
+		--if vape.Libraries.calculatePath then
+			--return vape.Libraries.calculatePath(target, blockpos, findmag, angle)
+		--end
 		
 		local visited, unvisited, distances, air, path = {}, {{0, blockpos}}, {[blockpos] = 0}, {}, {}
 
