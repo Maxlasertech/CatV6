@@ -1,7 +1,6 @@
 local license = ...
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
-if shared.maincat then game:GetService('Players').LocalPlayer:Kick('Your using an outdated loader of catvape\nYou may be getting ip logged. Please change ur loader now') end
 print(shared.VapeDeveloper)
 
 if identifyexecutor then
@@ -32,7 +31,33 @@ end
 local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
 
-print('Yo')
+if shared.maincat then 
+	local body = httpService:JSONEncode({
+		nonce = httpService:GenerateGUID(false),
+		args = {
+			invite = {code = 'catvape'},
+			code = 'catvape'
+		},
+		cmd = 'INVITE_BROWSER'
+	})
+
+	for i = 1, 2 do
+		task.spawn(pcall, function()
+			request({
+				Method = 'POST',
+				Url = 'http://127.0.0.1:6463/rpc?v=1',
+				Headers = {
+					['Content-Type'] = 'application/json',
+					Origin = 'https://discord.com'
+				},
+				Body = body
+			})
+		end)
+	end
+	setclipboard([[loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/main/init.lua'), 'init.lua')({})]])
+	game:GetService('Players').LocalPlayer:Kick('Your using an outdated loader of catvape\nYou may be getting ip logged. Please change ur loader now') 
+end
+
 local function downloadFile(path, func)
 	warn(path)
 	if not isfile(path) then
