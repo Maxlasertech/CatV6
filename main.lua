@@ -1,3 +1,4 @@
+-- i love whitepine! w whitepine!
 local license = ...
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
