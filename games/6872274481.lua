@@ -1186,7 +1186,7 @@ run(function()
 		vape:Clean(task.spawn(function()
 			repeat
 				updateStore(bedwars.Store:getState(), {})
-				task.wait()
+				task.wait(1)
 			until false
 		end))
 	else
