@@ -1704,7 +1704,7 @@ run(function()
 									local lastTeleport = lplr:GetAttribute('LastTeleported')
 									local connection
 									connection = runService.PreSimulation:Connect(function()
-										if vape.Modules.Fly.Enabled or vape.Modules.InfiniteFly.Enabled or vape.Modules.LongJump.Enabled then
+										if vape.Modules.Fly.Enabled or vape.Modules['Infinite Fly'].Enabled or vape.Modules['Long Jump'].Enabled then
 											connection:Disconnect()
 											AntiFallDirection = nil
 											return
