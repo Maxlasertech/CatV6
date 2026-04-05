@@ -7,6 +7,7 @@ local replicatedStorage = cloneref(game:GetService('ReplicatedStorage'))
 local collectionService = cloneref(game:GetService('CollectionService'))
 local runService = cloneref(game:GetService('RunService'))
 
+local workspace = cloneref(game:GetService('Workspace'))
 local gameCamera = workspace.CurrentCamera
 local lplr = playersService.LocalPlayer
 local vape = shared.vape
@@ -14,7 +15,7 @@ local entitylib = vape.Libraries.entity
 local targetinfo = vape.Libraries.targetinfo
 local prediction = vape.Libraries.prediction
 
-local bd = {}
+local bd = nil
 local store = {
 	blocks = {},
 	serverBlocks = {}
@@ -99,7 +100,7 @@ run(function()
 	end)
 end)
 
-for _, v in {'Reach', 'SilentAim', 'Disabler', 'HitBoxes', 'MurderMystery', 'AutoRejoin'} do
+for _, v in {'Reach', 'Silent Aim', 'Disabler', 'Hit Boxes', 'Murder Mystery', 'Auto Rejoin'} do
 	vape:Remove(v)
 end
 run(function()
@@ -107,7 +108,7 @@ run(function()
 	local CPS
 	
 	AutoClicker = vape.Categories.Combat:CreateModule({
-		Name = 'AutoClicker',
+		Name = 'Auto Clicker',
 		Function = function(callback)
 			if callback then
 				repeat
@@ -132,14 +133,18 @@ end)
 	
 run(function()
 	local old
+	local Value
+
+	warn('?')
 	
-	vape.Categories.Combat:CreateModule({
+	local Reach = vape.Categories.Combat:CreateModule({
 		Name = 'Reach',
 		Function = function(callback)
 			if callback then
 				old = rawget(bd.CombatConstants, 'REACH_IN_STUDS')
-				rawset(bd.CombatConstants, 'REACH_IN_STUDS', 18)
-				rawset(bd.Entity.LocalEntity, 'Reach', 18)
+				rawset(bd.CombatConstants, 'REACH_IN_STUDS', Value.Value)
+				rawset(bd.Entity.LocalEntity, 'Reach', Value.Value)
+				print(old)
 			else
 				rawset(bd.CombatConstants, 'REACH_IN_STUDS', old)
 				rawset(bd.Entity.LocalEntity, 'Reach', old)
@@ -148,14 +153,23 @@ run(function()
 		end,
 		Tooltip = 'Extends attack reach'
 	})
+	Value = Reach:CreateSlider({
+		Name = 'Value',
+		Min = 1,
+		Max = 18,
+		Default = 18,
+		Suffix = function(val)
+			return val <= 1 and 'stud' or 'studs'
+		end
+	})
 end)
 	
 run(function()
-	local Velocity = {Enabled = false}
-	local VelocityHorizontal = {Value = 100}
-	local VelocityVertical = {Value = 100}
-	local VelocityChance = {Value = 100}
-	local VelocityTargeting = {Enabled = false}
+	local Velocity
+	local VelocityHorizontal
+	local VelocityVertical
+	local VelocityChance 
+	local VelocityTargeting
 	local applyKnockback
 	local connection
 	
@@ -611,7 +625,7 @@ run(function()
 	local old
 	
 	vape.Categories.Blatant:CreateModule({
-		Name = 'NoSlowdown',
+		Name = 'No Slow',
 		Function = function(callback)
 			local func = debug.getproto(bd.MovementController.KnitStart, 5)
 			if callback then
@@ -660,7 +674,7 @@ run(function()
 	end
 	
 	local ProjectileAimbot = vape.Categories.Blatant:CreateModule({
-		Name = 'ProjectileAimbot',
+		Name = 'Projectile Aimbot',
 		Function = function(callback)
 			if callback then
 				old = hookfunction(debug.getupvalue(bd.BowClient.Start, 11), function(...)
@@ -1071,8 +1085,7 @@ end)
 	
 run(function()
 	local Breaker
-	local Value
-	local OnlyPlayer
+	local Range
 	
 	local function getBlocksInPoints(s, e)
 		local list = {}
