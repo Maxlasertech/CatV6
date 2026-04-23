@@ -34,6 +34,7 @@ local function wipeFolder(path)
 	end
 end
 
+
 for _, folder in {'catrewrite', 'catrewrite/games', 'catrewrite/profiles', 'catrewrite/assets', 'catrewrite/libraries', 'catrewrite/guis'} do
 	if not isfolder(folder) then
 		makefolder(folder)
