@@ -4970,7 +4970,7 @@ run(function()
 			})
 		end)
 	end
-end)
+end) -- test
 	
 run(function()
 	local AutoPearl
