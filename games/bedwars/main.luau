@@ -8618,6 +8618,7 @@ run(function()
 			end
 		end
 	})
+	AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
 	Bed = Breaker:CreateToggle({
 		Name = 'Break Bed',
 		Default = true
