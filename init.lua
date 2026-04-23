@@ -51,7 +51,7 @@ if not shared.VapeDeveloper then
 	if commit == 'main' or (isfile('catrewrite/profiles/commit.txt') and readfile('catrewrite/profiles/commit.txt') or '') ~= commit then
 		wipeFolder('catrewrite')
 		repeat
-			delfolder('games')
+			pcall(delfolder, 'games')
 			task.wait(0.1)
 		until not isfolder('catrewrite/games')
 		makefolder('games')
