@@ -249,7 +249,6 @@ local function addTooltip(gui, text)
 			((y + 11) - (tooltip.Size.Y.Offset / 2)) / scale.Scale
 		)
 		tooltip.Visible = toolblur.Visible
-		tooltip.ZIndex = 101
 	end
 
 	gui.MouseEnter:Connect(function(x, y)
@@ -340,12 +339,8 @@ local function createMobileButton(buttonapi, position)
 end
 
 local function downloadFile(path, func)
-	local downloader = getgenv().catdownloader
-	if downloader then
-		downloader.Text = `Downloading {path}`
-	end
 	if not isfile(path) then
-		--createDownloader(path)
+		createDownloader(path)
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
 		end)
@@ -357,17 +352,11 @@ local function downloadFile(path, func)
 		end
 		writefile(path, res)
 	end
-	if downloader then
-		downloader.Text = ``
-	end
 	return (func or readfile)(path)
 end
 
-
 getcustomasset = assetfunction and function(path)
-	local find = table.find({'catrewrite/assets/new/mascot.png', 'catrewrite/assets/new/friendstab.png', 'catrewrite/assets/new/guiv4.png', 'catrewrite/assets/new/guivape.png', 'catrewrite/assets/new/textv4.png', 'catrewrite/assets/new/textvape.png'}, path)
-
-	return find and downloadFile(path, assetfunction) or getcustomassets[path] or ''
+	return downloadFile(path, assetfunction)
 end or function(path)
 	return getcustomassets[path] or ''
 end
@@ -1652,11 +1641,20 @@ components = {
 				tooltipicon:Destroy()
 			end
 			if self.Enabled then
-				tooltipicon = Instance.new('ImageLabel')
+				--[[tooltipicon = Instance.new('ImageLabel')
 				tooltipicon.Size = optionsettings.ToolSize
 				tooltipicon.BackgroundTransparency = 1
 				tooltipicon.Image = optionsettings.ToolIcon
 				tooltipicon.ImageColor3 = uipallet.Text
+				tooltipicon.Parent = optionsettings.IconParent]]
+				tooltipicon = Instance.new('TextLabel')
+				tooltipicon.BackgroundTransparency = 1
+				tooltipicon.Size = UDim2.fromOffset(textService:GetTextSize(optionsettings.Tooltip, 14, Enum.Font.Arial, Vector2.new(1000, 1000)).X, 12)
+				tooltipicon.Font = Enum.Font.Arial
+				tooltipicon.Text = optionsettings.Tooltip
+				tooltipicon.TextSize = 14
+				tooltipicon.TextXAlignment = Enum.TextXAlignment.Left
+				tooltipicon.TextColor3 = color.Dark(uipallet.Text, 0.16)
 				tooltipicon.Parent = optionsettings.IconParent
 			end
 			safecall(optionsettings.Function, self.Enabled)
@@ -3757,8 +3755,9 @@ function mainapi:CreateCategory(categorysettings)
 
 		local disabled = modulesettings.Disabled or false
 		if disabled then
-			modulesettings.Tooltip = 'This module is disabled for ur executor'
+			modulesettings.Tooltip = modulesettings.DisabledTooltip or 'This module is disabled for ur executor'
 		end
+
 		local hovered = false
 		local modulebutton = Instance.new('TextButton')
 		modulebutton.Name = modulesettings.Name
@@ -3833,7 +3832,6 @@ function mainapi:CreateCategory(categorysettings)
 				text.Name = 'Text'
 				text.AnchorPoint = Vector2.new()
 				text.TextSize = 12
-				text.ZIndex = 500
 				text.TextTransparency = 0
 				table.insert(moduleapi.Tags, indicator)
 
@@ -3964,7 +3962,6 @@ function mainapi:CreateCategory(categorysettings)
 		end
 
 		function moduleapi:Toggle(multiple)
-			if disabled then return end
 			if mainapi.ThreadFix then
 				setthreadidentity(8)
 			end
@@ -3990,6 +3987,7 @@ function mainapi:CreateCategory(categorysettings)
 			if not multiple then
 				mainapi:UpdateTextGUI()
 			end
+			if disabled then return end
 			task.spawn(modulesettings.Function, self.Enabled)
 		end
 
@@ -4037,6 +4035,11 @@ function mainapi:CreateCategory(categorysettings)
 		end)
 		modulebutton.MouseEnter:Connect(function()
 			hovered = true
+			for _, v in indicatorholder:GetChildren() do
+				if v:IsA('TextLabel') and v.Name ~= 'MATCHED' then
+					v.Visible = false
+				end
+			end
 			if not moduleapi.Enabled and not modulechildren.Visible then
 				modulebutton.TextColor3 = uipallet.Text
 				modulebutton.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
@@ -4045,17 +4048,20 @@ function mainapi:CreateCategory(categorysettings)
 		end)
 		modulebutton.MouseLeave:Connect(function()
 			hovered = false
+			for _, v in indicatorholder:GetChildren() do
+				if v:IsA('TextLabel') and v.Name ~= 'MATCHED' then
+					v.Visible = true
+				end
+			end
 			if not moduleapi.Enabled and not modulechildren.Visible then
 				modulebutton.TextColor3 = color.Dark(uipallet.Text, 0.16)
 				modulebutton.BackgroundColor3 = uipallet.Main
 			end
 			bind.Visible = #moduleapi.Bind > 0 or hovered or modulechildren.Visible
 		end)
-		if not disabled then
-			modulebutton.MouseButton1Click:Connect(function()
-				moduleapi:Toggle()
-			end)
-		end
+		modulebutton.MouseButton1Click:Connect(function()
+			moduleapi:Toggle()
+		end)
 		modulebutton.MouseButton2Click:Connect(function()
 			modulechildren.Visible = not modulechildren.Visible
 		end)
@@ -5702,7 +5708,7 @@ function mainapi:CreateProfileGUI()
 	addCorner(TextButton)
 
 	local ImageButton: ImageButton = Instance.new('ImageButton', popup);
-	ImageButton.Image = 'rbxassetid://0';
+	ImageButton.Image = '';
 	ImageButton.ZIndex = 5
 	ImageButton.Size = UDim2.new(0, 30, 0, 30);
 	ImageButton.Position = UDim2.new(0, 180, 0, 305);
@@ -5716,7 +5722,7 @@ function mainapi:CreateProfileGUI()
 	ImageLabel.BorderColor3 = Color3.fromRGB(0, 0, 0);
 	ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5);
 	ImageLabel.ZIndex = 5
-	ImageLabel.Image = 'rbxassetid://10747362241';
+	ImageLabel.Image = '';
 	ImageLabel.BackgroundTransparency = 1;
 	ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0);
 	ImageLabel.Size = UDim2.new(0.550000012, 0, 0.55, 0);
@@ -6117,6 +6123,7 @@ function mainapi:CreateProfileGUI()
 			Refresh()
 
 			for _, v in configs do
+				print(v.metadata.username)
 				addConfig(v.metadata.config_name, v.metadata.discord_username, v.metadata)
 			end
 		end)
@@ -6310,7 +6317,7 @@ function mainapi:CreateProfileGUI()
 end
 
 function mainapi:CreateNotification(title, text, duration, type)
-	if not self.Notifications.Enabled or shared.catdata and shared.catdata.Closet then return end
+	if not self.Notifications.Enabled or getgenv().closet then return end
 	task.delay(0, function()
 		if self.ThreadFix then
 			setthreadidentity(8)
@@ -6746,7 +6753,7 @@ local scarcitybanner = Instance.new('TextLabel')
 scarcitybanner.Size = UDim2.fromScale(1, 0.02)
 scarcitybanner.Position = UDim2.fromScale(0, 0.96)
 scarcitybanner.BackgroundTransparency = 1
-scarcitybanner.Text = 'We have a new new discord server! Join discord.gg/catvape.'
+scarcitybanner.Text = 'We have a new discord server! Join discord.gg/vxpe.'
 scarcitybanner.TextSize = 22
 scarcitybanner.TextColor3 = Color3.new(1, 1, 1)
 scarcitybanner.TextStrokeTransparency = 0.5
@@ -6769,7 +6776,7 @@ notifications.Parent = scaledgui
 tooltip = Instance.new('TextLabel')
 tooltip.Name = 'Tooltip'
 tooltip.Position = UDim2.fromScale(-1, -1)
-tooltip.ZIndex = 5
+tooltip.ZIndex = 200
 tooltip.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
 tooltip.Visible = false
 tooltip.Text = ''
@@ -6797,7 +6804,7 @@ scaledgui.Size = UDim2.fromScale(1 / scale.Scale, 1 / scale.Scale)
 
 task.spawn(function()
 	local loadingText = Instance.new('TextLabel')
-	loadingText.Size = UDim2.fromScale(1, 0.025)
+	loadingText.Size = UDim2.fromScale(1, 0.05)
 	loadingText.Position = UDim2.fromScale(0, 0.7)
 	loadingText.BackgroundTransparency = 1
 	loadingText.Text = 'Script is still loading, Please wait for this to finish first!'
@@ -6806,18 +6813,11 @@ task.spawn(function()
 	loadingText.TextStrokeTransparency = 0.5
 	loadingText.FontFace = uipallet.Font
 	loadingText.Parent = clickgui
-	
-	local downloader = loadingText:Clone()
-	downloader.Parent = clickgui
-	downloader.Text = ''
-	downloader.Position = loadingText.Position + UDim2.fromScale(0, 0.05)
-	getgenv().catdownloader = downloader
 
 	repeat
 		task.wait()
 	until mainapi.Loaded
-	loadingText.Text = 'Script is fully loaded!'
-	downloader.Text = ''
+	loadingText.Text = 'Thank you for choosing catrewrite vape!\nScript is fully loaded'
 end)
 
 mainapi:Clean(gui:GetPropertyChangedSignal('AbsoluteSize'):Connect(function()
@@ -6895,17 +6895,10 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('catrewrite/assets/new/miniicon.png'),
 	Size = UDim2.fromOffset(19, 12)
 })
-if game.GameId == 2619619496 then
-	mainapi:CreateCategory({
-		Name = 'Kits',
-		Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
-		Size = UDim2.fromOffset(14, 14)
-	})
-end
 mainapi:CreateCategory({
-	Name = 'Legit',
-	Icon = getcustomasset('catrewrite/assets/new/legittab.png'),
-	Size = UDim2.fromOffset(14, 14)
+	Name = 'Kits',
+	Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
+	Size = UDim2.fromOffset(15, 15)
 })
 mainapi.Categories.Main:CreateDivider('misc')
 

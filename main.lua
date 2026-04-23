@@ -1,5 +1,4 @@
--- i love whitepine! w whitepine!
-local license = ...
+repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
 local vape
@@ -20,21 +19,10 @@ end
 local cloneref = cloneref or function(obj)
 	return obj
 end
-local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
-
-writefile('wsfix195.txt', '-')
-task.delay(1, function()
-	if not isfile('wsfix195.txt') then
-		playersService.LocalPlayer:Kick('Couldn\'t find executor\'s workspace')
-	end
-end)
+local playersService = cloneref(game:GetService('Players'))
 
 local function downloadFile(path, func)
-	local downloader = getgenv().catdownloader
-	if downloader then
-		downloader.Text = `Downloading {path}`
-	end
 	if not isfile(path) then
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
@@ -47,41 +35,29 @@ local function downloadFile(path, func)
 		end
 		writefile(path, res)
 	end
-	if downloader then
-		downloader.Text = ''
-	end
 	return (func or readfile)(path)
-end
-shared.catdata = license
-
-local function compileTable(tab)
-	local json = '{'
-	for i, v in tab do
-		json = `{json}\n					    {i} = {typeof(v) == 'string' and '"'.. v.. '"' or v},`
-	end
-	return `{json}\n					}`
 end
 
 local function finishLoading()
 	vape.Init = nil
 	vape:Load()
-	vape:Clean(task.spawn(function()
+	task.spawn(function()
 		repeat
-			pcall(vape.Save, vape)
+			vape:Save()
 			task.wait(10)
-		until false
-	end))
+		until not vape.Loaded
+	end)
 
 	local teleportedServers
 	vape:Clean(playersService.LocalPlayer.OnTeleport:Connect(function()
-		if (not teleportedServers) and (not shared.VapeIndependent) and vape.AutoTeleport.Enabled then
+		if (not teleportedServers) and (not shared.VapeIndependent) then
 			teleportedServers = true
 			local teleportScript = [[
 				shared.vapereload = true
 				if shared.VapeDeveloper then
-					loadstring(readfile('catrewrite/loader.lua'), 'loader')(sharedData)
+					loadstring(readfile('catrewrite/loader.lua'), 'loader')()
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true), 'loader')(sharedData)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true), 'loader')()
 				end
 			]]
 			if shared.VapeDeveloper then
@@ -90,7 +66,6 @@ local function finishLoading()
 			if shared.VapeCustomProfile then
 				teleportScript = 'shared.VapeCustomProfile = "'..shared.VapeCustomProfile..'"\n'..teleportScript
 			end
-			teleportScript = teleportScript:gsub('sharedData', compileTable(license))
 			vape:Save()
 			queue_on_teleport(teleportScript)
 		end
@@ -114,28 +89,41 @@ if not isfolder('catrewrite/assets/'..gui) then
 end
 vape = loadstring(downloadFile('catrewrite/guis/'..gui..'.lua'), 'gui')()
 shared.vape = vape
-_G.vape = shared.vape or {'?'}
+_G.vape = vape
 
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catrewrite/games/universal.lua'), 'universal')()
 	if isfile('catrewrite/games/'..game.PlaceId..'.lua') then
 		loadstring(readfile('catrewrite/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
 	else
-		if not shared.VapeDeveloper then
-			local success, result = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua')
-			end)
-
-			if success and result ~= '404: Not Found' then
-				writefile(`catrewrite/games/{game.PlaceId}.lua`, result)
-				loadstring(result, tostring(game.PlaceId))(...)
+		local suc, res = pcall(function()
+			return not shared.VapeDeveloper and game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true) or '404: Not Found'
+		end)
+		if suc and res ~= '404: Not Found' then
+			loadstring(downloadFile('catrewrite/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(...)
+		else
+			local found = false
+			local callback = shared.VapeDeveloper and readfile or downloadFile
+			
+			for i, v in httpService:JSONDecode(callback("catrewrite/profiles/supported.json")) do
+				print('fr')
+				if found then break; end
+				if game.GameId == v.gameid then
+					print('yo')
+					for i2, v2 in v do
+						if typeof(v2) == 'table' and table.find(v2.Ids, game.PlaceId) then
+							found = true
+							vape.Place = v2.Place
+							loadstring(callback('catrewrite/games/'.. i.. '/'.. i2.. '.luau'), tostring(game.PlaceId))(...)
+							break
+						end
+					end
+				end
 			end
 		end
 	end
-	pcall(function() loadstring(downloadFile('catrewrite/libraries/script.lua'), 'script.lua')(license.Key) end);
 	finishLoading()
 else
 	vape.Init = finishLoading
 	return vape
 end
-

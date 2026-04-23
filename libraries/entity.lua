@@ -180,6 +180,10 @@ entitylib.EntityPosition = function(entitysettings)
 			return a.Magnitude < b.Magnitude
 		end)
 
+		if entitysettings.Priority then
+			table.sort(sortingTable, entitysettings.Priority)
+		end
+
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
 				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
