@@ -722,7 +722,7 @@ run(function()
 		end
 		if ent.NPC then return true end
 		if isFriend(ent.Player) then return false end
-		if not select(2, whitelist:get(ent.Player)) then return false end
+		--if not select(2, whitelist:get(ent.Player)) then return false end
 		return lplr:GetAttribute('Team') ~= ent.Player:GetAttribute('Team')
 	end
 	vape:Clean(entitylib.Events.LocalAdded:Connect(updateVelocity))
@@ -957,12 +957,12 @@ run(function()
 					end
 
 					if suc and plr then
-						if not select(2, whitelist:get(plr)) then 
-                            local humanoid = attackTable.entityInstance:FindFirstChild('Humanoid')
-                            if humanoid and humanoid.Health < 30 then
-                                return 
-                            end
-                        end
+						--if not select(2, whitelist:get(plr)) then 
+                            --local humanoid = attackTable.entityInstance:FindFirstChild('Humanoid')
+                            --if humanoid and humanoid.Health < 30 then
+                            --    return 
+                            --end
+                        --end
 					end
 
 					return call:SendToServer(attackTable, ...)
@@ -980,7 +980,7 @@ run(function()
         return OldHit(...)
     end
 
-	bedwars.BlockController.isBlockBreakable = function(self, breakTable, plr)
+	--[[bedwars.BlockController.isBlockBreakable = function(self, breakTable, plr)
 		local obj = bedwars.BlockController:getStore():getBlockAt(breakTable.blockPosition)
 
 		if obj and obj.Name == 'bed' then
@@ -999,7 +999,7 @@ run(function()
 		end
 
 		return OldBreak(self, breakTable, plr)
-	end
+	end]]
 
 	local cache, blockhealthbar = {}, {blockHealth = -1, breakingBlockPosition = Vector3.zero}
 	store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
