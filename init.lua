@@ -31,7 +31,7 @@ local function wipeFolder(path)
 		if isfile(file) and select(1, readfile(file):find('--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.')) == 1 then
 			delfile(file)
 		elseif isfolder(file) then
-			delfolder(file)
+			wipeFolder(file)
 		end
 	end
 end
