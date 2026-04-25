@@ -19,6 +19,7 @@ end
 local cloneref = cloneref or function(obj)
 	return obj
 end
+local inputService = cloneref(game:GetService('UserInputService'))
 local httpService = cloneref(game:GetService('HttpService'))
 local playersService = cloneref(game:GetService('Players'))
 
@@ -71,12 +72,12 @@ local function finishLoading()
 		end
 	end))
 
-	if not shared.vapereload then
+	--if not shared.vapereload then
 		if not vape.Categories then return end
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			vape:CreateNotification('Finished Loading', vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
+			vape:CreateNotification('Finished Loading', not inputService.KeyboardEnabled and vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
 		end
-	end
+	--end
 end
 
 if not isfile('catrewrite/profiles/gui.txt') then

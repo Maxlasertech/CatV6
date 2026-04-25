@@ -42,6 +42,7 @@ local tweenService = cloneref(game:GetService('TweenService'))
 local lightingService = cloneref(game:GetService('Lighting'))
 local marketplaceService = cloneref(game:GetService('MarketplaceService'))
 local teleportService = cloneref(game:GetService('TeleportService'))
+local proximityPromptService = cloneref(game:GetService('ProximityPromptService'))
 local httpService = cloneref(game:GetService('HttpService'))
 local guiService = cloneref(game:GetService('GuiService'))
 local groupService = cloneref(game:GetService('GroupService'))
@@ -7955,6 +7956,117 @@ run(function()
 	})
 	InfiniteJump:CreateToggle({
 		Name = 'TP Down'
+	})
+end)
+
+run(function()
+	local ZoomUnlocker
+	local Distance
+
+	local old
+
+	ZoomUnlocker = vape.Categories.Render:CreateModule({
+		Name = 'Zoom Unlocker',
+		Tooltip = 'Changes max zoom distance',
+		Function = function(call)
+			if call then
+				old = lplr.CameraMaxZoomDistance
+				lplr.CameraMaxZoomDistance = Distance.Value
+			else
+				lplr.CameraMaxZoomDistance = old
+				old = nil
+			end
+		end
+	})
+
+	Distance = ZoomUnlocker:CreateSlider({
+		Name = 'Distance',
+		Min = (lplr.CameraMinZoomDistance or 0),
+		Max = 300,
+		Decimal = 5,
+		Default = (lplr.CameraMaxZoomDistance or 14),
+		Function = function(val)
+			if ZoomUnlocker.Enabled then
+				lplr.CameraMaxZoomDistance = val
+			end
+		end
+	})
+end)
+
+run(function()
+	local PromptDuration
+	local Duration
+
+	PromptDuration = vape.Categories.Utility:CreateModule({
+		Name = 'Fast interaction',
+		Tags = {'new'},
+		Tooltip = 'Changes how fast ur interacting',
+		Function = function(call)
+			if call then
+				PromptDuration:Clean(proximityPromptService.PromptButtonHoldBegan:Connect(function(prompt, player)
+					if player == lplr then
+						task.delay(Duration.Value, fireproximityprompt, prompt)
+					end
+				end))
+			end
+		end
+	})
+
+	Duration = PromptDuration:CreateSlider({
+		Name = 'Duration',
+		Min = 0,
+		Max = 2,
+		Default = 0,
+		Suffix = function(val)
+			return val > 1 and 'secs' or 'sec'
+		end,
+		Decimal = 100
+	})
+end)
+
+run(function()
+	local PromptExtender
+	local Extend
+
+	local Reference = {}
+	local function Added(v)
+		if v:IsA(`ProximityPrompt`) then
+			Reference[v] = v.MaxActivationDistance
+			v.MaxActivationDistance = v.MaxActivationDistance + Extend.Value
+			PromptExtender:Clean(v:GetPropertyChangedSignal('MaxActivationDistance'):Connect(function()
+				Reference[v] = v.MaxActivationDistance
+				v.MaxActivationDistance = v.MaxActivationDistance + Extend.Value
+			end))
+		end
+	end
+
+	PromptExtender = vape.Categories.Utility:CreateModule({
+		Name = 'Interact Extender',
+		Tooltip = 'Allows you to interact with stuff further',
+		Tags = {'new'},
+		Function = function(callback)
+			if callback then
+				PromptExtender:Clean(workspace.DescendantAdded:Connect(Added))
+				for _, v in workspace:QueryDescendants('ProximityPrompt') do
+					task.spawn(Added, v)
+				end
+			else
+				for ent, value in Reference do
+					ent.MaxActivationDistance = value
+					Reference[ent] = nil
+				end
+			end
+		end
+	})
+	Extend = PromptExtender:CreateSlider({
+		Name = 'Extra activation range',
+		Min = 0,
+		Max = 10,
+		Default = 5,
+		Decimal = 10,
+		Suffix = function(val)
+			return val <= 1 and 'stud' or 'studs'
+		end
 	})
 end)
 
