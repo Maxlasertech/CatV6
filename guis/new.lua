@@ -6917,6 +6917,11 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
 	Size = UDim2.fromOffset(15, 15)
 })
+mainapi:CreateCategory({
+	Name = 'Legit',
+	Icon = getcustomasset('catrewrite/assets/new/legittab.png'),
+	Size = UDim2.fromOffset(15, 15)
+})
 mainapi.Categories.Main:CreateDivider('misc')
 
 --[[

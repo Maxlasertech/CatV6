@@ -29,7 +29,8 @@ end
 local function wipeFolder(path)
 	if not isfolder(path) then return end
 	for _, file in listfiles(path) do
-		if file:find('init') or file:find('profile') then continue end
+		if file:find('init') then continue end
+		if file:find('profile') then continue end
 		if isfile(file) then
 			delfile(file)
 		elseif isfolder(file) then

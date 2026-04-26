@@ -73,18 +73,16 @@ local function finishLoading()
 		end
 	end))
 
-	--if not shared.vapereload then
-		if not vape.Categories then return end
-		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			vape:CreateNotification('Finished Loading', not inputService.KeyboardEnabled and vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
-		end
-	--end
+	if not vape.Categories then return end
+	if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
+		vape:CreateNotification('Finished Loading', not inputService.KeyboardEnabled and vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
+	end
 end
 
 if not isfile('catrewrite/profiles/gui.txt') then
 	writefile('catrewrite/profiles/gui.txt', 'new')
 end
-local gui = readfile('catrewrite/profiles/gui.txt')
+local gui = 'new'--readfile('catrewrite/profiles/gui.txt')
 
 if not isfolder('catrewrite/assets/'..gui) then
 	makefolder('catrewrite/assets/'..gui)
@@ -93,7 +91,7 @@ vape = loadstring(downloadFile('catrewrite/guis/'..gui..'.lua'), 'gui')()
 shared.vape = vape
 _G.vape = vape
 
-getgenv().canDebug = not table.find({'Xeno', 'Solara'}, ({identifyexecutor()})[1]) and debug.getconstants and debug.getproto and true or false
+getgenv().canDebug = not table.find({'Xeno', 'Solara'}, ({identifyexecutor()})[1]) and debug.getconstant and debug.getproto and true or false
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catrewrite/games/universal.lua'), 'universal')()
 
@@ -118,7 +116,7 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-	--z
+
 	if not found then
 		local suc, res = pcall(function()
 			return not shared.VapeDeveloper and game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true) or '404: Not Found'

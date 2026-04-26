@@ -1,7 +1,4 @@
 --!nocheck
-local run = function(func)
-	func()
-end
 local cloneref = cloneref or function(obj)
 	return obj
 end
@@ -26,6 +23,11 @@ local contextActionService = cloneref(game:GetService('ContextActionService'))
 local virtualInputManager = cloneref(game:GetService('VirtualInputManager'))
 local guiService = cloneref(game:GetService('GuiService'))
 local starterGui = cloneref(game:GetService('StarterGui'))
+
+local run = function(func)
+	func()
+	runService.PostSimulation:Wait()
+end
 
 local isnetworkowner = identifyexecutor and table.find({'AWP', 'Nihon', 'Synapse Z', 'Delta', 'Volt', 'Potassium'}, ({identifyexecutor()})[1]) and isnetworkowner or function()
 	return true
@@ -520,6 +522,7 @@ local sortmethods, breakmethods = {
         return (pos - Vector3.new(a.Position.X, pos.Y, a.Position.Z)).Magnitude
     end
 }
+getgenv().breakmethods = breakmethods
 getgenv().sortmethods = sortmethods
 
 run(function()
@@ -1080,6 +1083,7 @@ run(function()
 
         return nil
     end
+	getgenv().calculatePath = calculatePath
 
 	bedwars.placeBlock = function(pos, item)
 		if getItem(item) then
@@ -1316,7 +1320,8 @@ run(function()
 		pcall(function()
 			repeat task.wait() until store.matchState ~= 0 or vape.Loaded == nil
 			if vape.Loaded == nil then return end
-			mapname = waitForChildYield(workspace, 5, 'Map', 'Worlds'):GetChildren()[1].Name
+			store.map = waitForChildYield(workspace, 9e9, 'Map', 'Worlds'):GetChildren()[1]
+			mapname = store.map.Name
 			mapname = string.gsub(string.split(mapname, '_')[2] or mapname, '-', '') or 'Blank'
 		end)
 	end)
@@ -2412,7 +2417,7 @@ run(function()
 		Function = function(callback)
 			if callback then
                 old = bedwars.BlockBreaker.hitBlock
-                bedwars.BlockBreaker.hitBlock = function(self, ...)
+                bedwars.BlockBreaker.hitBlock = function(self, ...): ...any
 					local _, params = unpack({...})
 					pcall(function()
 						local block, info = nil, self.clientManager:getBlockSelector():getMouseInfo(1, {
@@ -4312,6 +4317,24 @@ run(function()
 			end
 		end,
 		Tooltip = 'Render Beds through walls'
+	})
+end)
+
+run(function()
+	local old
+
+	vape.Categories.Render:CreateModule({
+		Name = 'Stream Remover',
+		Tooltip = 'Disables player\'s streamer mode clientsidedly',
+		Function = function(call)
+			if call then
+				old = bedwars.GamePlayer.canSeeThroughDisguise
+				bedwars.GamePlayer.canSeeThroughDisguise = function() return true end
+			else
+				bedwars.GamePlayer.canSeeThroughDisguise = old
+				old = nil
+			end
+		end
 	})
 end)
 	
@@ -6703,8 +6726,6 @@ run(function()
 	
 					task.wait(0.03)
 				until not Scaffold.Enabled
-			else
-				label = nil
 			end
 		end,
 		Tooltip = 'Helps you make bridges/scaffold walk.'
@@ -6808,7 +6829,7 @@ run(function()
 	local Party
 	local Profile
 	local Users
-	local blacklistedclans = {'gg', 'gg2', 'DV', 'DV2'}
+	local blacklistedclans = {'gg', 'gg2'}
 	local blacklisteduserids = {1502104539, 3826146717, 4531785383, 1049767300, 4926350670, 653085195, 184655415, 2752307430, 5087196317, 5744061325, 1536265275}
 	local joined = {}
 	
@@ -6822,6 +6843,26 @@ run(function()
 		return suc and res or 0
 	end
 	
+	local function hasPermission(plr)
+		repeat task.wait() until plr:GetAttribute('PlayerConnected')
+		local tags: Folder? = plr:FindFirstChild('Tags')
+		if not tags then
+			tags = plr:WaitForChild('Tags', 5)
+			task.wait(2)
+		end
+
+		if tags then
+			for _, v in tags:GetChildren() do
+				local text = v:GetAttribute('Text'):lower()
+				if (text:find('mod') and #text > 5) or text:find('artist') then
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
 	local function staffFunction(plr, checktype)
 		if not vape.Loaded then
 			repeat task.wait() until vape.Loaded
@@ -6835,10 +6876,8 @@ run(function()
 		end
 	
 		if Mode.Value == 'Uninject' then
-			task.spawn(function()
-				vape:Uninject()
-			end)
-			game:GetService('StarterGui'):SetCore('SendNotification', {
+			task.spawn(vape.Uninject, vape)
+			cloneref(game:GetService('StarterGui')):SetCore('SendNotification', {
 				Title = 'StaffDetector',
 				Text = 'Staff Detected ('..checktype..')\n'..plr.Name..' ('..plr.UserId..')',
 				Duration = 60,
@@ -6877,13 +6916,15 @@ run(function()
 		if not plr:GetAttribute('Team') and plr:GetAttribute('Spectator') and not bedwars.Store:getState().Game.customMatch then
 			connection:Disconnect()
 			local tab, pages = {}, playersService:GetFriendsAsync(plr.UserId)
-			for _ = 1, 4 do
-				for _, v in pages:GetCurrentPage() do
-					table.insert(tab, v.Id)
+			pcall(function()
+				for _ = 1, 70 do
+					for _, v in pages:GetCurrentPage() do
+						table.insert(tab, v.Id)
+					end
+					if pages.IsFinished then break end
+					pages:AdvanceToNextPageAsync()
 				end
-				if pages.IsFinished then break end
-				pages:AdvanceToNextPageAsync()
-			end
+			end)
 	
 			local friend = checkFriends(tab)
 			if not friend then
@@ -6893,7 +6934,7 @@ run(function()
 				notif('StaffDetector', string.format('Spectator %s joined from %s', plr.Name, friend), 20, 'warning')
 			end
 		end
-        return nil
+		return nil
 	end
 	
 	local function playerAdded(plr)
@@ -6902,7 +6943,7 @@ run(function()
 	
 		if table.find(blacklisteduserids, plr.UserId) or table.find(Users.ListEnabled, tostring(plr.UserId)) then
 			staffFunction(plr, 'blacklisted_user')
-		elseif getRole(plr, 5774246) >= 100 then
+		elseif getRole(plr, 5774246) >= 100 or hasPermission(plr) then
 			staffFunction(plr, 'staff_role')
 		else
 			local connection
@@ -6965,13 +7006,6 @@ run(function()
 		Name = 'Users',
 		Placeholder = 'player (userid)'
 	})
-	
-	task.spawn(function()
-		repeat task.wait(1) until vape.Loaded or vape.Loaded == nil
-		if vape.Loaded and not StaffDetector.Enabled then
-			StaffDetector:Toggle()
-		end
-	end)
 end)
 	
 run(function()
@@ -9471,8 +9505,10 @@ run(function()
 	local function attemptBreak(tab, localPosition)
 		if not tab then return end
 		if #tab > 1 then
-			table.sort(tab, function(a, b)
-				return (localPosition - a.Position).Magnitude <= (localPosition - b.Position).Magnitude
+			pcall(function()
+				table.sort(tab, function(a, b)
+					return (localPosition - a.Position).Magnitude <= (localPosition - b.Position).Magnitude
+				end)
 			end)
 		end
 		for _, v in tab do
@@ -9667,6 +9703,283 @@ run(function()
 	LimitItem = Breaker:CreateToggle({
 		Name = 'Limit to items',
 		Tooltip = 'Only breaks when tools are held'
+	})
+end)
+
+run(function()
+	local KaidaKillaura
+	local Targets
+	local AttackRange
+	local UpdateRate
+	local MouseDown
+	local GUICheck
+	local ShowAnimation
+	local PerfectAbility
+	local AbilityDistance
+	local SwingDuringAbility
+	local lastAttackTime = 0
+	local lastAbilityTime = 0
+	local attackCooldown = 0.65
+	local abilityCooldown = 22
+	local isChargingAbility = false
+	local abilityStartTime = 0
+	
+	local function getPlayerClawLevel()
+		local handItem = lplr.Character and lplr.Character:FindFirstChild('HandInvItem')
+		if handItem and handItem.Value then
+			local itemType = handItem.Value.Name
+			if itemType == 'summoner_claw_1' then return 1 end
+			if itemType == 'summoner_claw_2' then return 2 end
+			if itemType == 'summoner_claw_3' then return 3 end
+			if itemType == 'summoner_claw_4' then return 4 end
+		end
+		
+		if store and store.inventory and store.inventory.hotbar then
+			for _, v in pairs(store.inventory.hotbar) do
+				if v.item then
+					local itemType = v.item.itemType
+					if itemType == 'summoner_claw_1' then return 1 end
+					if itemType == 'summoner_claw_2' then return 2 end
+					if itemType == 'summoner_claw_3' then return 3 end
+					if itemType == 'summoner_claw_4' then return 4 end
+				end
+			end
+		end
+		
+		return 1 
+	end
+	
+	KaidaKillaura = vape.Categories.Blatant:CreateModule({
+		Name = 'Auto Kaida',
+		Tags = {'new'},
+		Function = function(callback)
+			if callback then
+				if store.equippedKit ~= 'summoner' then
+					return
+				end
+				
+				local sounds = {
+					bedwars.SoundList.SUMMONER_CLAW_ATTACK_1,
+					bedwars.SoundList.SUMMONER_CLAW_ATTACK_2,
+					bedwars.SoundList.SUMMONER_CLAW_ATTACK_3,
+					bedwars.SoundList.SUMMONER_CLAW_ATTACK_4
+				}							
+				repeat
+					if not entitylib.isAlive then
+						task.wait(0.1)
+						continue
+					end
+					
+					if GUICheck.Enabled and bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
+						task.wait(0.1)
+						continue
+					end
+					
+					local handItem = lplr.Character:FindFirstChild('HandInvItem')
+					local hasClaw = false
+					if handItem and handItem.Value then
+						local itemType = handItem.Value.Name
+						hasClaw = itemType:find('summoner_claw')
+					end
+					
+					if not hasClaw then
+						task.wait(0.1)
+						continue
+					end
+					
+					if MouseDown.Enabled then
+						local mousePressed = inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+						if not mousePressed then
+							task.wait(1.2)
+							continue
+						end
+					end
+					
+					local plr = entitylib.EntityPosition({
+						Range = AttackRange.Value,
+						Part = 'RootPart',
+						Players = Targets.Players.Enabled,
+						NPCs = Targets.NPCs.Enabled,
+						Wallcheck = Targets.Walls.Enabled or nil
+					})
+					
+					if plr then
+						local localPosition = entitylib.character.RootPart.Position
+						local targetDistance = (localPosition - plr.RootPart.Position).Magnitude
+						local currentTime = workspace:GetServerTimeNow()
+						
+						if PerfectAbility.Enabled and targetDistance <= AbilityDistance.Value then
+							if (currentTime - lastAbilityTime) >= abilityCooldown then
+								if not isChargingAbility then
+									pcall(function()
+										game:GetService("ReplicatedStorage")
+											:WaitForChild("events-@easy-games/game-core:shared/game-core-networking@getEvents.Events")
+											:WaitForChild("useAbility"):FireServer("summoner_start_charging")
+									end)
+									isChargingAbility = true
+									abilityStartTime = currentTime
+								end
+								
+								local chargeTime = currentTime - abilityStartTime
+								if chargeTime >= 0.5 then
+									pcall(function()
+										game:GetService("ReplicatedStorage")
+											:WaitForChild("events-@easy-games/game-core:shared/game-core-networking@getEvents.Events")
+											:WaitForChild("useAbility"):FireServer("summoner_finish_charging")
+									end)
+									isChargingAbility = false
+									lastAbilityTime = currentTime
+								end
+							end
+						else
+							if isChargingAbility then
+								isChargingAbility = false
+							end
+						end
+						if (currentTime - lastAttackTime) >= attackCooldown then
+							if isChargingAbility and not SwingDuringAbility.Enabled then
+								task.wait(0.05)
+								continue
+							end
+							
+							local shootDir = CFrame.lookAt(localPosition, plr.RootPart.Position).LookVector
+							localPosition += shootDir * math.max((localPosition - plr.RootPart.Position).Magnitude - 16, 0)
+							lastAttackTime = currentTime
+							if ShowAnimation.Enabled then
+								task.spawn(function()
+									pcall(function()
+										local clawLevel = getPlayerClawLevel()
+										bedwars.AnimationUtil:playAnimation(lplr, bedwars.GameAnimationUtil:getAssetId(bedwars.AnimationType.SUMMONER_CHARACTER_SWIPE), {
+											looped = false
+										})
+										local clawModel = replicatedStorage.Assets.Misc.Kaida.Summoner_DragonClaw:Clone()
+										local clawColors = {
+											Color3.fromRGB(75, 75, 75), 
+											Color3.fromRGB(255, 255, 255), 
+											Color3.fromRGB(43, 229, 229),  
+											Color3.fromRGB(49, 229, 94)   
+										}
+										local nailMesh = clawModel:FindFirstChild("dragon_claw_nail_mesh")
+										if nailMesh and nailMesh:IsA("MeshPart") then
+											nailMesh.Color = clawColors[clawLevel] or clawColors[1]
+										end
+										if bedwars.KnightClient and bedwars.KnightClient.Controllers.SummonerKitSkinController then
+											if bedwars.KnightClient.Controllers.SummonerKitSkinController:isPrismaticSkin(lplr) then
+												bedwars.KnightClient.Controllers.SummonerKitSkinController:applyClawRGB(clawModel)
+											end
+										end
+										clawModel.Parent = workspace
+										local camera = workspace.CurrentCamera
+										if camera and camera.CFrame.Position and (camera.CFrame.Position - entitylib.character.RootPart.Position).Magnitude < 1 then
+											for _, part in clawModel:GetDescendants() do
+												if part:IsA('MeshPart') then
+													part.Transparency = 0.6
+												end
+											end
+										end
+										local rootPart = entitylib.character.RootPart
+										local Unit = Vector3.new(shootDir.X, 0, shootDir.Z).Unit
+										local startPos = rootPart.Position + Unit:Cross(Vector3.new(0, 1, 0)).Unit * -1 * 5 + Unit * 6
+										local direction = (startPos + shootDir * 13 - startPos).Unit
+										local cframe = CFrame.new(startPos, startPos + direction)
+										clawModel:PivotTo(cframe)
+										clawModel.PrimaryPart.Anchored = true
+										if clawModel:FindFirstChild('AnimationController') then
+											local animator = clawModel.AnimationController:FindFirstChildOfClass('Animator')
+											if animator then
+												bedwars.AnimationUtil:playAnimation(animator, bedwars.GameAnimationUtil:getAssetId(bedwars.AnimationType.SUMMONER_CLAW_ATTACK), {
+													looped = false,
+													speed = 1
+												})
+											end
+										end
+										pcall(function()
+											bedwars.SoundManager:playSound(sounds[math.random(1, #sounds)], {
+												position = rootPart.Position
+											})
+										end)
+										task.wait(0.75)
+										clawModel:Destroy()
+									end)
+								end)
+							end
+							bedwars.Client:Get(remotes.SummonerClawAttack):SendToServer({
+								position = localPosition,
+								direction = shootDir,
+								clientTime = currentTime
+							})
+						end
+					else
+						if isChargingAbility then
+							isChargingAbility = false
+						end
+					end
+					
+					task.wait(1 / UpdateRate.Value)
+				until not KaidaKillaura.Enabled
+			end
+		end,
+		Tooltip = 'Auto attacks with Summoner claw'
+	})
+	
+	Targets = KaidaKillaura:CreateTargets({
+		Players = true,
+		NPCs = true,
+		Walls = true
+	})
+	
+	AttackRange = KaidaKillaura:CreateSlider({
+		Name = 'Attack Range',
+		Min = 1,
+		Max = 32,
+		Default = 22,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	
+	UpdateRate = KaidaKillaura:CreateSlider({
+		Name = 'Update Rate',
+		Min = 1,
+		Max = 120,
+		Default = 60,
+		Suffix = 'hz'
+	})
+	
+	MouseDown = KaidaKillaura:CreateToggle({
+		Name = 'Require mouse down',
+		Tooltip = 'Only attacks while holding left click'
+	})
+	
+	GUICheck = KaidaKillaura:CreateToggle({Name = 'GUI Check'})
+	
+	ShowAnimation = KaidaKillaura:CreateToggle({
+		Name = 'Show Animation',
+		Default = true
+	})
+	
+	SwingDuringAbility = KaidaKillaura:CreateToggle({
+		Name = 'Swing During Ability',
+		Default = true,
+		Tooltip = 'Continue claw attacks while charging ability (disable for legit gameplay)'
+	})
+	
+	PerfectAbility = KaidaKillaura:CreateToggle({
+		Name = 'Perfect Ability',
+		Function = function(callback)
+			AbilityDistance.Object.Visible = callback
+		end
+	})
+	
+	AbilityDistance = KaidaKillaura:CreateSlider({
+		Name = 'Ability Distance',
+		Min = 3,
+		Max = 15,
+		Default = 6,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
 	})
 end)
 
@@ -11620,7 +11933,7 @@ run(function()
         return
     end
 
-    BedAlarm = vape.Legit:CreateModule({
+    BedAlarm = vape.Categories.Legit:CreateModule({
         Name = 'Bed Alarm',
         Function = function(callback)
             if callback then
@@ -11694,7 +12007,7 @@ run(function()
 	local List
 	local NameToId = {}
 	
-	BedBreakEffect = vape.Legit:CreateModule({
+	BedBreakEffect = vape.Categories.Legit:CreateModule({
 		Name = 'Bed Break Effect',
 		Function = function(callback)
 			if callback then
@@ -11724,7 +12037,7 @@ run(function()
 end)
 	
 run(function()
-	vape.Legit:CreateModule({
+	vape.Categories.Legit:CreateModule({
 		Name = 'Clean Kit',
 		Function = function(callback)
 			if callback then
@@ -11743,7 +12056,7 @@ run(function()
 	local old
 	local Image
 	
-	local Crosshair = vape.Legit:CreateModule({
+	local Crosshair = vape.Categories.Legit:CreateModule({
 		Name = 'Crosshair',
 		Function = function(callback)
 			if callback then
@@ -11788,7 +12101,7 @@ run(function()
 	tab = suc and tab or {}
 	local oldvalues, oldfont = {}, nil
 	
-	DamageIndicator = vape.Legit:CreateModule({
+	DamageIndicator = vape.Categories.Legit:CreateModule({
 		Name = 'Damage Indicator',
 		Function = function(callback)
 			if callback then
@@ -11876,7 +12189,7 @@ run(function()
 	local Value
 	local old, old2
 	
-	FOV = vape.Legit:CreateModule({
+	FOV = vape.Categories.Legit:CreateModule({
 		Name = 'FOV',
 		Function = function(callback)
 			if callback then
@@ -11910,7 +12223,7 @@ run(function()
 	local Visualizer
 	local effects, util = {}, {}
 	
-	FPSBoost = vape.Legit:CreateModule({
+	FPSBoost = vape.Categories.Legit:CreateModule({
 		Name = 'FPS Boost',
 		Function = function(callback)
 			if callback then
@@ -11987,7 +12300,7 @@ run(function()
 	local Color
 	local done = {}
 	
-	HitColor = vape.Legit:CreateModule({
+	HitColor = vape.Categories.Legit:CreateModule({
 		Name = 'Hit Color',
 		Function = function(callback)
 			if callback then 
@@ -12021,7 +12334,7 @@ run(function()
 end)
 	
 run(function()
-	vape.Legit:CreateModule({
+	vape.Categories.Legit:CreateModule({
 		Name = 'Hit Fix',
 		Function = function(callback)
 			debug.setconstant(bedwars.SwordController.swingSwordAtMouse, 23, callback and 'raycast' or 'Raycast')
@@ -12070,7 +12383,7 @@ if canDebug then
 			end
 		end
 		
-		Interface = vape.Legit:CreateModule({
+		Interface = vape.Categories.Legit:CreateModule({
 			Name = 'Interface',
 			Function = function(callback)
 				for i, v in (callback and new or old) do
@@ -12365,7 +12678,7 @@ run(function()
 		end
 	}
 	
-	KillEffect = vape.Legit:CreateModule({
+	KillEffect = vape.Categories.Legit:CreateModule({
 		Name = 'Kill Effect',
 		Function = function(callback)
 			if callback then
@@ -12519,7 +12832,7 @@ run(function()
 		end
 	end
 	
-	SongBeats = vape.Legit:CreateModule({
+	SongBeats = vape.Categories.Legit:CreateModule({
 		Name = 'Song Beats',
 		Function = function(callback)
 			if callback then
@@ -12596,7 +12909,7 @@ run(function()
 	local soundlist = {}
 	local old
 	
-	SoundChanger = vape.Legit:CreateModule({
+	SoundChanger = vape.Categories.Legit:CreateModule({
 		Name = 'Sound Changer',
 		Function = function(callback)
 			if callback then
@@ -12635,7 +12948,7 @@ run(function()
     local TexturePacks
     local Pack
 
-    TexturePacks = vape.Legit:CreateModule({
+    TexturePacks = vape.Categories.Legit:CreateModule({
         Name = 'Texture Pack',
         Function = function(callback)
             if callback then
@@ -12658,7 +12971,7 @@ end)
 run(function()
 	local old
 	
-	vape.Legit:CreateModule({
+	vape.Categories.Legit:CreateModule({
 		Name = 'No Click Delay',
 		Disabled = not canDebug,
 		Function = function(callback)
@@ -12719,7 +13032,7 @@ if canDebug then
 			end
 		end
 		
-		UICleanup = vape.Legit:CreateModule({
+		UICleanup = vape.Categories.Legit:CreateModule({
 			Name = 'UI Cleanup',
 			Function = function(callback)
 				for i, v in (callback and new or old) do
@@ -12840,7 +13153,7 @@ run(function()
 	local Rots = {}
 	local old, oldc1
 	
-	Viewmodel = vape.Legit:CreateModule({
+	Viewmodel = vape.Categories.Legit:CreateModule({
 		Name = 'Viewmodel',
 		Function = function(callback)
 			local viewmodel = gameCamera:FindFirstChild('Viewmodel')
@@ -12941,7 +13254,7 @@ run(function()
 	local List
 	local NameToId = {}
 	
-	WinEffect = vape.Legit:CreateModule({
+	WinEffect = vape.Categories.Legit:CreateModule({
 		Name = 'Win Effect',
 		Function = function(callback)
 			if callback then

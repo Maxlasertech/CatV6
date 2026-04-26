@@ -6831,7 +6831,7 @@ run(function()
 		end
 	end
 	
-	Atmosphere = vape.Legit:CreateModule({
+	Atmosphere = vape.Categories.Legit:CreateModule({
 		Name = 'Atmosphere',
 		Function = function(callback)
 			if callback then
@@ -6924,7 +6924,7 @@ run(function()
 	local FadeOut
 	local trail, point, point2
 	
-	Breadcrumbs = vape.Legit:CreateModule({
+	Breadcrumbs = vape.Categories.Legit:CreateModule({
 		Name = 'Breadcrumbs',
 		Function = function(callback)
 			if callback then
@@ -7041,7 +7041,7 @@ run(function()
 		motor.Parent = part
 	end
 	
-	Cape = vape.Legit:CreateModule({
+	Cape = vape.Categories.Legit:CreateModule({
 		Name = 'Cape',
 		Function = function(callback)
 			if callback then
@@ -7108,7 +7108,7 @@ run(function()
 	local Color
 	local hat
 	
-	ChinaHat = vape.Legit:CreateModule({
+	ChinaHat = vape.Categories.Legit:CreateModule({
 		Name = 'China Hat',
 		Function = function(callback)
 			if callback then
@@ -7370,7 +7370,7 @@ run(function()
 		end
 	end
 	
-	Disguise = vape.Legit:CreateModule({
+	Disguise = vape.Categories.Legit:CreateModule({
 		Name = 'Disguise',
 		Function = function(callback)
 			if callback then
@@ -7409,7 +7409,7 @@ run(function()
 	local Value
 	local oldfov
 	
-	FOV = vape.Legit:CreateModule({
+	FOV = vape.Categories.Legit:CreateModule({
 		Name = 'FOV',
 		Function = function(callback)
 			if callback then
@@ -7446,7 +7446,7 @@ run(function()
 				local frames = {}
 				local startClock = os.clock()
 				local updateTick = tick()
-				FPS:Clean(runService.Heartbeat:Connect(function()
+				FPS:Clean(runService.PostSimulation:Connect(function()
 					local updateClock = os.clock()
 					for i = #frames, 1, -1 do
 						frames[i + 1] = frames[i] >= updateClock - 1 and frames[i] or nil
@@ -7769,7 +7769,7 @@ run(function()
 		end
 	end
 	
-	SongBeats = vape.Legit:CreateModule({
+	SongBeats = vape.Categories.Legit:CreateModule({
 		Name = 'Song Beats',
 		Function = function(callback)
 			if callback then
@@ -7899,7 +7899,7 @@ run(function()
 	local Value
 	local old
 	
-	TimeChanger = vape.Legit:CreateModule({
+	TimeChanger = vape.Categories.Legit:CreateModule({
 		Name = 'Time Changer',
 		Function = function(callback)
 			if callback then
@@ -8094,7 +8094,7 @@ run(function()
 		notif('Vape', 'FFlags applied, Go in a new game to take effect', 12, 'info')
 	end
 
-	FFlag = vape.Legit:CreateModule({
+	FFlag = vape.Categories.Legit:CreateModule({
 		Name = 'FFlag Editor',
 		Disabled = not setfflag,
 		DsiabledTooltip = 'This module requires a specific function to work, Which your executor ('.. ({identifyexecutor()})[1].. ') does not have',
