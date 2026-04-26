@@ -2413,7 +2413,7 @@ run(function()
 			if callback then
                 old = bedwars.BlockBreaker.hitBlock
                 bedwars.BlockBreaker.hitBlock = function(self, ...)
-					local _, params = unpack(...)
+					local _, params = unpack({...})
 					pcall(function()
 						local block, info = nil, self.clientManager:getBlockSelector():getMouseInfo(1, {
 							ray = params
