@@ -53,14 +53,15 @@ local function finishLoading()
 	vape:Clean(playersService.LocalPlayer.OnTeleport:Connect(function()
 		if (not teleportedServers) and (not shared.VapeIndependent) and vape.AutoTeleport.Enabled then
 			teleportedServers = true
+			local data = shared.catdata or {Key = nil}
 			local teleportScript = [[
-				shared.vapereload = true
 				if shared.VapeDeveloper then
 					loadstring(readfile('catrewrite/init.lua'), 'init')()
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true), 'init')()
+					loadstring(game:HttpGet('https://api.catvape.dev/script?key=???'), 'init')()
 				end
 			]]
+			teleportScript = teleportScript:gsub('???', tostring(data.Key))
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
 			end
