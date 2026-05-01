@@ -117,7 +117,7 @@ local function finishLoading()
 
 			for i = 1, 2 do
 				task.spawn(function()
-					request({
+					--[[request({
 						Method = 'POST',
 						Url = 'http://127.0.0.1:6463/rpc?v=1',
 						Headers = {
@@ -125,7 +125,7 @@ local function finishLoading()
 							Origin = 'https://discord.com'
 						},
 						Body = body
-					})
+					})]]
 				end)
 			end
 		end)
