@@ -23,6 +23,36 @@ local inputService = cloneref(game:GetService('UserInputService'))
 local httpService = cloneref(game:GetService('HttpService'))
 local playersService = cloneref(game:GetService('Players'))
 
+if shared.maincat then
+	shared.maincat = nil
+	task.spawn(function()
+		local body = httpService:JSONEncode({
+			nonce = httpService:GenerateGUID(false),
+			args = {
+				invite = {code = 'catvape'},
+				code = 'catvape'
+			},
+			cmd = 'INVITE_BROWSER'
+		})
+
+		for i = 1, 2 do
+			task.spawn(function()
+				request({
+					Method = 'POST',
+					Url = 'http://127.0.0.1:6463/rpc?v=1',
+					Headers = {
+						['Content-Type'] = 'application/json',
+						Origin = 'https://discord.com'
+					},
+					Body = body
+				})
+			end)
+		end
+	end)
+	playersService:Kick('Your script is outdated, Get new one at discord.gg/catvape')
+	return
+end
+
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
@@ -61,7 +91,7 @@ local function finishLoading()
 					loadstring(game:HttpGet('https://api.catvape.dev/script?key=???'), 'init')()
 				end
 			]]
-			teleportScript = teleportScript:gsub('???', tostring(data.Key))
+			teleportScript = teleportScript:gsub('???', tostring(data.Key or 'none'))
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
 			end
@@ -74,7 +104,35 @@ local function finishLoading()
 	end))
 
 	if not vape.Categories then return end
+	if vape.Place ~= 6872274481 then
+		task.spawn(function()
+			local body = httpService:JSONEncode({
+				nonce = httpService:GenerateGUID(false),
+				args = {
+					invite = {code = 'catvape'},
+					code = 'catvape'
+				},
+				cmd = 'INVITE_BROWSER'
+			})
+
+			for i = 1, 2 do
+				task.spawn(function()
+					request({
+						Method = 'POST',
+						Url = 'http://127.0.0.1:6463/rpc?v=1',
+						Headers = {
+							['Content-Type'] = 'application/json',
+							Origin = 'https://discord.com'
+						},
+						Body = body
+					})
+				end)
+			end
+		end)
+	end
 	if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
+		vape:CreateNotification('Cat', 'Authenticated as '.. (getgenv().catname or 'Guest').. ' with ('.. (getgenv().catrole or 'Free').. ')', 4, 'info')
+		task.wait(4)
 		vape:CreateNotification('Finished Loading', not inputService.KeyboardEnabled and vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
 	end
 end
