@@ -17,7 +17,6 @@ downloader.TextStrokeTransparency = 0
 downloader.TextSize = 20
 downloader.TextColor3 = Color3.new(1, 1, 1)
 downloader.Font = Enum.Font.Arial
-downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or game:GetService('CoreGui'))
 
 local function downloadFile(path, func)
 	if not isfile(path) then
