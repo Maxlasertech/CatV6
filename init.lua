@@ -10,8 +10,18 @@ local delfile = delfile or function(file)
 	writefile(file, '')
 end
 
+local downloader = Instance.new('TextLabel')
+downloader.Size = UDim2.new(1, 0, 0, 40)
+downloader.BackgroundTransparency = 1
+downloader.TextStrokeTransparency = 0
+downloader.TextSize = 20
+downloader.TextColor3 = Color3.new(1, 1, 1)
+downloader.Font = Enum.Font.Arial
+downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or game:GetService('CoreGui'))
+
 local function downloadFile(path, func)
 	if not isfile(path) then
+		downloader.Text = 'Downloading '.. path
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
 		end)
@@ -22,6 +32,7 @@ local function downloadFile(path, func)
 			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
 		end
 		writefile(path, res)
+		downloader.Text = ''
 	end
 	return (func or readfile)(path)
 end
@@ -42,6 +53,7 @@ end
 
 for _, folder in {'catrewrite', 'catrewrite/games', 'catrewrite/profiles', 'catrewrite/assets', 'catrewrite/libraries', 'catrewrite/guis'} do
 	if not isfolder(folder) then
+		downloader.Text = 'Downloading '.. folder
 		makefolder(folder)
 	end
 end
@@ -54,6 +66,9 @@ if not shared.VapeDeveloper then
 	commit = commit and subbed:sub(commit + 13, commit + 52) or nil
 	commit = commit and #commit == 40 and commit or 'main'
 	if commit == 'main' or (isfile('catrewrite/profiles/commit.txt') and readfile('catrewrite/profiles/commit.txt') or '') ~= commit then
+		if commit ~= 'main' and isfile('catrewrite/profiles/commit.txt') then
+			shared.updated = readfile('catrewrite/profiles/commit.txt')
+		end
 		wipeFolder('catrewrite')
 		wipeFolder('catrewrite/games')
 		wipeFolder('catrewrite/guis')
