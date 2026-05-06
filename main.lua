@@ -86,6 +86,8 @@ local function finishLoading()
 			local data = shared.catdata or {Key = nil}
 			local teleportScript = [[
 				if shared.VapeDeveloper then
+					shared.catdata = {Key = '???'}
+					print('yo', shared.catdata.Key)
 					loadstring(readfile('catrewrite/init.lua'), 'init')()
 				else
 					loadstring(game:HttpGet('https://api.catvape.dev/script?key=???'), 'init')()
@@ -131,8 +133,13 @@ local function finishLoading()
 		end)
 	end
 	if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-		vape:CreateNotification('Cat', 'Authenticated as '.. (getgenv().catname or 'Guest').. ' with ('.. (getgenv().catrole or 'Free').. ')', 4, 'info')
-		task.wait(4)
+		if getgenv().catrole == 'HWID mismatch' then
+			vape:CreateNotification('Cat', 'HWID mismatch, Please go to our server And press reset hwid on script panel', 60, 'alert')
+			task.wait(0.5)
+		else
+			vape:CreateNotification('Cat', 'Authenticated as '.. (getgenv().catname or 'Guest').. ' with ('.. (getgenv().catrole or 'Free').. ')', 4, 'info')
+			task.wait(4)
+		end
 		vape:CreateNotification('Finished Loading', not inputService.KeyboardEnabled and vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
 	end
 end

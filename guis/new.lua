@@ -11,6 +11,7 @@ local mainapi = {
 	Loaded = false,
 	Libraries = {},
 	Modules = {},
+	Legit = {},
 	Place = game.PlaceId,
 	Profile = 'default',
 	Profiles = {},
@@ -20,7 +21,7 @@ local mainapi = {
 	Scale = {Value = 1},
 	ThreadFix = nil,
 	ToggleNotifications = {},
-	Version = '6.00',
+	Version = '7.00',
 	Windows = {}
 }
 
@@ -57,6 +58,7 @@ local uipallet = {
 	Main = Color3.fromRGB(26, 25, 26),--26, 25, 26
 	Text = Color3.fromRGB(200, 200, 200),--200, 200, 200
 	Font = Font.fromEnum(Enum.Font.Arial),
+	FontMedium = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.Medium),
 	FontSemiBold = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.SemiBold),
 	Tween = TweenInfo.new(0.16, Enum.EasingStyle.Linear)
 }
@@ -434,7 +436,7 @@ local function removeTags(str)
 	return str:gsub('<[^<>]->', '')
 end
 
---[[do Fr Valentine!
+do
 	local res = isfile('catrewrite/profiles/color.txt') and loadJson('catrewrite/profiles/color.txt')
 	if res then
 		uipallet.Main = res.Main and Color3.fromRGB(unpack(res.Main)) or uipallet.Main
@@ -446,7 +448,7 @@ end
 		uipallet.FontSemiBold = Font.new(uipallet.Font.Family, Enum.FontWeight.SemiBold)
 	end
 	fontsize.Font = uipallet.Font
-end]]
+end
 
 do
 	function color.Dark(col, num)
@@ -518,8 +520,7 @@ mainapi.Libraries = {
 	getcustomasset = getcustomasset,
 	getfontsize = getfontsize,
 	tween = tween,
-	uipallet = uipallet,
-	base64 = loadstring(downloadFile('catrewrite/libraries/base64.lua'), 'base64')(),
+	uipallet = uipallet
 }
 
 local components
@@ -553,7 +554,7 @@ components = {
 		label.Parent = bkg
 		addCorner(label, UDim.new(0, 4))
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		button.MouseEnter:Connect(function()
 			tween:Tween(bkg, uipallet.Tween, {
 				BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
@@ -576,7 +577,7 @@ components = {
 			Rainbow = false,
 			Index = 0
 		}
-		
+
 		local function createSlider(name, gradientColor)
 			local slider = Instance.new('TextButton')
 			slider.Name = optionsettings.Name..'Slider'..name
@@ -631,7 +632,7 @@ components = {
 			knob.BackgroundColor3 = uipallet.Text
 			knob.Parent = knobholder
 			addCorner(knob, UDim.new(1, 0))
-		
+
 			slider.InputBegan:Connect(function(inputObj)
 				if
 					(inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch)
@@ -642,7 +643,7 @@ components = {
 							optionapi:SetValue(nil, name == 'Saturation' and math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1) or nil, name == 'Vibrance' and math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1) or nil, name == 'Opacity' and math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1) or nil)
 						end
 					end)
-		
+
 					local ended
 					ended = inputObj.Changed:Connect(function()
 						if inputObj.UserInputState == Enum.UserInputState.End then
@@ -662,10 +663,10 @@ components = {
 					Size = UDim2.fromOffset(14, 14)
 				})
 			end)
-		
+
 			return slider
 		end
-		
+
 		local slider = Instance.new('TextButton')
 		slider.Name = optionsettings.Name..'Slider'
 		slider.Size = UDim2.new(1, 0, 0, 50)
@@ -796,7 +797,7 @@ components = {
 			ColorSequenceKeypoint.new(0, color.Dark(uipallet.Main, 0.02)),
 			ColorSequenceKeypoint.new(1, Color3.fromHSV(optionapi.Hue, optionapi.Sat, optionapi.Value))
 		}))
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {
 				Hue = self.Hue,
@@ -806,7 +807,7 @@ components = {
 				Rainbow = self.Rainbow
 			}
 		end
-		
+
 		function optionapi:Load(tab)
 			if tab.Rainbow ~= self.Rainbow then
 				self:Toggle()
@@ -815,7 +816,7 @@ components = {
 				self:SetValue(tab.Hue, tab.Sat, tab.Value, tab.Opacity)
 			end
 		end
-		
+
 		function optionapi:SetValue(h, s, v, o)
 			self.Hue = h or self.Hue
 			self.Sat = s or self.Sat
@@ -835,7 +836,7 @@ components = {
 				ColorSequenceKeypoint.new(0, color.Dark(uipallet.Main, 0.02)),
 				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, self.Value))
 			})
-		
+
 			if self.Rainbow then
 				fill.Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
 			else
@@ -843,7 +844,7 @@ components = {
 					Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
 				})
 			end
-		
+
 			if s then
 				tween:Tween(satSlider.Slider.Fill, uipallet.Tween, {
 					Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
@@ -859,10 +860,10 @@ components = {
 					Size = UDim2.fromScale(math.clamp(self.Opacity, 0.04, 0.96), 1)
 				})
 			end
-		
+
 			safecall(optionsettings.Function, self.Hue, self.Sat, self.Value, self.Opacity)
 		end
-		
+
 		function optionapi:Toggle()
 			self.Rainbow = not self.Rainbow
 			if self.Rainbow then
@@ -892,7 +893,7 @@ components = {
 				end)
 			end
 		end
-		
+
 		local doubleClick = tick()
 		preview.MouseButton1Click:Connect(function()
 			preview.Visible = false
@@ -915,7 +916,7 @@ components = {
 						optionapi:SetValue(math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1))
 					end
 				end)
-		
+
 				local ended
 				ended = inputObj.Changed:Connect(function()
 					if inputObj.UserInputState == Enum.UserInputState.End then
@@ -975,10 +976,10 @@ components = {
 				end
 			end
 		end)
-		
+
 		optionapi.Object = slider
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	Dropdown = function(optionsettings, children, api)
@@ -987,7 +988,7 @@ components = {
 			Value = optionsettings.List[1] or 'None',
 			Index = 0
 		}
-		
+
 		local dropdown = Instance.new('TextButton')
 		dropdown.Name = optionsettings.Name..'Dropdown'
 		dropdown.Size = UDim2.new(1, 0, 0, 40)
@@ -1036,24 +1037,24 @@ components = {
 		arrow.Parent = button
 		optionsettings.Function = optionsettings.Function or function() end
 		local dropdownchildren
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {Value = self.Value}
 		end
-		
+
 		function optionapi:Load(tab)
 			if self.Value ~= tab.Value then
 				self:SetValue(tab.Value)
 			end
 		end
-		
+
 		function optionapi:Change(list)
 			optionsettings.List = list or {}
 			if not table.find(optionsettings.List, self.Value) then
 				self:SetValue(self.Value)
 			end
 		end
-		
+
 		function optionapi:SetValue(val, mouse)
 			self.Value = table.find(optionsettings.List, val) and val or optionsettings.List[1] or 'None'
 			title.Text = '         '..optionsettings.Name..' - '..self.Value
@@ -1065,7 +1066,7 @@ components = {
 			end
 			safecall(optionsettings.Function, self.Value, mouse)
 		end
-		
+
 		button.MouseButton1Click:Connect(function()
 			if not dropdownchildren then
 				arrow.Rotation = 270
@@ -1122,10 +1123,10 @@ components = {
 				BackgroundColor3 = color.Light(uipallet.Main, 0.034)
 			})
 		end)
-		
+
 		optionapi.Object = dropdown
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	Font = function(optionsettings, children, api)
@@ -1138,12 +1139,12 @@ components = {
 				table.insert(fonts, v.Name)
 			end
 		end
-		
+
 		local optionapi = {Value = Font.fromEnum(Enum.Font[fonts[1]])}
 		local fontdropdown
 		local fontbox
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		fontdropdown = components.Dropdown({
 			Name = optionsettings.Name,
 			List = fonts,
@@ -1177,11 +1178,11 @@ components = {
 			Visible = false,
 			Darker = true
 		}, children, api)
-		
+
 		fontdropdown.Object:GetPropertyChangedSignal('Visible'):Connect(function()
 			fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
 		end)
-		
+
 		return optionapi
 	end,
 	Slider = function(optionsettings, children, api)
@@ -1191,7 +1192,7 @@ components = {
 			Max = optionsettings.Max,
 			Index = getTableSize(api.Options)
 		}
-		
+
 		local slider = Instance.new('TextButton')
 		slider.Name = optionsettings.Name..'Slider'
 		slider.Size = UDim2.new(1, 0, 0, 50)
@@ -1268,26 +1269,26 @@ components = {
 		addCorner(knob, UDim.new(1, 0))
 		optionsettings.Function = optionsettings.Function or function() end
 		optionsettings.Decimal = optionsettings.Decimal or 1
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {
 				Value = self.Value,
 				Max = self.Max
 			}
 		end
-		
+
 		function optionapi:Load(tab)
 			local newval = tab.Value == tab.Max and tab.Max ~= self.Max and self.Max or tab.Value
 			if self.Value ~= newval then
 				self:SetValue(newval, nil, true)
 			end
 		end
-		
+
 		function optionapi:Color(hue, sat, val, rainbowcheck)
 			fill.BackgroundColor3 = rainbowcheck and Color3.fromHSV(mainapi:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			knob.BackgroundColor3 = fill.BackgroundColor3
 		end
-		
+
 		function optionapi:SetValue(value, pos, final)
 			if tonumber(value) == math.huge or value ~= value then return end
 			local check = self.Value ~= value
@@ -1300,7 +1301,7 @@ components = {
 				safecall(optionsettings.Function, value, final)
 			end
 		end
-		
+
 		slider.InputBegan:Connect(function(inputObj)
 			if
 				(inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch)
@@ -1310,7 +1311,7 @@ components = {
 				optionapi:SetValue(math.floor((optionsettings.Min + (optionsettings.Max - optionsettings.Min) * newPosition) * optionsettings.Decimal) / optionsettings.Decimal, newPosition)
 				local lastValue = optionapi.Value
 				local lastPosition = newPosition
-		
+
 				local changed = inputService.InputChanged:Connect(function(input)
 					if input.UserInputType == (inputObj.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
 						local newPosition = math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1)
@@ -1319,7 +1320,7 @@ components = {
 						lastPosition = newPosition
 					end
 				end)
-		
+
 				local ended
 				ended = inputObj.Changed:Connect(function()
 					if inputObj.UserInputState == Enum.UserInputState.End then
@@ -1332,7 +1333,7 @@ components = {
 						optionapi:SetValue(lastValue, lastPosition, true)
 					end
 				end)
-		
+
 			end
 		end)
 		slider.MouseEnter:Connect(function()
@@ -1358,10 +1359,10 @@ components = {
 				optionapi:SetValue(tonumber(valuebox.Text), nil, true)
 			end
 		end)
-		
+
 		optionapi.Object = slider
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	Targets = function(optionsettings, children, api)
@@ -1369,7 +1370,7 @@ components = {
 			Type = 'Targets',
 			Index = getTableSize(api.Options)
 		}
-		
+
 		local textlist = Instance.new('TextButton')
 		textlist.Name = 'Targets'
 		textlist.Size = UDim2.new(1, 0, 0, 50)
@@ -1456,7 +1457,7 @@ components = {
 		title.Parent = window
 		local close = addCloseButton(window)
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		function optionapi:Save(tab)
 			tab.Targets = {
 				Players = self.Players.Enabled,
@@ -1465,7 +1466,7 @@ components = {
 				Walls = self.Walls.Enabled
 			}
 		end
-		
+
 		function optionapi:Load(tab)
 			if self.Players.Enabled ~= tab.Players then
 				self.Players:Toggle()
@@ -1480,7 +1481,7 @@ components = {
 				self.Walls:Toggle()
 			end
 		end
-		
+
 		function optionapi:Color(hue, sat, val, rainbowcheck)
 			bkg.BackgroundColor3 = rainbowcheck and Color3.fromHSV(mainapi:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			if self.Players.Enabled then
@@ -1500,7 +1501,7 @@ components = {
 				self.Walls.Object.Knob.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
 			end
 		end
-		
+
 		optionapi.Players = components.TargetsButton({
 			Position = UDim2.fromOffset(11, 45),
 			Icon = getcustomasset('catrewrite/assets/new/targetplayers1.png'),
@@ -1563,7 +1564,7 @@ components = {
 		if optionsettings.Walls then
 			optionapi.Walls:Toggle()
 		end
-		
+
 		close.MouseButton1Click:Connect(function()
 			window.Visible = false
 		end)
@@ -1593,15 +1594,15 @@ components = {
 			local actualPosition = (textlist.AbsolutePosition + Vector2.new(0, 60)) / scale.Scale
 			window.Position = UDim2.fromOffset(actualPosition.X + 220, actualPosition.Y)
 		end)
-		
+
 		optionapi.Object = textlist
 		api.Options.Targets = optionapi
-		
+
 		return optionapi
 	end,
 	TargetsButton = function(optionsettings, children, api)
 		local optionapi = {Enabled = false}
-		
+
 		local targetbutton = Instance.new('TextButton')
 		targetbutton.Size = UDim2.fromOffset(98, 31)
 		targetbutton.Position = optionsettings.Position
@@ -1628,7 +1629,7 @@ components = {
 		icon.Parent = bkg
 		optionsettings.Function = optionsettings.Function or function() end
 		local tooltipicon
-		
+
 		function optionapi:Toggle()
 			self.Enabled = not self.Enabled
 			tween:Tween(bkg, uipallet.Tween, {
@@ -1659,7 +1660,7 @@ components = {
 			end
 			safecall(optionsettings.Function, self.Enabled)
 		end
-		
+
 		targetbutton.MouseEnter:Connect(function()
 			if not optionapi.Enabled then
 				tween:Tween(bkg, uipallet.Tween, {
@@ -1683,9 +1684,9 @@ components = {
 		targetbutton.MouseButton1Click:Connect(function()
 			optionapi:Toggle()
 		end)
-		
+
 		optionapi.Object = targetbutton
-		
+
 		return optionapi
 	end,
 	TextBox = function(optionsettings, children, api)
@@ -1694,7 +1695,7 @@ components = {
 			Value = optionsettings.Default or '',
 			Index = 0
 		}
-		
+
 		local textbox = Instance.new('TextButton')
 		textbox.Name = optionsettings.Name..'TextBox'
 		textbox.Size = UDim2.new(1, 0, 0, 58)
@@ -1736,23 +1737,23 @@ components = {
 		box.ClearTextOnFocus = false
 		box.Parent = bkg
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {Value = self.Value}
 		end
-		
+
 		function optionapi:Load(tab)
 			if self.Value ~= tab.Value then
 				self:SetValue(tab.Value)
 			end
 		end
-		
+
 		function optionapi:SetValue(val, enter)
 			self.Value = val
 			box.Text = val
 			safecall(optionsettings.Function, enter)
 		end
-		
+
 		textbox.MouseButton1Click:Connect(function()
 			box:CaptureFocus()
 		end)
@@ -1762,10 +1763,10 @@ components = {
 		box:GetPropertyChangedSignal('Text'):Connect(function()
 			optionapi:SetValue(box.Text)
 		end)
-		
+
 		optionapi.Object = textbox
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	TextList = function(optionsettings, children, api)
@@ -1778,7 +1779,7 @@ components = {
 			Index = getTableSize(api.Options)
 		}
 		optionsettings.Color = optionsettings.Color or Color3.fromRGB(5, 134, 105)
-		
+
 		local textlist = Instance.new('TextButton')
 		textlist.Name = optionsettings.Name..'TextList'
 		textlist.Size = UDim2.new(1, 0, 0, 50)
@@ -1903,26 +1904,26 @@ components = {
 		addbutton.ImageTransparency = 0.3
 		addbutton.Parent = addbkg
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {
 				List = self.List,
 				ListEnabled = self.ListEnabled
 			}
 		end
-		
+
 		function optionapi:Load(tab)
 			self.List = tab.List or {}
 			self.ListEnabled = tab.ListEnabled or {}
 			self:ChangeValue()
 		end
-		
+
 		function optionapi:Color(hue, sat, val, rainbowcheck)
 			if window.Visible then
 				bkg.BackgroundColor3 = rainbowcheck and Color3.fromHSV(mainapi:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			end
 		end
-		
+
 		function optionapi:ChangeValue(val)
 			if val then
 				local ind = table.find(self.List, val)
@@ -1937,7 +1938,7 @@ components = {
 					table.insert(self.ListEnabled, val)
 				end
 			end
-		
+
 			safecall(optionsettings.Function, self.List)
 			for _, v in self.Objects do
 				v:Destroy()
@@ -1945,14 +1946,14 @@ components = {
 			table.clear(self.Objects)
 			window.Size = UDim2.fromOffset(220, 85 + (#self.List * 35))
 			amount.Text = #self.List
-		
+
 			local enabledtext = 'None'
 			for i, v in self.ListEnabled do
 				if i == 1 then enabledtext = '' end
 				enabledtext = enabledtext..(i == 1 and v or ', '..v)
 			end
 			items.Text = enabledtext
-		
+
 			for i, v in self.List do
 				local enabled = table.find(self.ListEnabled, v)
 				local object = Instance.new('TextButton')
@@ -2007,7 +2008,7 @@ components = {
 				close.ImageTransparency = 0.5
 				close.Parent = object
 				addCorner(close, UDim.new(1, 0))
-		
+
 				close.MouseEnter:Connect(function()
 					close.ImageTransparency = 0.3
 					tween:Tween(close, uipallet.Tween, {
@@ -2040,21 +2041,21 @@ components = {
 						objectdot.BackgroundColor3 = optionsettings.Color
 						objectdotin.BackgroundColor3 = optionsettings.Color
 					end
-		
+
 					local enabledtext = 'None'
 					for i, v in self.ListEnabled do
 						if i == 1 then enabledtext = '' end
 						enabledtext = enabledtext..(i == 1 and v or ', '..v)
 					end
-		
+
 					items.Text = enabledtext
 					safecall(optionsettings.Function)
 				end)
-		
+
 				table.insert(self.Objects, object)
 			end
 		end
-		
+
 		addbutton.MouseEnter:Connect(function()
 			addbutton.ImageTransparency = 0
 		end)
@@ -2112,13 +2113,13 @@ components = {
 			local actualPosition = (textlist.AbsolutePosition - (api.Legit and mainapi.Legit.Window.AbsolutePosition or -guiService:GetGuiInset())) / scale.Scale
 			window.Position = UDim2.fromOffset(actualPosition.X + 220, actualPosition.Y)
 		end)
-		
+
 		if optionsettings.Default then
 			optionapi:ChangeValue()
 		end
 		optionapi.Object = textlist
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	Toggle = function(optionsettings, children, api)
@@ -2127,7 +2128,7 @@ components = {
 			Enabled = false,
 			Index = getTableSize(api.Options)
 		}
-		
+
 		local hovered = false
 		local toggle = Instance.new('TextButton')
 		toggle.Name = optionsettings.Name..'Toggle'
@@ -2135,7 +2136,7 @@ components = {
 		toggle.BackgroundColor3 = color.Dark(children.BackgroundColor3, optionsettings.Darker and 0.02 or 0)
 		toggle.BorderSizePixel = 0
 		toggle.AutoButtonColor = false
-		toggle.BackgroundTransparency = 1
+		toggle.BackgroundTransparency = 0
 		toggle.Visible = optionsettings.Visible == nil or optionsettings.Visible
 		toggle.Text = '          '..optionsettings.Name
 		toggle.TextXAlignment = Enum.TextXAlignment.Left
@@ -2157,24 +2158,24 @@ components = {
 		knob.BackgroundColor3 = uipallet.Main
 		knob.Parent = knobholder
 		optionsettings.Function = optionsettings.Function or function() end
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {Enabled = self.Enabled}
 		end
-		
+
 		function optionapi:Load(tab)
 			if self.Enabled ~= tab.Enabled then
 				self:Toggle()
 			end
 		end
-		
+
 		function optionapi:Color(hue, sat, val, rainbowcheck)
 			if self.Enabled then
 				tween:Cancel(knobholder)
 				knobholder.BackgroundColor3 = rainbowcheck and Color3.fromHSV(mainapi:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			end
 		end
-		
+
 		function optionapi:Toggle()
 			self.Enabled = not self.Enabled
 			local rainbowcheck = mainapi.GUIColor.Rainbow and mainapi.RainbowMode.Value ~= 'Retro'
@@ -2186,7 +2187,7 @@ components = {
 			})
 			safecall(optionsettings.Function, self.Enabled)
 		end
-		
+
 		toggle.MouseEnter:Connect(function()
 			hovered = true
 			if not optionapi.Enabled then
@@ -2206,13 +2207,13 @@ components = {
 		toggle.MouseButton1Click:Connect(function()
 			optionapi:Toggle()
 		end)
-		
+
 		if optionsettings.Default then
 			optionapi:Toggle()
 		end
 		optionapi.Object = toggle
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	TwoSlider = function(optionsettings, children, api)
@@ -2223,7 +2224,7 @@ components = {
 			Max = optionsettings.Max,
 			Index = getTableSize(api.Options)
 		}
-		
+
 		local slider = Instance.new('TextButton')
 		slider.Name = optionsettings.Name..'Slider'
 		slider.Size = UDim2.new(1, 0, 0, 50)
@@ -2322,11 +2323,11 @@ components = {
 		optionsettings.Function = optionsettings.Function or function() end
 		optionsettings.Decimal = optionsettings.Decimal or 1
 		local random = Random.new()
-		
+
 		function optionapi:Save(tab)
 			tab[optionsettings.Name] = {ValueMin = self.ValueMin, ValueMax = self.ValueMax}
 		end
-		
+
 		function optionapi:Load(tab)
 			if self.ValueMin ~= tab.ValueMin then
 				self:SetValue(false, tab.ValueMin)
@@ -2335,17 +2336,17 @@ components = {
 				self:SetValue(true, tab.ValueMax)
 			end
 		end
-		
+
 		function optionapi:Color(hue, sat, val, rainbowcheck)
 			fill.BackgroundColor3 = rainbowcheck and Color3.fromHSV(mainapi:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			knob.ImageColor3 = fill.BackgroundColor3
 			knobholdermax.Knob.ImageColor3 = fill.BackgroundColor3
 		end
-		
+
 		function optionapi:GetRandomValue()
 			return random:NextNumber(optionapi.ValueMin, optionapi.ValueMax)
 		end
-		
+
 		function optionapi:SetValue(max, value)
 			if tonumber(value) == math.huge or value ~= value then return end
 			self[max and 'ValueMax' or 'ValueMin'] = value
@@ -2357,7 +2358,7 @@ components = {
 				Size = UDim2.fromScale(math.clamp(math.clamp(math.clamp(self.ValueMax / optionsettings.Max, 0.04, 0.96), 0.04, 0.96) - size, 0, 1), 1)
 			})
 		end
-		
+
 		knobholder.MouseEnter:Connect(function()
 			tween:Tween(knob, uipallet.Tween, {
 				Size = UDim2.fromOffset(11, 18)
@@ -2386,14 +2387,14 @@ components = {
 				local maxCheck = (inputObj.Position.X - knobholdermax.AbsolutePosition.X) > -10
 				local newPosition = math.clamp((inputObj.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1)
 				optionapi:SetValue(maxCheck, math.floor((optionsettings.Min + (optionsettings.Max - optionsettings.Min) * newPosition) * optionsettings.Decimal) / optionsettings.Decimal, newPosition)
-		
+
 				local changed = inputService.InputChanged:Connect(function(input)
 					if input.UserInputType == (inputObj.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
 						local newPosition = math.clamp((input.Position.X - bkg.AbsolutePosition.X) / bkg.AbsoluteSize.X, 0, 1)
 						optionapi:SetValue(maxCheck, math.floor((optionsettings.Min + (optionsettings.Max - optionsettings.Min) * newPosition) * optionsettings.Decimal) / optionsettings.Decimal, newPosition)
 					end
 				end)
-		
+
 				local ended
 				ended = inputObj.Changed:Connect(function()
 					if inputObj.UserInputState == Enum.UserInputState.End then
@@ -2433,10 +2434,10 @@ components = {
 				optionapi:SetValue(false, tonumber(valuebox2.Text))
 			end
 		end)
-		
+
 		optionapi.Object = slider
 		api.Options[optionsettings.Name] = optionapi
-		
+
 		return optionapi
 	end,
 	Divider = function(children, text)
@@ -2790,7 +2791,13 @@ function mainapi:CreateGUI()
 			end
 		end)
 		button.MouseButton1Click:Connect(function()
-			optionapi:Toggle()
+			if categorysettings.Function then
+				if mainapi.Loaded ~= false then
+					categorysettings.Function()
+				end
+			else
+				optionapi:Toggle()
+			end
 		end)
 
 		categoryapi.Buttons[categorysettings.Name] = optionapi
@@ -3609,8 +3616,8 @@ function mainapi:CreateGUI()
 			local body = httpService:JSONEncode({
 				nonce = httpService:GenerateGUID(false),
 				args = {
-					invite = {code = 'vxpe'},
-					code = 'vxpe'
+					invite = {code = 'catvape'},
+					code = 'catvape'
 				},
 				cmd = 'INVITE_BROWSER'
 			})
@@ -3800,7 +3807,7 @@ function mainapi:CreateCategory(categorysettings)
 
 		modulesettings.Tags = modulesettings.Tags or {}
 		table.insert(modulesettings.Tags, 'matched')
-		
+
 		if modulesettings.Tags and typeof(modulesettings.Tags) then
 			for i, tag in modulesettings.Tags do
 				tag = tag:upper()
@@ -3838,7 +3845,7 @@ function mainapi:CreateCategory(categorysettings)
 				indicator.Visible = tag ~= 'MATCHED'
 			end
 		end
-		
+
 		local gradient = Instance.new('UIGradient')
 		gradient.Rotation = 90
 		gradient.Enabled = false
@@ -4120,7 +4127,7 @@ function mainapi:CreateCategory(categorysettings)
 		moduleapi.Object = modulebutton
 		mainapi.Modules[modulesettings.Name] = moduleapi
 
-		local caller = (table.find({'Xeno', 'Solara'}, ({identifyexecutor()})[1])) and task.spawn or function(f) return f() end
+		local caller = function(f) return f() end
 
 		caller(function()
 			local sorting = {}
@@ -4188,7 +4195,8 @@ function mainapi:CreateCategory(categorysettings)
 		Name = categorysettings.Name,
 		Icon = categorysettings.Icon,
 		Size = categorysettings.Size,
-		Window = window
+		Window = window,
+		Function = categorysettings.Function
 	})
 
 	categoryapi.Object = window
@@ -4955,25 +4963,13 @@ function mainapi:CreateCategoryList(categorysettings)
 end
 
 function mainapi:CreateSearch()
-	local xoffset = inputService.TouchEnabled and 0.3 or 0.5
 	local searchbkg = Instance.new('Frame')
 	searchbkg.Name = 'Search'
-	searchbkg.Size = UDim2.fromOffset(240, 37)
-	searchbkg.Position = UDim2.new(xoffset, 0, 0, 13)
-	searchbkg.AnchorPoint = Vector2.new(xoffset, 0)
+	searchbkg.Size = UDim2.fromOffset(220, 37)
+	searchbkg.Position = UDim2.new(0.5, 0, 0, 13)
+	searchbkg.AnchorPoint = Vector2.new(0.5, 0)
 	searchbkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
 	searchbkg.Parent = clickgui
-	local searchlegit = Instance.new('TextLabel')
-	searchlegit.Size = UDim2.new(0.7, 1, 0, 37)
-	searchlegit.Position = UDim2.new(0.5, 4, 0, -1)
-	searchlegit.BackgroundTransparency = 1
-	searchlegit.FontFace = uipallet.Font
-	searchlegit.Text = 'Legit'
-	searchlegit.AnchorPoint = Vector2.new(0.5, 0)
-	searchlegit.TextSize = 14
-	searchlegit.Parent = searchbkg
-	searchlegit.TextXAlignment = Enum.TextXAlignment.Left
-	searchlegit.TextColor3 = Color3.new(1, 1, 1)
 	local searchicon = Instance.new('ImageLabel')
 	searchicon.Name = 'Icon'
 	searchicon.Size = UDim2.fromOffset(14, 14)
@@ -4992,14 +4988,15 @@ function mainapi:CreateSearch()
 	local legitdivider = Instance.new('Frame')
 	legitdivider.Name = 'LegitDivider'
 	legitdivider.Size = UDim2.fromOffset(2, 12)
-	legitdivider.Position = UDim2.fromOffset(76, 13)
+	legitdivider.Position = UDim2.fromOffset(43, 13)
 	legitdivider.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
 	legitdivider.BorderSizePixel = 0
 	legitdivider.Parent = searchbkg
 	addBlur(searchbkg)
 	addCorner(searchbkg)
-	warn('what?')
 	local search = Instance.new('TextBox')
+	search.Size = UDim2.new(1, -50, 0, 37)
+	search.Position = UDim2.fromOffset(50, 0)
 	search.BackgroundTransparency = 1
 	search.Text = ''
 	search.PlaceholderText = ''
@@ -5009,10 +5006,6 @@ function mainapi:CreateSearch()
 	search.FontFace = uipallet.Font
 	search.ClearTextOnFocus = false
 	search.Parent = searchbkg
-	task.delay(1, function()
-		search.Size = UDim2.new(1, -100, 0, 37)
-		search.Position = UDim2.fromOffset(85, 0)
-	end)
 	local children = Instance.new('ScrollingFrame')
 	children.Name = 'Children'
 	children.Size = UDim2.new(1, 0, 1, -37)
@@ -5059,8 +5052,6 @@ function mainapi:CreateSearch()
 				v:Destroy()
 			end
 		end
-		search.Size = UDim2.new(1, -100, 0, 37)
-		search.Position = UDim2.fromOffset(85, 0)
 		if search.Text == '' then return end
 
 		for i, v in self.Modules do
@@ -5072,7 +5063,7 @@ function mainapi:CreateSearch()
 						v.Visible = false
 					end
 				end
-				button.Size = UDim2.fromOffset(240, 40)
+				button.Size = UDim2.fromOffset(220, 40)
 				button.Bind:Destroy()
 				button.Indicators.MATCHED.Visible = hasAlias
 				button.MouseButton1Click:Connect(function()
@@ -5130,14 +5121,14 @@ function mainapi:CreateSearch()
 			setthreadidentity(8)
 		end
 		children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-		searchbkg.Size = UDim2.fromOffset(240, math.min(37 + windowlist.AbsoluteContentSize.Y / scale.Scale, 437))
+		searchbkg.Size = UDim2.fromOffset(220, math.min(37 + windowlist.AbsoluteContentSize.Y / scale.Scale, 437))
 	end)
 
 	self.Legit.Icon = legiticon
 end
 
 function mainapi:CreateLegit()
-	local legitapi = {Modules = {}}
+	local legitapi = {Modules = {}, Categories = {}}
 
 	local window = Instance.new('Frame')
 	window.Name = 'LegitGUI'
@@ -5165,8 +5156,8 @@ function mainapi:CreateLegit()
 	local close = addCloseButton(window)
 	local children = Instance.new('ScrollingFrame')
 	children.Name = 'Children'
-	children.Size = UDim2.fromOffset(684, 340)
-	children.Position = UDim2.fromOffset(14, 41)
+	children.Size = UDim2.fromOffset(684, 300)
+	children.Position = UDim2.fromOffset(14, 80)
 	children.BackgroundTransparency = 1
 	children.BorderSizePixel = 0
 	children.ScrollBarThickness = 2
@@ -5179,13 +5170,124 @@ function mainapi:CreateLegit()
 	windowlist.CellSize = UDim2.fromOffset(163, 114)
 	windowlist.CellPadding = UDim2.fromOffset(6, 5)
 	windowlist.Parent = children
+	local search = Instance.new('Frame')
+	search.Position = UDim2.fromOffset(449, 42)
+	search.Name = 'Search'
+	search.Size = UDim2.fromOffset(240, 31)
+	search.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+	search.Parent = window
+	addCorner(search, UDim.new(0, 5))
+	local searchbox = search:Clone()
+	searchbox.Size = UDim2.new(1, -2, 1, -2)
+	searchbox.Position = UDim2.fromOffset(1, 1)
+	searchbox.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
+	searchbox.Parent = search
+	local searchvalue = Instance.new('TextBox')
+	searchvalue.Size = UDim2.new(1, -35, 1, 0)
+	searchvalue.Position = UDim2.fromOffset(10, 0)
+	searchvalue.BackgroundTransparency = 1
+	searchvalue.Text = ''
+	searchvalue.PlaceholderText = 'Search mods'
+	searchvalue.TextXAlignment = Enum.TextXAlignment.Left
+	searchvalue.PlaceholderColor3 = color.Dark(uipallet.Text, 0.11)
+	searchvalue.TextColor3 = color.Dark(uipallet.Text, 0.11)
+	searchvalue.TextSize = 14
+	searchvalue.FontFace = uipallet.Font
+	searchvalue.ClearTextOnFocus = false
+	searchvalue.Parent = search
+	local searchicon = Instance.new('ImageLabel')
+	searchicon.BackgroundTransparency = 1
+	searchicon.Position = UDim2.new(1, -28, 0, 8)
+	searchicon.Size = UDim2.fromOffset(12, 12)
+	searchicon.Image = getcustomasset('catrewrite/assets/new/search.png')
+	searchicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
+	searchicon.Parent = searchbox
+	local categorylist = Instance.new('Frame')
+	categorylist.BackgroundTransparency = 1
+	categorylist.Position = UDim2.fromOffset(22, 42)
+	categorylist.Size = UDim2.fromOffset(1, 31)
+	categorylist.Parent = window
+	local categorylayout = Instance.new('UIListLayout')
+	categorylayout.FillDirection = Enum.FillDirection.Horizontal
+	categorylayout.Parent = categorylist
+	categorylayout.SortOrder = Enum.SortOrder.LayoutOrder
+	local categoryhighlight = Instance.new('Frame')
+	categoryhighlight.BackgroundColor3 = color.Dark(uipallet.Text, 0.31)
+	categoryhighlight.BorderSizePixel = 0
+	categoryhighlight.Position = UDim2.fromOffset(0, 23)
+	categoryhighlight.Size = UDim2.new()
 	legitapi.Window = window
 	table.insert(mainapi.Windows, window)
+	
+	local function updateCheck()
+		local FocusedCategory = ''
+		for _, v in legitapi.Categories do
+			if v.Focused then
+				FocusedCategory = v.Name
+				break
+			end
+		end
+		for i, v in legitapi.Modules do
+			v.Object.Visible = (FocusedCategory == 'All' or v.ApiCategory == FocusedCategory) and (i == '' or i:lower():gsub(' ', ''):find(searchvalue.Text:lower():gsub(' ', '')) and true) or false
+		end
+	end
+
+	function legitapi:CreateCategory(categoryname)
+		local category = {
+			Name = categoryname,
+			Focused = #self.Categories <= 0 and true or false
+		}
+
+		local children = Instance.new('TextButton')
+		children.Name = category.Name
+		children.LayoutOrder = #self.Categories + 1
+		children.BackgroundTransparency = 1
+		children.Size = UDim2.new(0, 80, 1, 0)
+		children.FontFace = uipallet.Font
+		children.TextColor3 = color.Dark(uipallet.Text, 0.31)
+		children.Text = category.Name
+		children.TextSize = 14
+		children.TextXAlignment = Enum.TextXAlignment.Left
+		children.Parent = categorylist
+		children.MouseButton1Click:Connect(function()
+			category:SetVisible()
+		end)
+		
+		local sizex = textService:GetTextSize(children.Text, children.TextSize, children.Font, Vector2.new(1000, 1000)).X
+		children.Size = UDim2.new(0, sizex + 30, 1, 0)
+
+		function category:SetVisible(focused)
+			focused = focused or focused == nil and true
+			children.TextColor3 = focused and color.Light(uipallet.Text, 0.2) or color.Dark(uipallet.Text, 0.31)
+			categoryhighlight.Parent = focused and children or categoryhighlight.Parent
+			categoryhighlight.Size = focused and UDim2.fromOffset(sizex, 1) or categoryhighlight.Size
+			category.Focused = focused
+
+			if focused then
+				for _, v in legitapi.Categories do
+					if v.Name ~= category.Name and v.Focused then
+						v:SetVisible(false)
+					end
+				end
+				updateCheck()
+			end
+		end
+
+		if category.Focused then
+			category:SetVisible(true)
+			updateCheck()
+		end
+
+		category.Window = children
+		table.insert(legitapi.Categories, category)
+		return category
+	end
 
 	function legitapi:CreateModule(modulesettings)
 		mainapi:Remove(modulesettings.Name)
 		local moduleapi = {
 			Enabled = false,
+			ApiCategory = modulesettings.Category or 'Game',
 			Options = {},
 			Name = modulesettings.Name,
 			Legit = true
@@ -5419,6 +5521,7 @@ function mainapi:CreateLegit()
 
 		return moduleapi
 	end
+	mainapi:Clean(searchvalue:GetPropertyChangedSignal('Text'):Connect(updateCheck))
 
 	local function visibleCheck()
 		for _, v in legitapi.Modules do
@@ -5450,6 +5553,18 @@ function mainapi:CreateLegit()
 
 	self.Legit = legitapi
 
+	legitapi:CreateCategory('All')
+	legitapi:CreateCategory('Hud')
+	legitapi:CreateCategory('Game')
+	
+	--[[for i = 1, 10 do
+		legitapi:CreateModule({
+			Name = (i <= 3 and 'Favorite' or i <= 7 and 'Hud' or 'Game')..i,
+			Function = print,
+			Category = i <= 3 and 'Favorite' or i <= 7 and 'Hud' or 'Game'
+		})
+	end]]
+
 	return legitapi
 end
 
@@ -5472,7 +5587,7 @@ function mainapi:CreateProfileGUI()
 	modal.Text = ''
 	modal.Modal = true
 	modal.Parent = window
-	
+
 	local icon = Instance.new('ImageLabel')
 	icon.Name = 'Icon'
 	icon.Size = UDim2.fromOffset(16, 10)
@@ -5795,7 +5910,7 @@ function mainapi:CreateProfileGUI()
 		for i, v in configapi do
 			if v and typeof(v) == 'table' and v.instance then
 				v.instance.Visible = false
-				
+
 				if i:lower():gsub(' ', ''):find(searchbox.Text:lower():gsub(' ', '')) or searchbox.Text == '' then
 					v.instance.Visible = true
 				end
@@ -5971,7 +6086,7 @@ function mainapi:CreateProfileGUI()
 				v:Destroy()
 			end
 		end
-		
+
 		local awesome = {}
 
 		for i, v in mainapi.Profiles do
@@ -6100,7 +6215,7 @@ function mainapi:CreateProfileGUI()
 		newsort.TextTransparency = 1
 		newsort.Size = size
 		table.insert(configapi.Backgrounds, newsort)
-		
+
 		local label = Instance.new('TextLabel')
 		label.Parent = newsort
 		label.Name = 'label'
@@ -6114,7 +6229,7 @@ function mainapi:CreateProfileGUI()
 		label.Text = name:upper()
 		label.TextColor3 = Color3.fromRGB(255, 255, 255)
 		label.TextSize = 10.000
-		
+
 		addCorner(newsort, UDim.new(1, 0))
 
 		local api = {
@@ -6154,7 +6269,7 @@ function mainapi:CreateProfileGUI()
 		Size = UDim2.new(0, 70, 1, 0),
 		On = true
 	})
-	
+
 	addSorting('oldest', nil, {
 		Size = UDim2.new(0, 70, 1, 0),
 		On = false
@@ -6233,7 +6348,7 @@ function mainapi:CreateProfileGUI()
 
 	ImageLabel.MouseButton1Click:Connect(function()
 		mainapi:CreateNotification('Vape', `Deleting "{info.Text}" config`, 10, 'info')
-		
+
 		local lol = configapi[info.Text]
 
 		if lol then
@@ -6747,7 +6862,6 @@ gui.Name = randomString()
 gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
-gui.OnTopOfCoreBlur = true
 if false then
 	gui.Parent = cloneref(game:GetService('CoreGui'))--(gethui and gethui()) or cloneref(game:GetService('CoreGui'))
 else
@@ -6912,16 +7026,24 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('catrewrite/assets/new/miniicon.png'),
 	Size = UDim2.fromOffset(19, 12)
 })
-mainapi:CreateCategory({
-	Name = 'Kits',
-	Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
-	Size = UDim2.fromOffset(15, 15)
-})
-mainapi:CreateCategory({
-	Name = 'Legit',
-	Icon = getcustomasset('catrewrite/assets/new/legittab.png'),
-	Size = UDim2.fromOffset(15, 15)
-})
+if game.GameId == 2619619496 then
+	mainapi:CreateCategory({
+		Name = 'Kits',
+		Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
+		Size = UDim2.fromOffset(15, 15)
+	})
+
+	mainapi:CreateCategory({
+		Name = 'Legit',
+		Icon = getcustomasset('catrewrite/assets/new/legittab.png'),
+		Size = UDim2.fromOffset(15, 15),
+		Function = function()
+			clickgui.Visible = false
+			mainapi.Legit.Window.Visible = true
+			mainapi.Legit.Window.Position = UDim2.new(0.5, -350, 0.5, -194)
+		end
+	})
+end
 mainapi.Categories.Main:CreateDivider('misc')
 
 --[[
