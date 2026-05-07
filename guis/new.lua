@@ -291,7 +291,7 @@ local function createDownloader(text)
 			downloader.TextSize = 20
 			downloader.TextColor3 = Color3.new(1, 1, 1)
 			downloader.FontFace = uipallet.Font
-			downloader.Parent = mainapi.gui
+			downloader.Parent = nil
 			mainapi.Downloader = downloader
 		end
 		downloader.Text = 'Downloading '..text
