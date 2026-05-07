@@ -1272,7 +1272,7 @@ run(function()
 	end))
 
 	vape:Clean(workspace.ChildAdded:Connect(function(projectile)
-		task.delay(0.1, function()
+		task.delay(0, function()
 			if projectile and projectile.Parent and entitylib.isAlive and projectile:GetAttribute('ProjectileShooter') == lplr.UserId then
 				table.insert(store.selfProjectiles, projectile)
 				projectile.Destroying:Once(function()
