@@ -1271,11 +1271,9 @@ run(function()
 		})
 	end))
 
-	if canDebug then
-		vape:Clean(bedwars.ZapNetworking.ProjectileLaunchZap.On(function(...)
-			local projectile = select(3, ...)
-			
-			if projectile and entitylib.isAlive and select(7, ...) == lplr.Character then
+	vape:Clean(workspace.ChildAdded:Connect(function(projectile)
+		task.delay(0.1, function()
+			if projectile and projectile.Parent and entitylib.isAlive and projectile:GetAttribute('ProjectileShooter') == lplr.UserId then
 				table.insert(store.selfProjectiles, projectile)
 				projectile.Destroying:Once(function()
 					local index = table.find(store.selfProjectiles, projectile)
@@ -1284,8 +1282,8 @@ run(function()
 					end
 				end)
 			end
-		end))
-	end
+		end)
+	end))
 
 	for _, event in {'PlaceBlockEvent', 'BreakBlockEvent'} do
 		vape:Clean(bedwars.ZapNetworking[event..'Zap'].On(function(...)
