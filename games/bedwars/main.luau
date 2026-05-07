@@ -1057,7 +1057,7 @@ run(function()
                     continue
                 end
 
-                local plrangle = math.acos((entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)):Dot(((((block.Position - localPosition))) * Vector3.new(1, 0, 1)).Unit))
+                local plrangle = math.acos((gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)):Dot(((((block.Position - localPosition))) * Vector3.new(1, 0, 1)).Unit))
                 if plrangle > (math.rad(angle) / 2) then continue end
 
                 local curdist = findmag(block, side) + node[1]
@@ -6465,7 +6465,7 @@ run(function()
 	local function firePearl(pos, spot, item)
 		if Check.Enabled then
 			for _, v in store.selfProjectiles do
-				if v.Name == 'telepearl' then
+				if v.Parent and v.Name == 'telepearl' then
 					return
 				end
 			end
