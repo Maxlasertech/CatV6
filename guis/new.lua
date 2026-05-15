@@ -21,7 +21,7 @@ local mainapi = {
 	Scale = {Value = 1},
 	ThreadFix = nil,
 	ToggleNotifications = {},
-	Version = '7.00',
+	Version = '7.01',
 	Windows = {}
 }
 
@@ -291,7 +291,7 @@ local function createDownloader(text)
 			downloader.TextSize = 20
 			downloader.TextColor3 = Color3.new(1, 1, 1)
 			downloader.FontFace = uipallet.Font
-			downloader.Parent = nil
+			downloader.Parent = mainapi.gui
 			mainapi.Downloader = downloader
 		end
 		downloader.Text = 'Downloading '..text

@@ -50,7 +50,7 @@ local guiService = cloneref(game:GetService('GuiService'))
 local groupService = cloneref(game:GetService('GroupService'))
 local textChatService = cloneref(game:GetService('TextChatService'))
 local contextService = cloneref(game:GetService('ContextActionService'))
-local coreGui = cloneref(game:GetService('CoreGui'))
+local coreGui = game:GetService('CoreGui')
 
 local isnetworkowner = identifyexecutor and table.find({'AWP', 'Nihon'}, ({identifyexecutor()})[1]) and isnetworkowner or function()
 	return true
@@ -614,7 +614,7 @@ run(function()
 			end
 
 			if whitelist.textdata ~= whitelist.olddata then
-				if whitelist.data.Announcement.expiretime > os.time() then
+				if whitelist.data.Announcement and whitelist.data.Announcement.expiretime > os.time() then
 					local targets = whitelist.data.Announcement.targets
 					targets = targets == 'all' and {tostring(lplr.UserId)} or targets:split(',')
 
@@ -633,11 +633,6 @@ run(function()
 
 			if whitelist.data.KillVape then
 				vape:Uninject()
-				return true
-			end
-
-			if whitelist.data.BlacklistedUsers[tostring(lplr.UserId)] then
-				task.spawn(lplr.kick, lplr, whitelist.data.BlacklistedUsers[tostring(lplr.UserId)])
 				return true
 			end
 		end
@@ -7691,7 +7686,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				repeat
-					label.Text = math.floor(lplr:GetNetworkPing() * 1000)..' ms'
+					label.Text = math.round(lplr:GetNetworkPing() * 1000)..' ms'
 					task.wait(1)
 				until not Ping.Enabled
 			end

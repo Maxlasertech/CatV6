@@ -8,6 +8,13 @@ local function isZero(d)
 	return (d > -eps and d < eps)
 end
 
+local tracer = Instance.new('Part')
+tracer.Anchored = true
+tracer.CanCollide = false
+tracer.CanQuery = false
+tracer.CanTouch = false
+tracer.CastShadow = false
+
 local function cuberoot(x)
 	return (x > 0) and math.pow(x, (1 / 3)) or -math.pow(math.abs(x), (1 / 3))
 end
@@ -186,11 +193,57 @@ function module.solveQuartic(c0, c1, c2, c3, c4)
 	return {s3, s2, s1, s0}
 end
 
+function module.SpawnTracer(from, to, custom)
+    local distance = (to - from).Magnitude
+    if distance < 0.01 then return end
+
+    local t = tracer:Clone()
+    t.Color = custom.Color
+    t.Size = vector.create(custom.Thick, custom.Thick, distance)
+    t.CFrame = CFrame.lookAt(from, to) * CFrame.new(0, 0, -distance / 2)
+    t.Material = custom.Material
+	t.Transparency = custom.Opacity
+
+   	if custom.Fade then
+		game:GetService('TweenService'):Create(t, TweenInfo.new(custom.Lifetime), {
+			Transparency = 1
+		}):Play()
+	end
+    return t
+end
+
+function module.SpawnArcTracer(origin, aimDirection, projectileSpeed, gravity, travelTime, steps, custom)
+    steps = steps or 20
+    local stepTime = travelTime / steps
+    local g = Vector3.new(0, -gravity, 0)
+    local velocity = aimDirection * projectileSpeed
+
+    local prevPos = origin
+    local model = Instance.new('Model')
+    model.Parent = workspace.Terrain
+	if custom.Material == Enum.Material.Glass then
+		Instance.new('Highlight', model).Enabled = false
+	end
+    for i = 1, steps do
+        local t = i * stepTime
+        local nextPos = origin + velocity * t + 0.5 * g * t * t
+        local l = module.SpawnTracer(prevPos, nextPos, custom)
+        l.Parent = model
+        prevPos = nextPos
+    end
+	task.delay(custom.Lifetime, model.Destroy, model)
+end
 function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, targetVelocity, playerGravity, playerHeight, playerJump, params)
 	local disp = targetPos - origin
 	local p, q, r = targetVelocity.X, targetVelocity.Y, targetVelocity.Z
 	local h, j, k = disp.X, disp.Y, disp.Z
 	local l = -.5 * gravity
+
+	local f = workspace:Raycast(targetPos, Vector3.new(0, -playerHeight - 0.5, 0), params)
+	if f ~= nil and q <= 0.1 then
+		q = -(targetPos.Y - f.Position.Y)
+	end
+
 	--attemped gravity calculation, may return to it in the future.
 	if math.abs(q) > 0.01 and playerGravity and playerGravity > 0 then
 		local estTime = (disp.Magnitude / projectileSpeed)
@@ -220,20 +273,22 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 		2*j*q + 2*h*p + 2*k*r,
 		j*j + h*h + k*k
 	)
+
 	if solutions then
-		local posRoots = table.create(2)
-		for _, v in solutions do --filter out the negative roots
-			if v > 0 then
-				table.insert(posRoots, v)
+		local bestT = math.huge
+		for _, v in solutions do
+			if v > 0 and v < bestT then
+				bestT = v
 			end
 		end
-		posRoots[1] = posRoots[1]
-		if posRoots[1] then
-			local t = posRoots[1]
-			local d = (h + p*t)/t
-			local e = (j + q*t - l*t*t)/t
-			local f = (k + r*t)/t
-			return origin + Vector3.new(d, e, f)
+	
+		if bestT < math.huge then
+			local t = bestT
+			local d = (h + p * t) / t
+			local e = (j + q * t - l * t * t) / t
+			local f2 = (k + r * t) / t
+			local aimDir = Vector3.new(d, e, f2).Unit
+			return origin + Vector3.new(d, e, f2), aimDir, t
 		end
 	elseif gravity == 0 then
 		local t = (disp.Magnitude / projectileSpeed)

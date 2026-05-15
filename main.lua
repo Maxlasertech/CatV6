@@ -106,7 +106,7 @@ local function finishLoading()
 	end))
 
 	if not vape.Categories then return end
-	if vape.Place ~= 6872274481 and vape.Notifications.Enabled then
+	if vape.Place ~= 6872274481 then
 		task.spawn(function()
 			local body = httpService:JSONEncode({
 				nonce = httpService:GenerateGUID(false),
