@@ -3107,19 +3107,7 @@ run(function() --> by max
 	local AttackRemote = {
 		instance = nil,
 		FireServer = function(self, swingCooldown, ...)
-			local remote = self.instance
-			if not remote then return end
-			if swingCooldown and swingCooldown > 0 then
-				local args = {...}
-				task.delay(swingCooldown, function()
-					local attackTable = args[1]
-					if Killaura and Killaura.Enabled and attackTable and attackTable.entityInstance and attackTable.entityInstance.Parent then
-						remote:FireServer(unpack(args))
-					end
-				end)
-				return
-			end
-			return remote:FireServer(...)
+			return self.instance:FireServer(...)
 		end
 	}
 	task.spawn(function()
