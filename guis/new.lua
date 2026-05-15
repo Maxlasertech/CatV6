@@ -282,7 +282,7 @@ end
 
 local function createDownloader(text)
 	if mainapi.Loaded ~= true then
-		local downloader = mainapi.Downloader
+		--[[local downloader = mainapi.Downloader
 		if not downloader then
 			downloader = Instance.new('TextLabel')
 			downloader.Size = UDim2.new(1, 0, 0, 40)
@@ -294,7 +294,7 @@ local function createDownloader(text)
 			downloader.Parent = mainapi.gui
 			mainapi.Downloader = downloader
 		end
-		downloader.Text = 'Downloading '..text
+		downloader.Text = 'Downloading '..text]]
 	end
 end
 

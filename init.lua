@@ -1,5 +1,6 @@
 --!nocheck
-shared.catdata = {Key = script_key or 'none'}
+shared.catdata = ... or {}
+shared.catdata.Key = script_key
 local isfile = isfile or function(file)
 	local suc, res = pcall(function()
 		return readfile(file)
