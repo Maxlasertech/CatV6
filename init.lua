@@ -1,5 +1,8 @@
 --!nocheck
-script_key = script_key
+local license = ... or {}
+license.Key = script_key or license.Key
+
+local cloneref = cloneref or function(ref) return ref end
 local isfile = isfile or function(file)
 	local suc, res = pcall(function()
 		return readfile(file)
@@ -18,11 +21,13 @@ downloader.TextSize = 20
 downloader.TextColor3 = Color3.new(1, 1, 1)
 downloader.Font = Enum.Font.Arial
 downloader.Text = ''
-downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or game:GetService('CoreGui'))
+downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or cloneref(game:GetService('CoreGui')))
 
 local function downloadFile(path, func)
 	if not isfile(path) then
-		downloader.Text = 'Downloading '.. path
+		if not license.Closet then
+			downloader.Text = 'Downloading '.. path
+		end
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
 		end)
@@ -60,12 +65,15 @@ for _, folder in {'catrewrite', 'catrewrite/games', 'catrewrite/profiles', 'catr
 end
 
 if not shared.VapeDeveloper then
-	local _, subbed = pcall(function() 
-		return game:HttpGet('https://github.com/MaxlaserTech/CatV6') 
-	end)
-	local commit = subbed:find('currentOid')
-	commit = commit and subbed:sub(commit + 13, commit + 52) or nil
-	commit = commit and #commit == 40 and commit or 'main'
+	local commit = license.Commit or nil
+	if not commit then
+		local _, subbed = pcall(function() 
+			return game:HttpGet('https://github.com/MaxlaserTech/CatV6') 
+		end)
+		commit = subbed:find('currentOid')
+		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
+		commit = commit and #commit == 40 and commit or 'main'
+	end
 	if commit == 'main' or (isfile('catrewrite/profiles/commit.txt') and readfile('catrewrite/profiles/commit.txt') or '') ~= commit then
 		if commit ~= 'main' and isfile('catrewrite/profiles/commit.txt') then
 			shared.updated = readfile('catrewrite/profiles/commit.txt')
@@ -79,4 +87,4 @@ if not shared.VapeDeveloper then
 end
 
 downloader.Text = ''
-return loadstring(downloadFile('catrewrite/main.lua'), 'main')(...)
+return loadstring(downloadFile('catrewrite/main.lua'), 'main')(license)
