@@ -1,3 +1,3 @@
 > [!WARNING]
 > Original credits go to Xylex (7GrandDadPGN on GitHub) for Vape V4.
-> Development credits go to MaxlaserTech, Outer And Claude
+> Development credits go to MaxlaserTech
