@@ -145,7 +145,7 @@ shared.vape = vape
 
 if shared.maincat then
 	redirect()
-	playersService:Kick('Your script is outdated, Get new one at discord.gg/catvape')
+	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
 	return
 end
 
