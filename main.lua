@@ -81,7 +81,7 @@ local function finishLoading()
 		if not vape.Categories then return end
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
 			if getgenv().catrole == 'HWID MISMATCH' then
-				notif('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
+				vape:CreateNotification('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
 				getgenv().catrole = ''
 				task.wait(0.1)
 			end
@@ -90,14 +90,29 @@ local function finishLoading()
 	end
 end
 
+-- Create required folders and files if they don't exist
+if not isfolder('fart') then
+	makefolder('fart')
+end
+if not isfolder('fart/profiles') then
+	makefolder('fart/profiles')
+end
+if not isfile('fart/profiles/commit.txt') then
+	writefile('fart/profiles/commit.txt', 'main')
+end
 if not isfile('fart/profiles/gui.txt') then
 	writefile('fart/profiles/gui.txt', 'new')
 end
+
 local gui = 'new'
 
+if not isfolder('fart/assets') then
+	makefolder('fart/assets')
+end
 if not isfolder('fart/assets/'..gui) then
 	makefolder('fart/assets/'..gui)
 end
+
 vape = loadstring(downloadFile('fart/guis/'..gui..'.lua'), 'gui')(license)
 shared.vape = vape
 
