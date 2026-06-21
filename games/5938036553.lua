@@ -1,5 +1,6 @@
+local compile = loadstring
 local loadstring = function(...)
-	local res, err = loadstring(...)
+	local res, err = compile(...)
 	if err and vape then
 		vape:CreateNotification('Vape', 'Failed to load : ' .. err, 30, 'alert')
 	end
@@ -16,7 +17,7 @@ local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
 			return game:HttpGet(
-				'https://raw.githubusercontent.com/MaxlaserTech/AetherCoreV2/'
+				'https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'
 					.. readfile('aethercorev2/profiles/commit.txt')
 					.. '/'
 					.. select(1, path:gsub('aethercorev2/', '')),

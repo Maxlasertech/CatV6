@@ -244,7 +244,7 @@ local function downloadFile(path, func)
 	if not isfile(path) then
 		createDownloader(path)
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -2843,9 +2843,9 @@ mainapi.Categories.Main:CreateDropdown({
 			writefile('aethercorev2/profiles/gui.txt', val)
 			shared.vapereload = true
 			if shared.VapeDeveloper then
-				loadstring(readfile('aethercorev2/loader.lua'), 'loader')()
+				loadstring(readfile('aethercorev2/main.lua'), 'main')(license)
 			else
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/loader.lua', true))()
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/main.lua', true), 'main')(license)
 			end
 		end
 	end
@@ -2871,9 +2871,9 @@ mainapi.Categories.Main:CreateButton({
 	Function = function()
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('aethercorev2/loader.lua'), 'loader')()
+			loadstring(readfile('aethercorev2/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/main.lua', true), 'main')(license)
 		end
 	end
 })

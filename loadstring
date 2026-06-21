@@ -1,1 +1,1 @@
-script_key = "KEY-HERE"; loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/main/init.lua'), 'init.lua')({})
+script_key = "KEY-HERE"; loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/main/init.lua', true), 'init.lua')({})
