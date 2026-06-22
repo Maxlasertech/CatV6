@@ -1,5 +1,10 @@
 local license = ... or {}
-license.Key = script_key or license.Key or nil
+license.Whitelist = getgenv().whitelist or license.Whitelist
+local acceptedWhitelistKey = '1234-5678-9012-3456'
+
+local function isWhitelisted()
+	return tostring(getgenv().whitelist or license.Whitelist or '') == acceptedWhitelistKey
+end
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
@@ -84,17 +89,18 @@ local function finishLoading()
 		if (not teleportedServers) and (not shared.VapeIndependent) then
 			teleportedServers = true
 			local teleportScript = [[
+				getgenv().whitelist = '_whitelist'
 				if shared.VapeDeveloper then
 					loadstring(readfile('aethercorev2/main.lua'), 'main')(_scriptconfig)
 				else
-					loadstring(game:HttpGet('https://api.aethercorev2.dev/script?key=_key'), 'init')(_scriptconfig)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/main/init.lua', true), 'init.lua')(_scriptconfig)
 				end
 			]]
 			local teleportConfig = httpService:JSONEncode(license)
 			teleportConfig = teleportConfig:gsub('":true', "=true"):gsub('{"', '{')
 			teleportConfig = teleportConfig:gsub(',"', ','):gsub('":', '=')
 			teleportConfig = teleportConfig:gsub('%[', '{'):gsub('%]', '}')
-			teleportScript = teleportScript:gsub('_key', tostring(license.Key or '_key'))
+			teleportScript = teleportScript:gsub('_whitelist', tostring(getgenv().whitelist or license.Whitelist or 'KEY_HERE'))
 			teleportScript = teleportScript:gsub('_scriptconfig', teleportConfig)
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
@@ -109,15 +115,13 @@ local function finishLoading()
 	if not shared.vapereload then
 		if not vape.Categories then return end
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			if getgenv().aetherRole == 'HWID MISMATCH' then
-				vape:CreateNotification('AetherCore', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
-				getgenv().aetherRole = ''
-				task.wait(0.1)
-			end
 			if vape.Place ~= 6872274481 then
 				--task.spawn(redirect)
 			end
-			vape:CreateNotification('Finished Loading', (getgenv().aetherName and `Authenticated as {getgenv().aetherName} with {getgenv().aetherRole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
+			vape:CreateNotification('Finished Loading', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
+			if isWhitelisted() then
+				vape:CreateNotification('AetherCore', 'You are whitelisted.', 5, 'info')
+			end
 			task.delay(1, function()
 				if shared.updated then
 					vape:CreateNotification('AetherCore', `Script has updated from {shared.updated} to {readfile('aethercorev2/profiles/commit.txt')}`, 10, 'info')
@@ -164,7 +168,6 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-	loadstring(downloadFile('aethercorev2/libraries/premium.lua'), 'premium')(license)
 	finishLoading()
 else
 	vape.Init = finishLoading

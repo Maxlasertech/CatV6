@@ -1,6 +1,6 @@
 --!nocheck
 local license = ... or {}
-license.Key = script_key or license.Key
+license.Whitelist = getgenv().whitelist or license.Whitelist
 
 local cloneref = cloneref or function(ref) return ref end
 local isfile = isfile or function(file)
