@@ -369,6 +369,68 @@ local function loadJson(path)
 	return suc and type(res) == 'table' and res or nil
 end
 
+local configFolder = 'aethercorev2/configs'
+local profileFolder = 'aethercorev2/profiles'
+
+local function ensureFolder(path)
+	if makefolder and (not isfolder or not isfolder(path)) then
+		pcall(makefolder, path)
+	end
+end
+
+local function ensureDataFolders()
+	ensureFolder('aethercorev2')
+	ensureFolder(profileFolder)
+	ensureFolder(configFolder)
+end
+
+local function getConfigPath(profile)
+	return configFolder..'/'..profile..mainapi.Place..'.txt'
+end
+
+local function getLegacyProfilePath(profile)
+	return profileFolder..'/'..profile..mainapi.Place..'.txt'
+end
+
+local function refreshConfigProfiles()
+	local profiles, seen = {}, {}
+	local function addProfile(name, bind)
+		name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+		if name ~= '' and not seen[name] then
+			seen[name] = true
+			table.insert(profiles, {Name = name, Bind = bind or {}})
+		end
+	end
+
+	for _, profile in mainapi.Profiles do
+		addProfile(profile.Name, profile.Bind)
+	end
+
+	if listfiles then
+		local suffix = tostring(mainapi.Place)..'.txt'
+		local suc, files = pcall(listfiles, configFolder)
+		if suc then
+			for _, path in files do
+				local file = tostring(path):gsub('\\', '/')
+				local name = file:match('/([^/]+)'..suffix:gsub('%.', '%%.')..'$')
+				if name then
+					addProfile(name)
+				end
+			end
+		end
+	end
+
+	addProfile('default')
+	table.sort(profiles, function(a, b)
+		if a.Name == 'default' then return true end
+		if b.Name == 'default' then return false end
+		return a.Name:lower() < b.Name:lower()
+	end)
+	mainapi.Profiles = profiles
+	return profiles
+end
+
+ensureDataFolders()
 downloadFile('aethercorev2/profiles/features.json')
 local newModules = loadJson('aethercorev2/profiles/features.json') or {}
 local function makeDraggable(gui, window)
@@ -4105,6 +4167,10 @@ function mainapi:CreateCategory(categorysettings)
 	end
 
 	function categoryapi:Expand()
+		if categorysettings.Profiles then
+			refreshConfigProfiles()
+			self:ChangeValue()
+		end
 		self.Expanded = not self.Expanded
 		children.Visible = self.Expanded
 		arrow.Rotation = self.Expanded and 0 or 180
@@ -4505,8 +4571,8 @@ function mainapi:CreateCategoryList(categorysettings)
 				if ind then
 					if val ~= 'default' then
 						table.remove(mainapi.Profiles, ind)
-						if isfile('aethercorev2/profiles/'..val..mainapi.Place..'.txt') and delfile then
-							delfile('aethercorev2/profiles/'..val..mainapi.Place..'.txt')
+						if isfile(getConfigPath(val)) and delfile then
+							delfile(getConfigPath(val))
 						end
 						if mainapi.Profile == val then
 							mainapi.Profile = 'default'
@@ -4814,6 +4880,10 @@ function mainapi:CreateCategoryList(categorysettings)
 	end
 
 	function categoryapi:Expand()
+		if categorysettings.Profiles then
+			refreshConfigProfiles()
+			self:ChangeValue()
+		end
 		self.Expanded = not self.Expanded
 		children.Visible = self.Expanded
 		arrow.Rotation = self.Expanded and 0 or 180
@@ -5659,14 +5729,21 @@ function mainapi:Load(skipgui, profile)
 	self.Profiles = guidata.Profiles or {{
 		Name = 'default', Bind = {}
 	}}
+	refreshConfigProfiles()
 	self.Categories.Profiles:ChangeValue()
 	if self.ProfileLabel then
 		self.ProfileLabel.Text = #self.Profile > 10 and self.Profile:sub(1, 10)..'...' or self.Profile
 		self.ProfileLabel.Size = UDim2.fromOffset(getfontsize(self.ProfileLabel.Text, self.ProfileLabel.TextSize, self.ProfileLabel.Font).X + 16, 24)
 	end
 
-	if isfile('aethercorev2/profiles/'..self.Profile..self.Place..'.txt') then
-		local savedata = loadJson('aethercorev2/profiles/'..self.Profile..self.Place..'.txt')
+	local configPath = getConfigPath(self.Profile)
+	local legacyConfigPath = getLegacyProfilePath(self.Profile)
+	if not isfile(configPath) and isfile(legacyConfigPath) then
+		configPath = legacyConfigPath
+	end
+
+	if isfile(configPath) then
+		local savedata = loadJson(configPath)
 		if not savedata then
 			savedata = {Categories = {}, Modules = {}, Legit = {}}
 			self:CreateNotification('Vape', 'Failed to load '..self.Profile..' profile.', 10, 'alert')
@@ -5742,7 +5819,10 @@ function mainapi:Load(skipgui, profile)
 
 		self:UpdateTextGUI(true)
 	else
+		local previousLoaded = self.Loaded
+		self.Loaded = true
 		self:Save()
+		self.Loaded = previousLoaded
 	end
 
 	if self.Downloader then
@@ -5879,8 +5959,9 @@ function mainapi:Save(newprofile)
 		}
 	end
 
+	ensureDataFolders()
 	writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
-	writefile('aethercorev2/profiles/'..(newprofile or self.Profile)..self.Place..'.txt', httpService:JSONEncode(savedata))
+	writefile(getConfigPath(newprofile or self.Profile), httpService:JSONEncode(savedata))
 end
 
 function mainapi:SaveOptions(object, savedoptions)
@@ -6198,8 +6279,8 @@ general:CreateButton({
 	Name = 'Reset current profile',
 	Function = function()
 	mainapi.Save = function() end
-		if isfile('aethercorev2/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
-			delfile('aethercorev2/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		if isfile(getConfigPath(mainapi.Profile)) and delfile then
+			delfile(getConfigPath(mainapi.Profile))
 		end
 		shared.vapereload = true
 		if shared.VapeDeveloper then
