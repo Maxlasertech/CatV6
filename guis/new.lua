@@ -4356,6 +4356,7 @@ function mainapi:CreateOverlay(categorysettings)
 end
 
 function mainapi:CreateCategoryList(categorysettings)
+	local displayName = categorysettings.DisplayName or categorysettings.Name
 	local categoryapi = {
 		Type = 'CategoryList',
 		Expanded = false,
@@ -4367,7 +4368,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	categorysettings.Color = categorysettings.Color or Color3.fromRGB(5, 134, 105)
 
 	local window = Instance.new('TextButton')
-	window.Name = categorysettings.Name..'CategoryList'
+	window.Name = displayName..'CategoryList'
 	window.Size = UDim2.fromOffset(220, 45)
 	window.Position = UDim2.fromOffset(240, 46)
 	window.BackgroundColor3 = uipallet.Main
@@ -4391,7 +4392,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	title.Size = UDim2.new(1, -(categorysettings.Size.X.Offset > 20 and 44 or 36), 0, 20)
 	title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 12)
 	title.BackgroundTransparency = 1
-	title.Text = categorysettings.Name
+	title.Text = displayName
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = uipallet.Text
 	title.TextSize = 13
@@ -4498,6 +4499,8 @@ function mainapi:CreateCategoryList(categorysettings)
 	function categoryapi:ChangeValue(val)
 		if val then
 			if categorysettings.Profiles then
+				val = val:gsub('^%s*(.-)%s*$', '%1')
+				if val == '' then return end
 				local ind = self:GetValue(val)
 				if ind then
 					if val ~= 'default' then
@@ -4505,9 +4508,16 @@ function mainapi:CreateCategoryList(categorysettings)
 						if isfile('aethercorev2/profiles/'..val..mainapi.Place..'.txt') and delfile then
 							delfile('aethercorev2/profiles/'..val..mainapi.Place..'.txt')
 						end
+						if mainapi.Profile == val then
+							mainapi.Profile = 'default'
+						end
+						mainapi:Save(mainapi.Profile)
 					end
 				else
 					table.insert(mainapi.Profiles, {Name = val, Bind = {}})
+					local currentProfile = mainapi.Profile
+					mainapi:Save(val)
+					mainapi:Save(currentProfile)
 				end
 			else
 				local ind = table.find(self.List, val)
@@ -4654,8 +4664,9 @@ function mainapi:CreateCategoryList(categorysettings)
 					end
 				end)
 				object.MouseButton1Click:Connect(function()
-					mainapi:Save(v.Name)
-					mainapi:Load(true)
+					mainapi:Save()
+					mainapi:Load(true, v.Name)
+					mainapi:Save()
 				end)
 				object.MouseEnter:Connect(function()
 					bind.Visible = true
@@ -4831,8 +4842,9 @@ function mainapi:CreateCategoryList(categorysettings)
 		addbutton.ImageTransparency = 0.3
 	end)
 	addbutton.MouseButton1Click:Connect(function()
-		if not table.find(categoryapi.List, addvalue.Text) then
-			categoryapi:ChangeValue(addvalue.Text)
+		local value = addvalue.Text:gsub('^%s*(.-)%s*$', '%1')
+		if value ~= '' and (categorysettings.Profiles and not categoryapi:GetValue(value) or not table.find(categoryapi.List, value)) then
+			categoryapi:ChangeValue(value)
 			addvalue.Text = ''
 		end
 	end)
@@ -4849,8 +4861,9 @@ function mainapi:CreateCategoryList(categorysettings)
 		categoryapi:Expand()
 	end)
 	addvalue.FocusLost:Connect(function(enter)
-		if enter and not table.find(categoryapi.List, addvalue.Text) then
-			categoryapi:ChangeValue(addvalue.Text)
+		local value = addvalue.Text:gsub('^%s*(.-)%s*$', '%1')
+		if enter and value ~= '' and (categorysettings.Profiles and not categoryapi:GetValue(value) or not table.find(categoryapi.List, value)) then
+			categoryapi:ChangeValue(value)
 			addvalue.Text = ''
 		end
 	end)
@@ -4898,7 +4911,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	end)
 
 	categoryapi.Button = self.Categories.Main:CreateButton({
-		Name = categorysettings.Name,
+		Name = displayName,
 		Icon = categorysettings.CategoryIcon,
 		Size = categorysettings.CategorySize,
 		Window = window
@@ -5660,6 +5673,10 @@ function mainapi:Load(skipgui, profile)
 			savecheck = false
 		end
 
+		savedata.Categories = savedata.Categories or {}
+		savedata.Modules = savedata.Modules or {}
+		savedata.Legit = savedata.Legit or {}
+
 		for i, v in savedata.Categories do
 			local object = self.Categories[i]
 			if not object then continue end
@@ -5683,29 +5700,39 @@ function mainapi:Load(skipgui, profile)
 			object.Object.Position = UDim2.fromOffset(v.Position.X, v.Position.Y)
 		end
 
-		for i, v in savedata.Modules do
-			local object = self.Modules[i]
-			if not object then continue end
+		for i, object in self.Modules do
+			local v = savedata.Modules[i]
+			if not v then
+				if object.Enabled then
+					if skipgui and self.ToggleNotifications.Enabled then self:CreateNotification('Module Toggled', i.."<font color='#FFFFFF'> has been </font><font color='#FF5A5A'>Disabled</font><font color='#FFFFFF'>!</font>", 0.75) end
+					object:Toggle(true)
+				end
+				continue
+			end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
 			end
-			if v.Enabled ~= object.Enabled then
+			if (v.Enabled or false) ~= object.Enabled then
 				if skipgui then
 					if self.ToggleNotifications.Enabled then self:CreateNotification('Module Toggled', i.."<font color='#FFFFFF'> has been </font>"..(v.Enabled and "<font color='#5AFF5A'>Enabled</font>" or "<font color='#FF5A5A'>Disabled</font>").."<font color='#FFFFFF'>!</font>", 0.75) end
 				end
 				object:Toggle(true)
 			end
-			object:SetBind(v.Bind)
-			object.Object.Bind.Visible = #v.Bind > 0
+			object:SetBind(v.Bind or {})
+			object.Object.Bind.Visible = #(v.Bind or {}) > 0
 		end
-
-		for i, v in savedata.Legit do
-			local object = self.Legit.Modules[i]
-			if not object then continue end
+		for i, object in self.Legit.Modules do
+			local v = savedata.Legit[i]
+			if not v then
+				if object.Enabled then
+					object:Toggle()
+				end
+				continue
+			end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
 			end
-			if object.Enabled ~= v.Enabled then
+			if object.Enabled ~= (v.Enabled or false) then
 				object:Toggle()
 			end
 			if v.Position and object.Children then
@@ -5853,7 +5880,7 @@ function mainapi:Save(newprofile)
 	end
 
 	writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
-	writefile('aethercorev2/profiles/'..self.Profile..self.Place..'.txt', httpService:JSONEncode(savedata))
+	writefile('aethercorev2/profiles/'..(newprofile or self.Profile)..self.Place..'.txt', httpService:JSONEncode(savedata))
 end
 
 function mainapi:SaveOptions(object, savedoptions)
@@ -6125,10 +6152,11 @@ mainapi:Clean(friends.Update)
 mainapi:Clean(friends.ColorUpdate)
 
 --[[
-	Profiles
+	Configs
 ]]
 mainapi:CreateCategoryList({
 	Name = 'Profiles',
+	DisplayName = 'Configs',
 	Icon = getcustomasset('aethercorev2/assets/new/profilesicon.png'),
 	Size = UDim2.fromOffset(17, 10),
 	Position = UDim2.fromOffset(12, 16),
@@ -7278,8 +7306,9 @@ local function keybindStart(inputObj)
 
 		for _, v in mainapi.Profiles do
 			if checkKeybinds(mainapi.HeldKeybinds, v.Bind, inputObj.KeyCode.Name) and v.Name ~= mainapi.Profile then
-				mainapi:Save(v.Name)
-				mainapi:Load(true)
+				mainapi:Save()
+				mainapi:Load(true, v.Name)
+				mainapi:Save()
 				break
 			end
 		end
