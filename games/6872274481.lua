@@ -18291,3 +18291,185 @@ run(function()
         Default = 0.05,
     })
 end)
+run(function()
+    local WhimAuto
+    local Targets
+    local Range
+    local FireRate
+    local Sort
+    local Legit
+    local SwingOnly
+    local Angle
+    local lastWhimShot = tick()
+    local projectileRemote = {InvokeServer = function(self, ...) end}
+
+    task.spawn(function()
+        projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
+    end)
+
+    WhimAuto = vape.Categories.Combat:CreateModule({
+        Name = 'Whim Fast Hits',
+        Function = function(callback)
+            if callback then
+                repeat
+                    task.wait()
+                    if not entitylib.isAlive then continue end
+                    if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then continue end
+                    if store.hand.toolType ~= 'sword' then continue end
+                    if SwingOnly.Enabled and (tick() - bedwars.SwordController.lastSwing) > 0.3 then continue end
+                    if tick() < lastWhimShot then continue end
+
+                    local mana = lplr:GetAttribute('Mana') or 0
+                    if mana < 20 then continue end
+
+                    local book = getItem('mage_spellbook') or getItem('magic_stick')
+                    if not book then continue end
+
+                    local localPosition = entitylib.character.RootPart.Position
+                    local ent = entitylib.EntityPosition({
+                        Origin = localPosition,
+                        Range = Range.Value,
+                        Wallcheck = Targets.Walls.Enabled or nil,
+                        Part = 'RootPart',
+                        Players = Targets.Players.Enabled,
+                        NPCs = Targets.NPCs.Enabled,
+                        Limit = 1,
+                        Sort = sortmethods[Sort.Value] or sortmethods.Distance,
+                    })
+
+                    if ent and not entitylib.Wallcheck(localPosition, ent.RootPart.Position, {gameCamera, lplr.Character, ent.Character}) then
+                        local delta = (ent.RootPart.Position - localPosition)
+                        local flat = delta * Vector3.new(1, 0, 1)
+                        local localfacing = (inputService.KeyboardEnabled and gameCamera or entitylib.character.RootPart).CFrame.LookVector * Vector3.new(1, 0, 1)
+                        local facingdot = flat.Magnitude > 0 and localfacing.Magnitude > 0 and (localfacing / localfacing.Magnitude):Dot(flat / flat.Magnitude) or 0
+                        if facingdot < math.cos(math.rad(Angle.Value) / 2) then continue end
+
+                        targetinfo.Targets[ent] = tick() + 1
+
+                        local projectile = 'mage_spell_base'
+                        for _, child in pairs(lplr.Character:GetChildren()) do
+                            if child.Name:find('MageHat') then
+                                local element = child.Name:gsub('MageHat', ''):lower()
+                                local candidate = 'mage_spell_' .. element
+                                if bedwars.ProjectileMeta[candidate] then
+                                    projectile = candidate
+                                    break
+                                end
+                            end
+                        end
+
+                        -- set timer BEFORE firing so it never spams
+                        lastWhimShot = tick() + FireRate.Value
+
+                        local projmeta = bedwars.ProjectileMeta[projectile]
+                        local projSpeed = projmeta.launchVelocity
+                        local gravity = projmeta.gravitationalAcceleration or 196.2
+                        local oldhotbar = store.inventory.hotbarSlot
+                        local oldtool = store.hand.tool
+                        local hotbar = getHotbar(book.tool)
+
+                        if hotbar then
+                            switchItem(book.tool)
+                            if Legit.Enabled then
+                                hotbarSwitch(hotbar)
+                            end
+                        end
+
+                        local calc = prediction.SolveTrajectory(
+                            localPosition, projSpeed, gravity,
+                            ent.RootPart.Position, ent.RootPart.Velocity,
+                            workspace.Gravity, ent.HipHeight,
+                            ent.Jumping and 42.6 or nil,
+                            nil, nil, lplr:GetNetworkPing()
+                        )
+
+                        if calc then
+                            local sdir = CFrame.lookAt(localPosition, calc).LookVector
+                            local id = httpService:GenerateGUID(true)
+                            local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(
+                                -bedwars.BowConstantsTable.RelX,
+                                -bedwars.BowConstantsTable.RelY,
+                                -bedwars.BowConstantsTable.RelZ
+                            ))).Position
+
+                            bedwars.ProjectileController:createLocalProjectile(projmeta, projectile, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 1})
+                            local res = projectileRemote:InvokeServer(
+                                book.tool,
+                                projectile,
+                                projectile,
+                                shootPosition,
+                                localPosition,
+                                sdir * projSpeed,
+                                id,
+                                {
+                                    drawDurationSeconds = 1,
+                                    shotId = httpService:GenerateGUID(false)
+                                },
+                                workspace:GetServerTimeNow() - 0.045
+                            )
+                            if res then
+                                res.Parent = replicatedStorage
+                            end
+                        end
+
+                        task.spawn(function()
+                            task.wait(0.3)
+                            if oldtool then
+                                switchItem(oldtool)
+                                if Legit.Enabled then
+                                    hotbarSwitch(oldhotbar)
+                                end
+                            end
+                        end)
+                    end
+                until not WhimAuto.Enabled
+            end
+        end,
+        Tooltip = 'Fires mage spell alongside sword attacks',
+    })
+
+    Targets = WhimAuto:CreateTargets({Players = true, NPCs = true})
+    local methods = {'Damage', 'Distance'}
+    for i in sortmethods do
+        if not table.find(methods, i) then
+            table.insert(methods, i)
+        end
+    end
+    Sort = WhimAuto:CreateDropdown({
+        Name = 'Target mode',
+        List = methods,
+        Default = 'Health',
+    })
+    Range = WhimAuto:CreateSlider({
+        Name = 'Range',
+        Min = 1,
+        Max = 50,
+        Default = 30,
+        Suffix = function(val)
+            return val <= 1 and 'stud' or 'studs'
+        end,
+    })
+    Angle = WhimAuto:CreateSlider({
+        Name = 'Max angle',
+        Min = 1,
+        Max = 360,
+        Default = 180,
+    })
+    FireRate = WhimAuto:CreateSlider({
+        Name = 'Fire Rate',
+        Min = 0,
+        Max = 2,
+        Default = 0.66,
+        Decimal = 100,
+        Suffix = 'seconds',
+    })
+    SwingOnly = WhimAuto:CreateToggle({
+        Name = 'Swing Only',
+        Default = true,
+        Tooltip = 'Only fires when actively swinging sword',
+    })
+    Legit = WhimAuto:CreateToggle({
+        Name = 'Legit Switch',
+        Default = false,
+    })
+end)
