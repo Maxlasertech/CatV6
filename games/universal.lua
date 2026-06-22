@@ -3775,6 +3775,84 @@ run(function()
     })
 end)
 
+
+run(function()
+    local KeybindBoost
+    local VerticalOffset
+    local HorizontalOffset
+    local rayCheck = RaycastParams.new()
+    rayCheck.RespectCanCollide = true
+    rayCheck.FilterType = Enum.RaycastFilterType.Exclude
+
+    local function getBoostPosition()
+        if not entitylib.isAlive then
+            return
+        end
+        local mouse = cloneref(lplr:GetMouse())
+        local ray = mouse.UnitRay
+        rayCheck.FilterDescendantsInstances = { lplr.Character, gameCamera }
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 10000, rayCheck)
+        local part = result and result.Instance
+        if not (part and part:IsA('BasePart') and part.CanCollide) then
+            return
+        end
+
+        local root = entitylib.character.RootPart
+        local humanoid = entitylib.character.Humanoid
+        local normal = result.Normal
+        local hit = result.Position
+        local clearance = (humanoid.HipHeight or 2) + (root.Size.Y * 0.5) + VerticalOffset.Value
+        local sideClearance = math.max(root.Size.X, root.Size.Z) * 0.5 + HorizontalOffset.Value
+        if normal.Y > 0.5 then
+            return Vector3.new(hit.X, part.Position.Y + (part.Size.Y * 0.5) + clearance, hit.Z)
+        end
+        if normal.Y < -0.5 then
+            return hit + normal * VerticalOffset.Value
+        end
+        local offset = Vector3.new(normal.X * sideClearance, 0, normal.Z * sideClearance)
+        return Vector3.new(hit.X + offset.X, hit.Y, hit.Z + offset.Z)
+    end
+
+    KeybindBoost = vape.Categories.Blatant:CreateModule({
+        Name = 'Keybind Boost',
+        Function = function(callback)
+            if callback then
+                local position = getBoostPosition()
+                if entitylib.isAlive and position then
+                    local root = entitylib.character.RootPart
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    root.CFrame = CFrame.lookAlong(position, root.CFrame.LookVector)
+                end
+                if KeybindBoost.Enabled then
+                    KeybindBoost:Toggle()
+                end
+            end
+        end,
+        Tooltip = 'Boosts to the block under your cursor when enabled.',
+    })
+    KeybindBoost:SetBind({ 'G' })
+    VerticalOffset = KeybindBoost:CreateSlider({
+        Name = 'Vertical Offset',
+        Min = 0,
+        Max = 2,
+        Default = 0.1,
+        Decimal = 100,
+        Suffix = function(val)
+            return val == 1 and 'stud' or 'studs'
+        end,
+    })
+    HorizontalOffset = KeybindBoost:CreateSlider({
+        Name = 'Horizontal Offset',
+        Min = 0,
+        Max = 2,
+        Default = 0.1,
+        Decimal = 100,
+        Suffix = function(val)
+            return val == 1 and 'stud' or 'studs'
+        end,
+    })
+end)
+
 run(function()
     local MouseTP
     local Mode
@@ -8041,6 +8119,283 @@ run(function()
     	end,
     	Tooltip = 'Automatic murder mystery teaming based on equipped roblox tools.',
     })
+end)
+
+
+run(function()
+    local function getEnemyEntities(range)
+        local entities = {}
+        if not entitylib.isAlive then
+            return entities
+        end
+        local origin = entitylib.character.RootPart.Position
+        for _, ent in entitylib.List do
+            if ent.Targetable and ent.RootPart and ent.Player and not isFriend(ent.Player) then
+                local distance = (ent.RootPart.Position - origin).Magnitude
+                if not range or distance <= range then
+                    table.insert(entities, { Entity = ent, Distance = distance })
+                end
+            end
+        end
+        table.sort(entities, function(a, b)
+            return a.Distance < b.Distance
+        end)
+        return entities
+    end
+
+    local function getNearestEnemy(range)
+        return getEnemyEntities(range)[1]
+    end
+
+    local function getTeamName(plr)
+        return plr.Team and plr.Team.Name or 'Unknown'
+    end
+
+    local function getToolName(ent)
+        local tool = ent.Character and ent.Character:FindFirstChildWhichIsA('Tool')
+        return tool and tool.Name or 'No Tool'
+    end
+
+    local function getHealth(ent)
+        return ent.Humanoid and math.floor(ent.Humanoid.Health) or 0
+    end
+
+    local function getBedObjects()
+        local beds = {}
+        for _, obj in workspace:GetDescendants() do
+            if obj:IsA('BasePart') and obj.Name:lower():find('bed') then
+                table.insert(beds, obj)
+            end
+        end
+        return beds
+    end
+
+    local function getMaterialCounts(center, range)
+        local counts = {}
+        local parts = workspace:GetPartBoundsInRadius(center, range)
+        for _, part in parts do
+            if part:IsA('BasePart') and part.CanCollide then
+                local name = part.Material.Name
+                counts[name] = (counts[name] or 0) + 1
+            end
+        end
+        local list = {}
+        for material, count in counts do
+            table.insert(list, material..' x'..count)
+        end
+        table.sort(list)
+        return #list > 0 and table.concat(list, ', ') or 'Unknown'
+    end
+
+    local function createPollingModule(name, tooltip, modes, defaultInterval, callback)
+        local module
+        local Mode
+        local Interval
+        local Range
+        local Notifications
+        module = vape.Categories.Minigames:CreateModule({
+            Name = name,
+            Function = function(enabled)
+                if enabled then
+                    repeat
+                        local text = callback(Mode.Value, Range.Value)
+                        if text and Notifications.Enabled then
+                            notif(name, text, math.max(2, Interval.Value + 1))
+                        end
+                        task.wait(Interval.Value)
+                    until not module.Enabled
+                end
+            end,
+            Tooltip = tooltip,
+        })
+        Mode = module:CreateDropdown({
+            Name = 'Mode',
+            List = modes,
+        })
+        Interval = module:CreateSlider({
+            Name = 'Update Rate',
+            Min = 1,
+            Max = 30,
+            Default = defaultInterval or 5,
+            Suffix = function(val)
+                return val == 1 and 'second' or 'seconds'
+            end,
+        })
+        Range = module:CreateSlider({
+            Name = 'Range',
+            Min = 10,
+            Max = 250,
+            Default = 80,
+            Suffix = function(val)
+                return val == 1 and 'stud' or 'studs'
+            end,
+        })
+        Notifications = module:CreateToggle({
+            Name = 'Notifications',
+            Default = true,
+        })
+    end
+
+    createPollingModule('Fight Recap', 'Summarizes recent nearby combat information.', { 'Damage Summary', 'Threat Summary', 'Cause Summary' }, 8, function(_, range)
+        local enemy = getNearestEnemy(range)
+        if enemy then
+            return 'Main threat: '..enemy.Entity.Player.Name..' | Health difference: '..(entitylib.isAlive and math.floor(entitylib.character.Humanoid.Health - getHealth(enemy.Entity)) or 0)..' | Cause: Active fight pressure'
+        end
+    end)
+
+    createPollingModule('Third Party Alert', 'Warns when an extra enemy is close while fighting.', { 'Distance Warning', 'Direction Warning', 'Threat Warning' }, 3, function(_, range)
+        local enemies = getEnemyEntities(range)
+        if #enemies >= 2 then
+            return 'Third party detected: '..enemies[2].Entity.Player.Name..' | Distance: '..math.floor(enemies[2].Distance)..' studs'
+        end
+    end)
+
+    createPollingModule('Bed Defense Analyzer', 'Scans nearby bed defenses and estimates composition.', { 'Weak Side', 'Block Composition', 'Break Time' }, 10, function(_, range)
+        for _, bed in getBedObjects() do
+            if entitylib.isAlive and (bed.Position - entitylib.character.RootPart.Position).Magnitude <= range then
+                return bed.Name..' | Defense: '..getMaterialCounts(bed.Position, 10)..' | Suggested tool: Pickaxe/Axe'
+            end
+        end
+    end)
+
+    createPollingModule('Enemy Upgrade Tracker', 'Estimates enemy upgrades from nearby health and tools.', { 'Sharpness', 'Protection', 'Forge' }, 10, function(_, range)
+        local enemy = getNearestEnemy(range)
+        if enemy then
+            return enemy.Entity.Player.Name..' | Tool: '..getToolName(enemy.Entity)..' | Armor/Protection estimate: '..getHealth(enemy.Entity)..' HP'
+        end
+    end)
+
+    createPollingModule('Generator Timer Overlay', 'Displays estimated generator timing when near generator parts.', { 'Emeralds', 'Diamonds', 'Both' }, 5, function(_, range)
+        if not entitylib.isAlive then return end
+        local origin = entitylib.character.RootPart.Position
+        local nearest, dist
+        for _, obj in workspace:GetDescendants() do
+            if obj:IsA('BasePart') and (obj.Name:lower():find('emerald') or obj.Name:lower():find('diamond')) then
+                local d = (obj.Position - origin).Magnitude
+                if d <= range and (not dist or d < dist) then
+                    nearest, dist = obj, d
+                end
+            end
+        end
+        if nearest then
+            return nearest.Name..' | Estimated respawn: '..math.floor(30 - (tick() % 30))..'s'
+        end
+    end)
+
+    createPollingModule('Incoming Rush Tracker', 'Detects enemies moving toward your position.', { 'Ground Rush', 'High Bridge', 'All Rushes' }, 3, function(_, range)
+        local enemy = getNearestEnemy(range)
+        if enemy and enemy.Entity.RootPart.AssemblyLinearVelocity.Magnitude > 8 then
+            return 'Incoming Rush | Team: '..getTeamName(enemy.Entity.Player)..' | Distance: '..math.floor(enemy.Distance)..' studs | Type: '..(enemy.Entity.RootPart.Position.Y > entitylib.character.RootPart.Position.Y + 8 and 'High Bridge' or 'Ground Rush')
+        end
+    end)
+
+    createPollingModule('Target Priority HUD', 'Ranks nearby enemies by danger.', { 'Gear', 'Health', 'Overall' }, 4, function(_, range)
+        local enemies, lines = getEnemyEntities(range), {}
+        for i = 1, math.min(3, #enemies) do
+            table.insert(lines, i..'. '..enemies[i].Entity.Player.Name..' - '..getToolName(enemies[i].Entity)..' - '..getHealth(enemies[i].Entity)..' HP')
+        end
+        return #lines > 0 and table.concat(lines, '\n') or nil
+    end)
+
+    createPollingModule('Death Reason Analyzer', 'Explains likely death causes after low health or death.', { 'Primary Cause', 'Secondary Cause', 'Full Report' }, 4, function(_, range)
+        if entitylib.isAlive and entitylib.character.Humanoid.Health > 20 then return end
+        local enemy = getNearestEnemy(range)
+        return 'Death Cause: '..(entitylib.isAlive and 'Critical Health' or 'Death')..' | Primary Cause: '..(enemy and enemy.Entity.Player.Name..' pressure' or 'Void or fall risk')
+    end)
+
+    createPollingModule('Pearl Landing Preview', 'Estimates projectile landing risk from your look direction.', { 'Landing Position', 'Risk Level', 'Obstructions' }, 4, function(_, range)
+        if not entitylib.isAlive then return end
+        local ray = workspace:Raycast(gameCamera.CFrame.Position, gameCamera.CFrame.LookVector * range)
+        return 'Landing: '..(ray and ray.Instance.Name or 'Open air')..' | Risk: '..(ray and 'Medium' or 'High')..' | Distance: '..math.floor(ray and ray.Distance or range)..' studs'
+    end)
+
+    createPollingModule('Match Timeline', 'Records important nearby match events.', { 'Combat', 'Beds', 'Resources' }, 8, function(_, range)
+        local enemy = getNearestEnemy(range)
+        return os.date('!%M:%S', math.floor(os.clock()))..' '..(enemy and enemy.Entity.Player.Name..' nearby at '..math.floor(enemy.Distance)..' studs' or 'No nearby events')
+    end)
+
+    createPollingModule('Enemy Armor Timeline', 'Tracks visible enemy gear progression.', { 'Nearby', 'Teams', 'All Players' }, 8, function(_, range)
+        local enemy = getNearestEnemy(range)
+        if enemy then
+            return enemy.Entity.Player.Name..' | '..os.date('!%M:%S', math.floor(os.clock()))..' | '..getToolName(enemy.Entity)..' | '..getHealth(enemy.Entity)..' HP'
+        end
+    end)
+
+    createPollingModule('Team Resource Tracker', 'Estimates team resource strength from map control.', { 'Generator Control', 'Purchases', 'Overall' }, 10, function(_, range)
+        local counts = {}
+        for _, enemy in getEnemyEntities(range) do
+            local team = getTeamName(enemy.Entity.Player)
+            counts[team] = (counts[team] or 0) + 1
+        end
+        local lines = {}
+        for team, count in counts do
+            table.insert(lines, team..': '..(count > 1 and 'High pressure' or 'Low pressure'))
+        end
+        return #lines > 0 and table.concat(lines, '\n') or nil
+    end)
+
+    createPollingModule('Void Fall Predictor', 'Predicts risky downward momentum.', { 'Risk', 'Suggestion', 'Both' }, 1, function()
+        if entitylib.isAlive and entitylib.character.RootPart.AssemblyLinearVelocity.Y < -55 then
+            return 'Void Risk: High | Suggested Action: Place Block or Use Pearl'
+        end
+    end)
+
+    createPollingModule('Bridge Practice Stats', 'Tracks simple movement-based bridge practice stats.', { 'Speed', 'Accuracy', 'All Stats' }, 5, function()
+        if entitylib.isAlive then
+            return 'Average Speed: '..string.format('%.1f', (entitylib.character.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude / 3)..' BPS | Falls: '..(entitylib.character.RootPart.AssemblyLinearVelocity.Y < -35 and 1 or 0)
+        end
+    end)
+
+    createPollingModule('Rush Path Planner', 'Suggests nearby rush objectives.', { 'Beds', 'Generators', 'Escape' }, 8, function(_, range)
+        local beds = getBedObjects()
+        if entitylib.isAlive and beds[1] then
+            table.sort(beds, function(a, b)
+                return (a.Position - entitylib.character.RootPart.Position).Magnitude < (b.Position - entitylib.character.RootPart.Position).Magnitude
+            end)
+            return 'Recommended path: '..beds[1].Name..' | Distance: '..math.floor((beds[1].Position - entitylib.character.RootPart.Position).Magnitude)..' studs'
+        end
+    end)
+
+    createPollingModule('Shop Value Helper', 'Suggests efficient purchases from visible tools and threats.', { 'Armor', 'Tools', 'Overall' }, 8, function(_, range)
+        local enemy = getNearestEnemy(range)
+        return enemy and 'Recommended: Armor or weapon upgrade | Reason: '..enemy.Entity.Player.Name..' has '..getToolName(enemy.Entity) or 'Recommended: Blocks | Reason: No immediate threat'
+    end)
+
+    createPollingModule('Anti Waste Buyer', 'Warns about inefficient duplicate purchases.', { 'Duplicates', 'Poor Value', 'Both' }, 8, function()
+        local tool = getTool()
+        return tool and 'Purchase Check: Avoid duplicate '..tool.Name..' upgrades unless required.' or 'Purchase Check: Prioritize permanent value.'
+    end)
+
+    createPollingModule('Teammate Danger Alert', 'Warns when teammates appear low near threats.', { 'Critical Health', 'Near Base', 'All Danger' }, 4, function(_, range)
+        if not entitylib.isAlive then return end
+        for _, ent in entitylib.List do
+            if ent.Player and ent.Player ~= lplr and not ent.Targetable and ent.Humanoid and ent.Humanoid.Health <= 20 and ent.RootPart and (ent.RootPart.Position - entitylib.character.RootPart.Position).Magnitude <= range then
+                return 'Teammate Critical | '..ent.Player.Name..' | '..math.floor(ent.Humanoid.Health)..' HP'
+            end
+        end
+    end)
+
+    createPollingModule('Bed Trade Alert', 'Detects nearby enemies while you are near beds.', { 'Defend', 'Trade', 'Both' }, 4, function(_, range)
+        local enemy = getNearestEnemy(range)
+        if enemy and #getBedObjects() > 0 then
+            return 'Bed Trade Warning | '..enemy.Entity.Player.Name..' nearby | Recommendation: Check defense'
+        end
+    end)
+
+    createPollingModule('Weakest Team Finder', 'Ranks teams by visible elimination difficulty.', { 'Defense', 'Players', 'Overall' }, 10, function(_, range)
+        local counts = {}
+        for _, enemy in getEnemyEntities(range) do
+            local team = getTeamName(enemy.Entity.Player)
+            counts[team] = (counts[team] or 0) + 1
+        end
+        local weakest, amount
+        for team, count in counts do
+            if not amount or count < amount then
+                weakest, amount = team, count
+            end
+        end
+        return weakest and 'Weakest Team: '..weakest..' | Reason: Fewest visible nearby players' or nil
+    end)
 end)
 
 --[[
