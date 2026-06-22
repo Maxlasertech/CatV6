@@ -18673,3 +18673,116 @@ run(function()
         Tooltip = 'Delay after swing to fire snowball'
     })
 end)
+run(function()
+    local FrostedFastHits
+    local FireRate
+    local Legit
+    local Projectiles
+    local lastShot = 0
+    local projectileIndex = 0
+    
+    local function hotbarSwitch(slot)
+        if slot then
+            task.spawn(function()
+                bedwars.Client:Get(remotes.EquipItem):SendToServer({tool = slot})
+            end)
+            task.wait(0.1)
+        end
+    end
+    
+    FrostedFastHits = vape.Categories.Combat:CreateModule({
+        Name = 'Frosted Snowball Fast Hits',
+        Function = function(callback)
+            if callback then
+                Legit.Object.Visible = true
+                FireRate.Object.Visible = true
+                Projectiles.Object.Visible = true
+            else
+                Legit.Object.Visible = false
+                FireRate.Object.Visible = false
+                Projectiles.Object.Visible = false
+            end
+            
+            if callback then
+                repeat
+                    if entitylib.isAlive then
+                        local equipped = bedwars.Store:getState().Character.equippedItem
+                        
+                        if equipped and tick() > lastShot then
+                            -- check if projectile in whitelist
+                            local inList = false
+                            for _, proj in Projectiles.ListEnabled do
+                                if equipped.name:find(proj) then
+                                    inList = true
+                                    break
+                                end
+                            end
+                            
+                            if inList then
+                                local oldTool = equipped
+                                
+                                -- switch to projectile
+                                if Legit.Enabled then
+                                    for _, item in pairs(entitylib.character:FindFirstChild('Backpack'):GetChildren() or {}) do
+                                        if Projectiles.ListEnabled then
+                                            for _, proj in Projectiles.ListEnabled do
+                                                if item.Name:find(proj) then
+                                                    hotbarSwitch(item)
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                
+                                task.wait(0.05)
+                                
+                                -- fire
+                                task.spawn(function()
+                                    pcall(function()
+                                        bedwars.Client:Get(remotes.FireProjectile):CallServerAsync({
+                                            itemDrop = nil
+                                        })
+                                    end)
+                                end)
+                                
+                                -- switch back
+                                if Legit.Enabled and oldTool then
+                                    hotbarSwitch(oldTool)
+                                end
+                                
+                                lastShot = tick() + (lplr:GetNetworkPing() * 0.001 + FireRate.Value)
+                            end
+                        end
+                    end
+                    task.wait(0.01)
+                until not FrostedFastHits.Enabled
+            end
+        end,
+        Tooltip = 'Rapidly fires projectiles'
+    })
+    
+    Projectiles = FrostedFastHits:CreateTextList({
+        Name = 'Projectiles',
+        Default = {'frosted_snowball'},
+        Visible = false,
+        Tooltip = 'Projectiles to fire'
+    })
+    
+    Legit = FrostedFastHits:CreateToggle({
+        Name = 'Legit Switch',
+        Default = true,
+        Visible = false,
+        Tooltip = 'Adds human-like hotbar switching'
+    })
+    
+    FireRate = FrostedFastHits:CreateSlider({
+        Name = 'Fire rate',
+        Min = 0.05,
+        Max = 2,
+        Default = 0.5,
+        Decimal = 100,
+        Suffix = 'seconds',
+        Visible = false
+    })
+end)
