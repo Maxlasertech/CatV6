@@ -18303,9 +18303,7 @@ run(function()
                                                 local sdir = CFrame.lookAt(localPosition, calc).LookVector
                                                 local id = httpService:GenerateGUID(true)
                                                 local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
-                                                local chargeDur = AutoCharge.Enabled and 5 or 0
-
-                                                bedwars.ProjectileController:createLocalProjectile(itemMeta, projectile, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = chargeDur})
+                                                bedwars.ProjectileController:createLocalProjectile(itemMeta, projectile, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 0})
                                                 local res = projectileRemote:InvokeServer(
                                                     staff.tool,
                                                     projectile,
@@ -18315,9 +18313,9 @@ run(function()
                                                     sdir * projSpeed,
                                                     id,
                                                     {
-                                                        drawDurationSeconds = chargeDur,
+                                                        drawDurationSeconds = 0,
                                                         shotId = httpService:GenerateGUID(false),
-                                                        chargeRatio = AutoCharge.Enabled and 1 or 0
+                                                        chargeRatio = 0
                                                     },
                                                     workspace:GetServerTimeNow() - 0.045
                                                 )
