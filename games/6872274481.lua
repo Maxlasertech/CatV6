@@ -18314,7 +18314,23 @@ run(function()
                                                     }
                                                 end)
 
-                                                mouse1click()
+                                                if inputService.MouseEnabled then
+                                                    mouse1click()
+                                                else
+                                                    local id = httpService:GenerateGUID(true)
+                                                    local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+                                                    bedwars.Client:Get(remotes.FireProjectile):CallServerAsync(
+                                                        staff.tool, projectile, projectile,
+                                                        shootPosition, pos, sdir * projSpeed,
+                                                        id,
+                                                        {
+                                                            drawDurationSeconds = 0,
+                                                            shotId = httpService:GenerateGUID(false),
+                                                            chargeRatio = 0,
+                                                        },
+                                                        workspace:GetServerTimeNow() - 0.045
+                                                    )
+                                                end
                                                 task.wait(0.1)
                                                 frostHook()
 
