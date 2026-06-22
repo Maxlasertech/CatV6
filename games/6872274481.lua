@@ -18570,85 +18570,66 @@ run(function()
 end)
 run(function()
     local DamageImmunity
-    local Duration
+    local ImmunityDuration
     local DebugToggle
-    local ImmunityActive = false
-    local ImmunityEndTime = 0
+    
+    local lastVelocity = 0
+    local immunityEndTime = 0
     
     DamageImmunity = vape.Categories.Combat:CreateModule({
         Name = 'Damage Immunity',
         Function = function(callback)
             if callback then
-                -- log all damage-related events
-                if bedwars.ZapNetworking then
-                    pcall(function()
-                        bedwars.ZapNetworking.EntityDamageEventZap.On(function(...)
-                            local args = {...}
-                            if DebugToggle.Enabled then
-                                print('[DamageImmunity] EntityDamageEventZap fired:')
-                                for i, v in args do
-                                    print('  arg', i, '->', type(v) == 'table' and 'TABLE' or tostring(v))
+                local lplr = game:GetService('Players').LocalPlayer
+                DamageImmunity:Clean(task.spawn(function()
+                    while DamageImmunity.Enabled do
+                        if lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart') then
+                            local vel = lplr.Character.HumanoidRootPart.Velocity.Magnitude
+                            if vel > 100 and vel > lastVelocity + 50 then
+                                immunityEndTime = tick() + ImmunityDuration.Value
+                                if DebugToggle.Enabled then
+                                    print('[Immunity] Dash detected, immunity active')
                                 end
                             end
-                        end)
-                    end)
+                            lastVelocity = vel
+                        end
+                        task.wait(0.05)
+                    end
+                end))
+                
+                if bedwars.ZapNetworking and bedwars.ZapNetworking.EntityDamageEventZap then
+                    DamageImmunity:Clean(bedwars.ZapNetworking.EntityDamageEventZap.On(function(...)
+                        local args = {...}
+                        local damageType = args[7]
+                        local damage = args[2]
+                        
+                        if damageType == 7 then
+                            if tick() < immunityEndTime then
+                                if DebugToggle.Enabled then
+                                    print('[Immunity] BLOCKED fall damage:', damage)
+                                end
+                                return
+                            elseif DebugToggle.Enabled then
+                                print('[Immunity] Fall damage taken (immunity expired):', damage)
+                            end
+                        end
+                    end))
                 end
-                
-                -- try to intercept damage remotes
-                pcall(function()
-                    for name, remote in remotes do
-                        if name:lower():find('damage') or name:lower():find('health') then
-                            print('[DamageImmunity] Found potential damage remote:', name)
-                        end
-                    end
-                end)
-                
-                repeat
-                    if ImmunityActive and tick() >= ImmunityEndTime then
-                        ImmunityActive = false
-                        if DebugToggle.Enabled then
-                            print('[DamageImmunity] Immunity expired')
-                        end
-                    end
-                    task.wait(0.05)
-                until not DamageImmunity.Enabled
             end
         end,
-        Tooltip = 'Grants temporary damage immunity on toggle'
+        Tooltip = 'Grants immunity after dashing (like Elektra)'
     })
     
-    Duration = DamageImmunity:CreateSlider({
+    ImmunityDuration = DamageImmunity:CreateSlider({
         Name = 'Immunity Duration',
         Min = 0.5,
         Max = 5,
-        Default = 2,
-        Decimal = 10,
-        Suffix = function(val) 
-            return val == 1 and 'second' or 'seconds' 
-        end
+        Default = 2.5,
+        Decimal = 10
     })
     
     DebugToggle = DamageImmunity:CreateToggle({
-        Name = 'Debug Prints',
+        Name = 'Debug',
         Default = true
-    })
-    
-    DamageImmunity:CreateToggle({
-        Name = 'Activate',
-        Default = false,
-        Function = function(enabled)
-            if enabled then
-                ImmunityActive = true
-                ImmunityEndTime = tick() + Duration.Value
-                if DebugToggle.Enabled then
-                    print('[DamageImmunity] Immunity activated for', Duration.Value, 'seconds')
-                end
-            else
-                ImmunityActive = false
-                if DebugToggle.Enabled then
-                    print('[DamageImmunity] Immunity deactivated')
-                end
-            end
-        end
     })
 end)
