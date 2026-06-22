@@ -18574,7 +18574,7 @@ run(function()
     local Legit
     local Projectiles
     local lastShot = 0
-    local projectileIndex = 0
+    local swingWindow = 0
     
     local function hotbarSwitch(slot)
         if slot then
@@ -18592,18 +18592,22 @@ run(function()
                 Legit.Object.Visible = true
                 FireRate.Object.Visible = true
                 Projectiles.Object.Visible = true
-            else
-                Legit.Object.Visible = false
-                FireRate.Object.Visible = false
-                Projectiles.Object.Visible = false
-            end
-            
-            if callback then
+                
+                -- hook sword swing detection
+                pcall(function()
+                    local attackRemote = bedwars.Client:Get(remotes.AttackEntity)
+                    if attackRemote then
+                        FrostedFastHits:Clean(attackRemote.OnClientEvent:Connect(function(...)
+                            swingWindow = tick() + 0.15  -- 150ms window after swing
+                        end))
+                    end
+                end)
+                
                 repeat
-                    if entitylib.isAlive then
+                    if entitylib.isAlive and tick() < swingWindow and tick() > lastShot then
                         local equipped = bedwars.Store:getState().Character.equippedItem
                         
-                        if equipped and tick() > lastShot then
+                        if equipped then
                             -- check if projectile in whitelist
                             local inList = false
                             for _, proj in Projectiles.ListEnabled do
@@ -18619,12 +18623,10 @@ run(function()
                                 -- switch to projectile
                                 if Legit.Enabled then
                                     for _, item in pairs(entitylib.character:FindFirstChild('Backpack'):GetChildren() or {}) do
-                                        if Projectiles.ListEnabled then
-                                            for _, proj in Projectiles.ListEnabled do
-                                                if item.Name:find(proj) then
-                                                    hotbarSwitch(item)
-                                                    break
-                                                end
+                                        for _, proj in Projectiles.ListEnabled do
+                                            if item.Name:find(proj) then
+                                                hotbarSwitch(item)
+                                                break
                                             end
                                         end
                                     end
@@ -18643,41 +18645,21 @@ run(function()
                                 
                                 -- switch back
                                 if Legit.Enabled and oldTool then
+                                    task.wait(0.05)
                                     hotbarSwitch(oldTool)
                                 end
                                 
-                                lastShot = tick() + (lplr:GetNetworkPing() * 0.001 + FireRate.Value)
+                                lastShot = tick() + FireRate.Value
+                                swingWindow = 0
                             end
                         end
                     end
                     task.wait(0.01)
                 until not FrostedFastHits.Enabled
+            else
+                Legit.Object.Visible = false
+                FireRate.Object.Visible = false
+                Projectiles.Object.Visible = false
             end
         end,
-        Tooltip = 'Rapidly fires projectiles'
-    })
-    
-    Projectiles = FrostedFastHits:CreateTextList({
-        Name = 'Projectiles',
-        Default = {'frosted_snowball'},
-        Visible = false,
-        Tooltip = 'Projectiles to fire'
-    })
-    
-    Legit = FrostedFastHits:CreateToggle({
-        Name = 'Legit Switch',
-        Default = true,
-        Visible = false,
-        Tooltip = 'Adds human-like hotbar switching'
-    })
-    
-    FireRate = FrostedFastHits:CreateSlider({
-        Name = 'Fire rate',
-        Min = 0.05,
-        Max = 2,
-        Default = 0.5,
-        Decimal = 100,
-        Suffix = 'seconds',
-        Visible = false
-    })
-end)
+        Tooltip = 'Fires
