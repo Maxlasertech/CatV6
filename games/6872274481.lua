@@ -18569,22 +18569,25 @@ run(function()
     })
 end)
 run(function()
-    local FrostedSnowballFastHits
+    local BestFastHits
     local FireRate
     local Legit
+    local Whitelist
     local FireRates = {}
+    local projectileIndex = 0
     local lastShot = 0
-    local swingDetected = false
     
     local function getProjectiles()
         local items = {}
         local backpack = entitylib.character:FindFirstChild('Backpack')
         if backpack then
             for _, item in pairs(backpack:GetChildren()) do
-                if item.Name == 'frosted_snowball' then
-                    local ammo = item:FindFirstChild('Ammo')
-                    if ammo and ammo.Value > 0 then
-                        table.insert(items, {item, ammo, 'frosted_snowball', bedwars.ItemMeta[item.Name]})
+                for _, proj in Whitelist.ListEnabled do
+                    if item.Name:find(proj) then
+                        local ammo = item:FindFirstChild('Ammo')
+                        if ammo and ammo.Value > 0 then
+                            table.insert(items, {item, ammo, item.Name, bedwars.ItemMeta[item.Name]})
+                        end
                     end
                 end
             end
@@ -18592,34 +18595,43 @@ run(function()
         return items
     end
     
-    FrostedSnowballFastHits = vape.Categories.Combat:CreateModule({
-        Name = 'Frosted Snowball Fast Hits',
+    BestFastHits = vape.Categories.Combat:CreateModule({
+        Name = 'Best Fast Hits',
         Function = function(callback)
             if callback then
-                Legit.Object.Visible = true
+                Whitelist.Object.Visible = true
                 FireRate.Object.Visible = true
-                
-                -- detect sword swings
-                pcall(function()
-                    FrostedSnowballFastHits:Clean(bedwars.Client:Get(remotes.AttackEntity).OnClientEvent:Connect(function()
-                        swingDetected = true
-                    end))
-                end)
+                Legit.Object.Visible = true
                 
                 repeat
-                    if entitylib.isAlive and swingDetected and tick() > lastShot then
+                    if entitylib.isAlive and tick() > lastShot then
                         local projectiles = getProjectiles()
                         if #projectiles > 0 then
-                            local item, ammo, projectile, itemMeta = unpack(projectiles[1])
+                            projectileIndex += 1
+                            if not projectiles[projectileIndex] then
+                                projectileIndex = 1
+                            end
+                            
+                            local item, ammo, projectile, itemMeta = unpack(projectiles[projectileIndex])
                             
                             if tick() > (FireRates[item.Name] or 0) then
                                 local oldtool = bedwars.Store:getState().Character.equippedItem
+                                local oldhotbar = bedwars.Store:getState().Inventory.hotbarSlot
                                 
-                                -- switch to snowball
-                                bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = item})
+                                -- switch to projectile
+                                task.spawn(function()
+                                    pcall(function()
+                                        bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = item})
+                                    end)
+                                end)
+                                
                                 task.wait(0.1)
                                 
-                                -- fire
+                                if Legit.Enabled then
+                                    task.wait(0.05)
+                                end
+                                
+                                -- fire projectile
                                 task.spawn(function()
                                     pcall(function()
                                         bedwars.Client:Get(remotes.FireProjectile):SendToServer({})
@@ -18628,34 +18640,46 @@ run(function()
                                 
                                 task.wait(0.05)
                                 
-                                -- switch back
+                                -- switch back to sword
                                 if oldtool and oldtool.tool then
-                                    bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = oldtool.tool})
+                                    task.spawn(function()
+                                        pcall(function()
+                                            bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = oldtool.tool})
+                                        end)
+                                    end)
                                 end
                                 
                                 FireRates[item.Name] = tick() + itemMeta.fireDelaySec
                                 lastShot = tick() + (lplr:GetNetworkPing() * 0.001 + FireRate.Value)
-                                swingDetected = false
                             end
                         end
                     end
                     task.wait(0.01)
-                until not FrostedSnowballFastHits.Enabled
+                until not BestFastHits.Enabled
             else
-                Legit.Object.Visible = false
+                Whitelist.Object.Visible = false
                 FireRate.Object.Visible = false
+                Legit.Object.Visible = false
             end
         end,
-        Tooltip = 'Auto fires frosted snowballs with sword swings'
+        Tooltip = 'Rapidly fires projectiles while swinging sword'
     })
     
-    Legit = FrostedSnowballFastHits:CreateToggle({
+    Whitelist = BestFastHits:CreateTextList({
+        Name = 'Projectiles',
+        Default = {'arrow', 'snowball', 'fireball'},
+        Visible = false,
+        Tooltip = 'Projectiles to fire'
+    })
+    
+    Legit = BestFastHits:CreateToggle({
         Name = 'Legit Switch',
         Default = true,
-        Visible = false
+        Visible = false,
+        Tooltip = 'Add human-like switching delays'
     })
     
-    FireRate = FrostedSnowballFastHits:CreateSlider({
+    FireRate = BestFastHits:CreateSlider({
         Name = 'Fire rate',
         Min = 0.05,
         Max = 2,
