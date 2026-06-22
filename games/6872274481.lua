@@ -18475,6 +18475,7 @@ run(function()
 end)
 run(function()
     local ItemSuspend
+    local FreezeDelay
     local Lifetime
     local FrozenItems = {}
     
@@ -18488,25 +18489,31 @@ run(function()
                         
                         for _, item in items do
                             if item and item.Parent then
-                                local dropTime = item:GetAttribute('ClientDropTime') or 0
+                                local dropTime = item:GetAttribute('ClientDropTime') or tick()
                                 local timeSinceDrop = tick() - dropTime
                                 
-                                -- freeze new drops
-                                if timeSinceDrop < 1 and not FrozenItems[item] then
+                                -- track when item should freeze
+                                if not FrozenItems[item] then
                                     FrozenItems[item] = {
-                                        position = item.Position,
-                                        droppedAt = tick()
+                                        droppedAt = dropTime,
+                                        frozenPosition = nil,
+                                        frozenAt = nil
                                     }
                                 end
                                 
-                                -- keep frozen items suspended
-                                if FrozenItems[item] then
-                                    local frozen = FrozenItems[item]
+                                local frozen = FrozenItems[item]
+                                
+                                -- check if freeze delay has elapsed
+                                if timeSinceDrop >= FreezeDelay.Value and not frozen.frozenPosition then
+                                    -- capture current position and freeze
+                                    frozen.frozenPosition = item.Position
+                                    frozen.frozenAt = tick()
+                                end
+                                
+                                -- keep item frozen once delay expires
+                                if frozen.frozenPosition then
+                                    item.Position = frozen.frozenPosition
                                     
-                                    -- reset position and velocity
-                                    item.Position = frozen.position
-                                    
-                                    -- freeze all parts
                                     for _, part in item:GetDescendants() do
                                         if part:IsA('BasePart') then
                                             part.Velocity = Vector3.new(0, 0, 0)
@@ -18516,7 +18523,7 @@ run(function()
                                     end
                                     
                                     -- unfreeze after lifetime
-                                    if timeSinceDrop > Lifetime.Value then
+                                    if tick() - frozen.frozenAt > Lifetime.Value then
                                         FrozenItems[item] = nil
                                     end
                                 end
@@ -18537,13 +18544,24 @@ run(function()
                 FrozenItems = {}
             end
         end,
-        Tooltip = 'Suspends dropped items in mid-air at their drop location'
+        Tooltip = 'Items fall normally then freeze at a set delay'
+    })
+    
+    FreezeDelay = ItemSuspend:CreateSlider({
+        Name = 'Freeze After',
+        Min = 0,
+        Max = 10,
+        Default = 2,
+        Decimal = 10,
+        Suffix = function(val) 
+            return val == 1 and 'second' or 'seconds' 
+        end
     })
     
     Lifetime = ItemSuspend:CreateSlider({
-        Name = 'Freeze Duration',
+        Name = 'Stay Frozen',
         Min = 5,
-        Max = 120,
+        Max = 300,
         Default = 60,
         Suffix = function(val) 
             return val == 1 and 'second' or 'seconds' 
