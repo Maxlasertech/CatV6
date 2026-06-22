@@ -18574,6 +18574,7 @@ run(function()
     local Legit
     local FireRates = {}
     local lastShot = 0
+    local swingDetected = false
     
     local function getProjectiles()
         local items = {}
@@ -18598,8 +18599,15 @@ run(function()
                 Legit.Object.Visible = true
                 FireRate.Object.Visible = true
                 
+                -- detect sword swings
+                pcall(function()
+                    FrostedSnowballFastHits:Clean(bedwars.Client:Get(remotes.AttackEntity).OnClientEvent:Connect(function()
+                        swingDetected = true
+                    end))
+                end)
+                
                 repeat
-                    if entitylib.isAlive and tick() > lastShot then
+                    if entitylib.isAlive and swingDetected and tick() > lastShot then
                         local projectiles = getProjectiles()
                         if #projectiles > 0 then
                             local item, ammo, projectile, itemMeta = unpack(projectiles[1])
@@ -18627,10 +18635,11 @@ run(function()
                                 
                                 FireRates[item.Name] = tick() + itemMeta.fireDelaySec
                                 lastShot = tick() + (lplr:GetNetworkPing() * 0.001 + FireRate.Value)
+                                swingDetected = false
                             end
                         end
                     end
-                    task.wait(0.05)
+                    task.wait(0.01)
                 until not FrostedSnowballFastHits.Enabled
             else
                 Legit.Object.Visible = false
@@ -18643,8 +18652,7 @@ run(function()
     Legit = FrostedSnowballFastHits:CreateToggle({
         Name = 'Legit Switch',
         Default = true,
-        Visible = false,
-        Tooltip = 'Human-like switching animation'
+        Visible = false
     })
     
     FireRate = FrostedSnowballFastHits:CreateSlider({
