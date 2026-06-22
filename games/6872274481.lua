@@ -18336,9 +18336,9 @@ run(function()
                                             task.spawn(function()
                                                 if FrostLegit.Enabled then
                                                     hotbarSwitch(oldhotbar)
-                                                    if oldtool then
-                                                        switchItem(oldtool)
-                                                    end
+                                                end
+                                                if oldtool then
+                                                    switchItem(oldtool)
                                                 end
                                             end)
                                         end
