@@ -18573,6 +18573,7 @@ run(function()
     local FireRate
     local Legit
     local Whitelist
+    local DebugToggle
     local FireRates = {}
     local projectileIndex = 0
     local lastShot = 0
@@ -18587,6 +18588,9 @@ run(function()
                         local ammo = item:FindFirstChild('Ammo')
                         if ammo and ammo.Value > 0 then
                             table.insert(items, {item, ammo, item.Name, bedwars.ItemMeta[item.Name]})
+                            if DebugToggle.Enabled then
+                                print('[BestFastHits] Found projectile:', item.Name, 'ammo:', ammo.Value)
+                            end
                         end
                     end
                 end
@@ -18599,13 +18603,19 @@ run(function()
         Name = 'Best Fast Hits',
         Function = function(callback)
             if callback then
+                print('[BestFastHits] Module enabled')
                 Whitelist.Object.Visible = true
                 FireRate.Object.Visible = true
                 Legit.Object.Visible = true
+                DebugToggle.Object.Visible = true
                 
                 repeat
                     if entitylib.isAlive and tick() > lastShot then
                         local projectiles = getProjectiles()
+                        if DebugToggle.Enabled then
+                            print('[BestFastHits] Found', #projectiles, 'projectiles')
+                        end
+                        
                         if #projectiles > 0 then
                             projectileIndex += 1
                             if not projectiles[projectileIndex] then
@@ -18614,69 +18624,46 @@ run(function()
                             
                             local item, ammo, projectile, itemMeta = unpack(projectiles[projectileIndex])
                             
-                            if tick() > (FireRates[item.Name] or 0) then
-                                local oldtool = bedwars.Store:getState().Character.equippedItem
-                                local oldhotbar = bedwars.Store:getState().Inventory.hotbarSlot
-                                
-                                -- switch to projectile
-                                task.spawn(function()
-                                    pcall(function()
-                                        bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = item})
-                                    end)
-                                end)
-                                
-                                task.wait(0.1)
-                                
-                                if Legit.Enabled then
-                                    task.wait(0.05)
-                                end
-                                
-                                -- fire projectile
-                                task.spawn(function()
-                                    pcall(function()
-                                        bedwars.Client:Get(remotes.FireProjectile):SendToServer({})
-                                    end)
-                                end)
-                                
-                                task.wait(0.05)
-                                
-                                -- switch back to sword
-                                if oldtool and oldtool.tool then
-                                    task.spawn(function()
-                                        pcall(function()
-                                            bedwars.Client:Get(remotes.EquipItem):SendToServer({hand = oldtool.tool})
-                                        end)
-                                    end)
-                                end
-                                
-                                FireRates[item.Name] = tick() + itemMeta.fireDelaySec
-                                lastShot = tick() + (lplr:GetNetworkPing() * 0.001 + FireRate.Value)
+                            if DebugToggle.Enabled then
+                                print('[BestFastHits] Attempting to fire:', projectile)
                             end
+                            
+                            -- fire projectile
+                            task.spawn(function()
+                                pcall(function()
+                                    bedwars.Client:Get(remotes.FireProjectile):SendToServer({})
+                                    if DebugToggle.Enabled then
+                                        print('[BestFastHits] Fired projectile')
+                                    end
+                                end)
+                            end)
+                            
+                            lastShot = tick() + FireRate.Value
                         end
                     end
                     task.wait(0.01)
                 until not BestFastHits.Enabled
+                print('[BestFastHits] Module disabled')
             else
                 Whitelist.Object.Visible = false
                 FireRate.Object.Visible = false
                 Legit.Object.Visible = false
+                DebugToggle.Object.Visible = false
             end
         end,
-        Tooltip = 'Rapidly fires projectiles while swinging sword'
+        Tooltip = 'Fires projectiles'
     })
     
     Whitelist = BestFastHits:CreateTextList({
         Name = 'Projectiles',
-        Default = {'arrow', 'snowball', 'fireball'},
-        Visible = false,
-        Tooltip = 'Projectiles to fire'
+        Default = {'arrow', 'snowball'},
+        Visible = false
     })
     
     Legit = BestFastHits:CreateToggle({
         Name = 'Legit Switch',
         Default = true,
-        Visible = false,
-        Tooltip = 'Add human-like switching delays'
+        Visible = false
     })
     
     FireRate = BestFastHits:CreateSlider({
@@ -18686,6 +18673,12 @@ run(function()
         Default = 0.5,
         Decimal = 100,
         Suffix = 'seconds',
+        Visible = false
+    })
+    
+    DebugToggle = BestFastHits:CreateToggle({
+        Name = 'Debug',
+        Default = true,
         Visible = false
     })
 end)
