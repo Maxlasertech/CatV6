@@ -3921,18 +3921,40 @@ function mainapi:CreateCategory(categorysettings)
 			end
 		end
 
+		local function updateModuleButtonVisual()
+			local rainbow = mainapi.GUIColor.Rainbow and mainapi.RainbowMode.Value ~= 'Retro'
+			gradient.Enabled = false
+
+			if moduleapi.Enabled then
+				modulebutton.BackgroundColor3 = rainbow and Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - (moduleapi.Index * 0.025)) % 1)) or Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+				modulebutton.TextColor3 = mainapi.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+				gradient.Enabled = rainbow and mainapi.RainbowMode.Value == 'Gradient'
+				if gradient.Enabled then
+					modulebutton.BackgroundColor3 = Color3.new(1, 1, 1)
+					gradient.Color = ColorSequence.new({
+						ColorSequenceKeypoint.new(0, Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - (moduleapi.Index * 0.025)) % 1))),
+						ColorSequenceKeypoint.new(1, Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - ((moduleapi.Index + 1) * 0.025)) % 1)))
+					})
+				end
+				dots.ImageColor3 = modulebutton.TextColor3
+				bindicon.ImageColor3 = modulebutton.TextColor3
+				bindtext.TextColor3 = modulebutton.TextColor3
+			else
+				modulebutton.TextColor3 = (hovered or modulechildren.Visible) and uipallet.Text or color.Dark(uipallet.Text, 0.16)
+				modulebutton.BackgroundColor3 = (hovered or modulechildren.Visible) and color.Light(uipallet.Main, 0.02) or uipallet.Main
+				dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
+				bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
+				bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
+			end
+		end
+
 		function moduleapi:Toggle(multiple)
 			if mainapi.ThreadFix then
 				setthreadidentity(8)
 			end
 			self.Enabled = not self.Enabled
 			divider.Visible = self.Enabled
-			gradient.Enabled = self.Enabled
-			modulebutton.TextColor3 = (hovered or modulechildren.Visible) and uipallet.Text or color.Dark(uipallet.Text, 0.16)
-			modulebutton.BackgroundColor3 = (hovered or modulechildren.Visible) and color.Light(uipallet.Main, 0.02) or uipallet.Main
-			dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or color.Light(uipallet.Main, 0.37)
-			bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-			bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
+			updateModuleButtonVisual()
 			if not self.Enabled then
 				for _, v in self.Connections do
 					v:Disconnect()
