@@ -18494,9 +18494,14 @@ run(function()
                         hotbarSwitch(hotbar)
                     end
 
+                    local drawDurationSec = 0.05
+                    local maxChargeSec = itemMeta.projectileSource.maxStretchChargeSec or 1
+                    local chargeRatio = drawDurationSec / maxChargeSec
+                    local actualSpeed = projSpeed * (0.5 + 0.5 * chargeRatio)
+
                     local pos = localPosition + CFrame.lookAt(localPosition, ent.RootPart.Position).LookVector * math.max(delta.Magnitude - 14.4, 0)
                     local calc = prediction.SolveTrajectory(
-                        localPosition, projSpeed, gravity,
+                        localPosition, actualSpeed, gravity,
                         ent.RootPart.Position, ent.RootPart.Velocity,
                         workspace.Gravity, ent.HipHeight,
                         ent.Jumping and 42.6 or nil,
@@ -18512,14 +18517,13 @@ run(function()
                             -bedwars.BowConstantsTable.RelZ
                         ))).Position
 
-                        local chargeSec = itemMeta.projectileSource.maxStretchChargeSec or 1
-                        bedwars.ProjectileController:createLocalProjectile(itemMeta, projectile, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = chargeSec})
+                        bedwars.ProjectileController:createLocalProjectile(itemMeta, projectile, projectile, shootPosition, id, sdir * actualSpeed, {drawDurationSec = drawDurationSec})
                         local res = projectileRemote:InvokeServer(
                             staff.tool, projectile, projectile,
-                            shootPosition, pos, sdir * projSpeed,
+                            shootPosition, pos, sdir * actualSpeed,
                             id,
                             {
-                                drawDurationSeconds = chargeSec,
+                                drawDurationSec = drawDurationSec,
                                 shotId = httpService:GenerateGUID(false),
                             },
                             workspace:GetServerTimeNow() - 0.045
