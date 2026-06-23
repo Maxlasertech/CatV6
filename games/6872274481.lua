@@ -2988,7 +2988,6 @@ end)
 
 run(function()
     local ElektraGodmode
-    local AlwaysActive
 
     local eg_oldroot, eg_clone, eg_hip = nil, nil, 2.7
 
@@ -3006,8 +3005,6 @@ run(function()
             lplr.Character.PrimaryPart = eg_clone
             bedwars.QueryUtil:setQueryIgnored(eg_clone, true)
             bedwars.QueryUtil:setQueryIgnored(eg_oldroot, true)
-            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFalling, false)
             return true
         end
         return false
@@ -3017,18 +3014,13 @@ run(function()
         if eg_oldroot and eg_oldroot.Parent and entitylib.isAlive then
             eg_oldroot.AssemblyLinearVelocity = Vector3.zero
             eg_oldroot.Parent = lplr.Character
-            if eg_clone then
-                eg_clone:Destroy()
-                eg_clone = nil
-            end
+            if eg_clone then eg_clone:Destroy(); eg_clone = nil end
             lplr.Character.PrimaryPart = eg_oldroot
             eg_oldroot.CanCollide = true
             entitylib.character.Humanoid.HipHeight = eg_hip or 2.6
             eg_oldroot.Transparency = 1
             eg_oldroot = nil
             store.rootpart = nil
-            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFalling, true)
             return true
         end
         return false
@@ -3042,6 +3034,7 @@ run(function()
                     if eg_oldroot and eg_oldroot.Parent then
                         eg_oldroot.AssemblyLinearVelocity = Vector3.zero
                         eg_oldroot.CFrame = eg_clone.CFrame - Vector3.new(0, 100, 0)
+                        entitylib.character.AirTime = tick()
                     end
                 end))
 
@@ -3049,18 +3042,10 @@ run(function()
 
                 repeat
                     if entitylib.isAlive then
-                        local char = entitylib.character
-                        local shouldBeActive = AlwaysActive.Enabled or char:GetAttribute('NoNametag') == true
-
-                        if eg_oldroot and eg_oldroot.Parent then
-                            entitylib.character.AirTime = tick()
-                        end
-
-                        if shouldBeActive and not isDashing and not store.rootpart then
-                            if eg_createClone() then
-                                isDashing = true
-                            end
-                        elseif not shouldBeActive and isDashing then
+                        local dashActive = entitylib.character:GetAttribute('NoNametag') == true
+                        if dashActive and not isDashing and not store.rootpart then
+                            if eg_createClone() then isDashing = true end
+                        elseif not dashActive and isDashing then
                             isDashing = false
                             local old = eg_clone and eg_clone.CFrame or nil
                             if eg_destroyClone() and old then
@@ -3086,12 +3071,7 @@ run(function()
                 end
             end
         end,
-        Tooltip = 'Uses clone trick during Elektra dash — invisible + unhittable on server'
-    })
-    AlwaysActive = ElektraGodmode:CreateToggle({
-        Name = 'Always Active',
-        Default = false,
-        Tooltip = 'Keep clone permanently active — invisible + no suffocation or hit damage at all times'
+        Tooltip = 'Activates clone trick during Elektra dash — invisible + unhittable for the dash window'
     })
 end)
 
