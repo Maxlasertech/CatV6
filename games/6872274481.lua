@@ -8610,11 +8610,11 @@ run(function()
             if call then
                 NoFallDamage:Clean(runService.PreSimulation:Connect(function()
                     if not entitylib.isAlive then return end
-                    local hrp = entitylib.character and entitylib.character:FindFirstChild('HumanoidRootPart')
+                    local hrp = entitylib.character and entitylib.character.RootPart
                     if not hrp then return end
                     local vel = hrp.AssemblyLinearVelocity
                     if vel.Y >= -10 then return end
-                    rp.FilterDescendantsInstances = {entitylib.character}
+                    rp.FilterDescendantsInstances = {lplr.Character}
                     local hit = workspace:Raycast(hrp.Position, Vector3.new(0, vel.Y * 0.05 - 5, 0), rp)
                     if hit then
                         hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 0, vel.Z)
