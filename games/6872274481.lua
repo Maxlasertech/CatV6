@@ -3008,6 +3008,8 @@ run(function()
             lplr.Character.Parent = workspace
             bedwars.QueryUtil:setQueryIgnored(eg_clone, true)
             bedwars.QueryUtil:setQueryIgnored(eg_oldroot, true)
+            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFalling, false)
             return true
         end
         return false
@@ -3016,6 +3018,7 @@ run(function()
     local function eg_destroyClone()
         if eg_oldroot and eg_oldroot.Parent and entitylib.isAlive then
             lplr.Character.Parent = replicatedStorage
+            eg_oldroot.AssemblyLinearVelocity = Vector3.zero
             eg_oldroot.Parent = lplr.Character
             if eg_clone then
                 eg_clone:Destroy()
@@ -3028,6 +3031,8 @@ run(function()
             eg_oldroot.Transparency = 1
             eg_oldroot = nil
             store.rootpart = nil
+            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            entitylib.character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFalling, true)
             return true
         end
         return false
@@ -3041,6 +3046,10 @@ run(function()
                     if eg_oldroot and eg_oldroot.Parent then
                         eg_oldroot.AssemblyLinearVelocity = Vector3.zero
                         eg_oldroot.CFrame = eg_clone.CFrame - Vector3.new(0, 200, 0)
+                        local cv = eg_clone.AssemblyLinearVelocity
+                        if cv.Y < 0 then
+                            eg_clone.AssemblyLinearVelocity = Vector3.new(cv.X, 0, cv.Z)
+                        end
                     end
                 end))
 
