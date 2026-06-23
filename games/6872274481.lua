@@ -2987,6 +2987,109 @@ run(function()
 end)
 
 run(function()
+    local ElektraGodmode
+
+    local eg_oldroot, eg_clone, eg_hip = nil, nil, 2.7
+    local eg_floatTime = 0
+
+    local function eg_createClone()
+        if store.rootpart then return false end
+        if entitylib.isAlive and entitylib.character.Humanoid.Health > 0 and (not eg_oldroot or not eg_oldroot.Parent) then
+            eg_hip = entitylib.character.Humanoid.HipHeight
+            eg_oldroot = entitylib.character.HumanoidRootPart
+            if not lplr.Character.Parent then return false end
+            lplr.Character.Parent = replicatedStorage
+            eg_clone = eg_oldroot:Clone()
+            eg_clone.Parent = lplr.Character
+            eg_oldroot.Transparency = 1
+            eg_oldroot.Parent = workspace
+            store.rootpart = eg_oldroot
+            lplr.Character.PrimaryPart = eg_clone
+            lplr.Character.Parent = workspace
+            bedwars.QueryUtil:setQueryIgnored(eg_clone, true)
+            bedwars.QueryUtil:setQueryIgnored(eg_oldroot, true)
+            return true
+        end
+        return false
+    end
+
+    local function eg_destroyClone()
+        if eg_oldroot and eg_oldroot.Parent and entitylib.isAlive then
+            lplr.Character.Parent = replicatedStorage
+            eg_oldroot.Parent = lplr.Character
+            if eg_clone then
+                eg_clone:Destroy()
+                eg_clone = nil
+            end
+            lplr.Character.PrimaryPart = eg_oldroot
+            lplr.Character.Parent = workspace
+            eg_oldroot.CanCollide = true
+            entitylib.character.Humanoid.HipHeight = eg_hip or 2.6
+            eg_oldroot.Transparency = 1
+            eg_oldroot = nil
+            store.rootpart = nil
+            return true
+        end
+        return false
+    end
+
+    ElektraGodmode = vape.Categories.Blatant:CreateModule({
+        Name = 'Elektra Godmode',
+        Function = function(call)
+            if call then
+                eg_floatTime = tick()
+
+                ElektraGodmode:Clean(runService.PreSimulation:Connect(function()
+                    if eg_oldroot and eg_oldroot.Parent then
+                        if (tick() - entitylib.character.AirTime) > 1.7 then
+                            eg_floatTime = tick() + 0.2
+                        end
+                        eg_oldroot.Velocity = Vector3.new(0, 1, 0)
+                        eg_oldroot.CFrame = eg_clone.CFrame - (tick() > eg_floatTime and Vector3.new(0, 200, 0) or Vector3.zero)
+                    end
+                end))
+
+                local isDashing = false
+
+                repeat
+                    if entitylib.isAlive then
+                        local char = entitylib.character
+                        local dashActive = char:GetAttribute('NoNametag') == true
+
+                        if dashActive and not isDashing and not store.rootpart then
+                            isDashing = true
+                            eg_createClone()
+                        elseif not dashActive and isDashing then
+                            isDashing = false
+                            local old = eg_clone and eg_clone.CFrame or nil
+                            if eg_destroyClone() and old then
+                                entitylib.character.RootPart.CFrame = old
+                            end
+                        end
+                    else
+                        if isDashing then
+                            isDashing = false
+                            pcall(function()
+                                if eg_clone then eg_clone:Destroy(); eg_clone = nil end
+                                eg_oldroot = nil
+                                store.rootpart = nil
+                            end)
+                        end
+                    end
+                    task.wait()
+                until not ElektraGodmode.Enabled
+
+                local old = eg_clone and eg_clone.CFrame or nil
+                if eg_destroyClone() and old then
+                    pcall(function() entitylib.character.RootPart.CFrame = old end)
+                end
+            end
+        end,
+        Tooltip = 'Uses clone trick during Elektra dash — invisible + unhittable on server'
+    })
+end)
+
+run(function()
     local AntiFall
     local Mode
     local Material
