@@ -54,7 +54,7 @@ local getcustomasset = vape.Libraries.getcustomasset
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -123,7 +123,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getcustomasset('catrewrite/assets/new/blur.png')
+	blur.Image = getcustomasset('aethercorev2/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -763,7 +763,7 @@ shared.gg = {}
 run(function()
 	canDebug = not table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) and true or false
 	if not canDebug then
-		local cheatenginelib = loadstring(downloadFile('catrewrite/libraries/cheatenginelib.lua'), 'cheatenginelib')(vape, vapeEvents, entitylib)
+		local cheatenginelib = loadstring(downloadFile('aethercorev2/libraries/cheatenginelib.lua'), 'cheatenginelib')(vape, vapeEvents, entitylib)
 		require = function(v) 
 			return cheatenginelib[({v:GetFullName():gsub(lplr.Name, 'PlayerTemplate')})[1]]:await()
 		end
@@ -1006,7 +1006,7 @@ run(function()
 		WarlockTarget = canDebug and getproto(Knit.Controllers.WarlockStaffController.KnitStart, 2) or function() end
 	}
 
-	local packages = httpService:JSONDecode(downloadFile('catrewrite/profiles/packages.json'))	
+	local packages = httpService:JSONDecode(downloadFile('aethercorev2/profiles/packages.json'))	
 	local function dumpRemote(tab)
 		if not tab then return '' end
 		local ind
@@ -12211,7 +12211,7 @@ run(function()
         close.Position = UDim2.new(1, -35, 0, 9)
         close.BackgroundColor3 = Color3.new(1, 1, 1)
         close.BackgroundTransparency = 1
-        close.Image = getcustomasset('catrewrite/assets/new/close.png')
+        close.Image = getcustomasset('aethercorev2/assets/new/close.png')
         close.ImageColor3 = color.Light(uipallet.Text, 0.2)
         close.ImageTransparency = 0.5
         close.AutoButtonColor = false
@@ -12325,7 +12325,7 @@ run(function()
         searchicon.Size = UDim2.fromOffset(14, 14)
         searchicon.Position = UDim2.new(1, -26, 0, 8)
         searchicon.BackgroundTransparency = 1
-        searchicon.Image = getcustomasset('catrewrite/assets/new/search.png')
+        searchicon.Image = getcustomasset('aethercorev2/assets/new/search.png')
         searchicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
         searchicon.Parent = searchbkg
         local children = Instance.new('ScrollingFrame')
@@ -12466,7 +12466,7 @@ run(function()
         textbuttonicon.Position = UDim2.fromScale(0.5, 0.5)
         textbuttonicon.AnchorPoint = Vector2.new(0.5, 0.5)
         textbuttonicon.BackgroundTransparency = 1
-        textbuttonicon.Image = getcustomasset('catrewrite/assets/new/add.png')
+        textbuttonicon.Image = getcustomasset('aethercorev2/assets/new/add.png')
         textbuttonicon.ImageColor3 = Color3.fromHSV(0.46, 0.96, 0.52)
         textbuttonicon.Parent = textbutton
         local childrenlist = Instance.new('Frame')
@@ -12559,7 +12559,7 @@ run(function()
             close.Position = UDim2.new(1, -23, 0, 6)
             close.BackgroundColor3 = Color3.new(1, 1, 1)
             close.BackgroundTransparency = 1
-            close.Image = getcustomasset('catrewrite/assets/new/closemini.png')
+            close.Image = getcustomasset('aethercorev2/assets/new/closemini.png')
             close.ImageColor3 = color.Light(uipallet.Text, 0.2)
             close.ImageTransparency = 0.5
             close.AutoButtonColor = false
@@ -13253,7 +13253,7 @@ run(function()
                         Size = UDim2.new(1, 89, 1, 52),
                         Position = UDim2.fromOffset(-48, -31),
                         BackgroundTransparency = 1,
-                        Image = getcustomasset('catrewrite/assets/new/blur.png'),
+                        Image = getcustomasset('aethercorev2/assets/new/blur.png'),
                         ScaleType = Enum.ScaleType.Slice,
                         SliceCenter = Rect.new(52, 31, 261, 502)
                     }),
