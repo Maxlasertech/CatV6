@@ -2988,6 +2988,7 @@ end)
 
 run(function()
     local ElektraGodmode
+    local AlwaysActive
 
     local eg_oldroot, eg_clone, eg_hip = nil, nil, 2.7
     local eg_floatTime = 0
@@ -3054,12 +3055,12 @@ run(function()
                 repeat
                     if entitylib.isAlive then
                         local char = entitylib.character
-                        local dashActive = char:GetAttribute('NoNametag') == true
+                        local shouldBeActive = AlwaysActive.Enabled or char:GetAttribute('NoNametag') == true
 
-                        if dashActive and not isDashing and not store.rootpart then
+                        if shouldBeActive and not isDashing and not store.rootpart then
                             isDashing = true
                             eg_createClone()
-                        elseif not dashActive and isDashing then
+                        elseif not shouldBeActive and isDashing then
                             isDashing = false
                             local old = eg_clone and eg_clone.CFrame or nil
                             if eg_destroyClone() and old then
@@ -3086,6 +3087,11 @@ run(function()
             end
         end,
         Tooltip = 'Uses clone trick during Elektra dash — invisible + unhittable on server'
+    })
+    AlwaysActive = ElektraGodmode:CreateToggle({
+        Name = 'Always Active',
+        Default = false,
+        Tooltip = 'Keep clone permanently active — invisible + no suffocation or hit damage at all times'
     })
 end)
 
