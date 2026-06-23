@@ -2987,95 +2987,6 @@ run(function()
 end)
 
 run(function()
-    local ElektraGodmode
-
-    local eg_oldroot, eg_clone, eg_hip = nil, nil, 2.7
-
-    local function eg_createClone()
-        if store.rootpart then return false end
-        if entitylib.isAlive and entitylib.character.Humanoid.Health > 0 and (not eg_oldroot or not eg_oldroot.Parent) then
-            eg_hip = entitylib.character.Humanoid.HipHeight
-            eg_oldroot = entitylib.character.HumanoidRootPart
-            eg_clone = eg_oldroot:Clone()
-            eg_clone.Anchored = true
-            eg_clone.Parent = lplr.Character
-            eg_oldroot.Transparency = 1
-            eg_oldroot.Parent = workspace
-            store.rootpart = eg_oldroot
-            lplr.Character.PrimaryPart = eg_clone
-            bedwars.QueryUtil:setQueryIgnored(eg_clone, true)
-            bedwars.QueryUtil:setQueryIgnored(eg_oldroot, true)
-            return true
-        end
-        return false
-    end
-
-    local function eg_destroyClone()
-        if eg_oldroot and eg_oldroot.Parent and entitylib.isAlive then
-            eg_oldroot.AssemblyLinearVelocity = Vector3.zero
-            eg_oldroot.Parent = lplr.Character
-            if eg_clone then eg_clone:Destroy(); eg_clone = nil end
-            lplr.Character.PrimaryPart = eg_oldroot
-            eg_oldroot.CanCollide = true
-            entitylib.character.Humanoid.HipHeight = eg_hip or 2.6
-            eg_oldroot.Transparency = 1
-            eg_oldroot = nil
-            store.rootpart = nil
-            return true
-        end
-        return false
-    end
-
-    ElektraGodmode = vape.Categories.Blatant:CreateModule({
-        Name = 'Elektra Godmode',
-        Function = function(call)
-            if call then
-                ElektraGodmode:Clean(runService.PreSimulation:Connect(function()
-                    if eg_oldroot and eg_oldroot.Parent then
-                        eg_oldroot.AssemblyLinearVelocity = Vector3.zero
-                        eg_oldroot.CFrame = eg_clone.CFrame - Vector3.new(0, 100, 0)
-                        entitylib.character.AirTime = tick()
-                    end
-                end))
-
-                local isDashing = false
-
-                repeat
-                    if entitylib.isAlive then
-                        local dashActive = entitylib.character:GetAttribute('NoNametag') == true
-                        if dashActive and not isDashing and not store.rootpart then
-                            if eg_createClone() then isDashing = true end
-                        elseif not dashActive and isDashing then
-                            isDashing = false
-                            local old = eg_clone and eg_clone.CFrame or nil
-                            if eg_destroyClone() and old then
-                                entitylib.character.RootPart.CFrame = old
-                            end
-                        end
-                    else
-                        if isDashing then
-                            isDashing = false
-                            pcall(function()
-                                if eg_clone then eg_clone:Destroy(); eg_clone = nil end
-                                eg_oldroot = nil
-                                store.rootpart = nil
-                            end)
-                        end
-                    end
-                    task.wait()
-                until not ElektraGodmode.Enabled
-
-                local old = eg_clone and eg_clone.CFrame or nil
-                if eg_destroyClone() and old then
-                    pcall(function() entitylib.character.RootPart.CFrame = old end)
-                end
-            end
-        end,
-        Tooltip = 'Activates clone trick during Elektra dash — invisible + unhittable for the dash window'
-    })
-end)
-
-run(function()
     local AntiFall
     local Mode
     local Material
@@ -8689,12 +8600,12 @@ run(function()
     local NoFallDamage
 
     pcall(function()
-        local proto = getproto(bedwars.GroundHit, 1)
+        local proto = debug.getproto(bedwars.GroundHit, 1, true)
         local orig
-        orig = hookfunction(proto, newcclosure(function(...)
+        orig = hookfunction(proto, function(...)
             if NoFallDamage and NoFallDamage.Enabled then return end
             return orig(...)
-        end))
+        end)
     end)
 
     NoFallDamage = vape.Categories.Utility:CreateModule({
