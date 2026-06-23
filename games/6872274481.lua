@@ -114,6 +114,7 @@ local Reach = {}
 local HitBoxes = {}
 local InfiniteFly = {}
 local TrapDisabler
+local NoFallDamage
 local AntiFallPart
 local bedwars, remotes, sides, oldinvrender, oldSwing = {}, {}, {}
 
@@ -990,7 +991,7 @@ run(function()
 		DropItem = canDebug and Knit.Controllers.ItemDropController.dropItemInHand or function() end,
 		EquipItem = canDebug and getproto(require(replicatedStorage.TS.entity.entities['inventory-entity']).InventoryEntity.equipItem, 4) or function() end,
 		FireProjectile = canDebug and debug.getupvalue(Knit.Controllers.ProjectileController.launchProjectileWithValues, 2) or function() end,
-		GroundHit = canDebug and Knit.Controllers.FallDamageController.KnitStart or function() end,
+		GroundHit = canDebug and getproto(Knit.Controllers.FallDamageController.KnitStart, 1) or function() end,
 		GuitarHeal = canDebug and Knit.Controllers.GuitarController.performHeal or function() end,
 		HannahKill = canDebug and getproto(Knit.Controllers.HannahController.registerExecuteInteractions, 1) or function() end,
 		HarvestCrop = canDebug and getproto(getproto(Knit.Controllers.CropController.KnitStart, 4), 1) or function() end,
@@ -1068,6 +1069,8 @@ run(function()
 					end
 				}
 			elseif remoteName == 'StepOnSnapTrap' and TrapDisabler.Enabled then
+				return {SendToServer = function() end}
+			elseif remotes.GroundHit ~= '' and remoteName == remotes.GroundHit and NoFallDamage and NoFallDamage.Enabled then
 				return {SendToServer = function() end}
 			end
 
@@ -8597,41 +8600,14 @@ run(function()
 end)
 
 run(function()
-    local NoFallDamage
-
-    -- hook form 1: proto directly (no true arg)
-    pcall(function()
-        local proto = debug.getproto(bedwars.GroundHit, 1)
-        if type(proto) == 'function' then
-            local orig
-            orig = hookfunction(proto, function(...)
-                if NoFallDamage and NoFallDamage.Enabled then return end
-                return orig(...)
-            end)
-        end
-    end)
-
-    -- hook form 2: true returns a table of active closures, hook each one
-    pcall(function()
-        local closures = debug.getproto(bedwars.GroundHit, 1, true)
-        if type(closures) == 'table' then
-            for _, fn in ipairs(closures) do
-                local orig
-                orig = hookfunction(fn, function(...)
-                    if NoFallDamage and NoFallDamage.Enabled then return end
-                    return orig(...)
-                end)
-            end
-        end
-    end)
+    -- velocity backup: zero Y on landing in case remote block misses
+    local rp = RaycastParams.new()
+    rp.FilterType = Enum.RaycastFilterType.Exclude
 
     NoFallDamage = vape.Categories.Utility:CreateModule({
         Name = 'No Fall Damage',
         Function = function(call)
             if call then
-                local rp = RaycastParams.new()
-                rp.FilterType = Enum.RaycastFilterType.Exclude
-                -- zero out downward velocity right before ground contact
                 NoFallDamage:Clean(runService.PreSimulation:Connect(function()
                     if not entitylib.isAlive then return end
                     local hrp = entitylib.character and entitylib.character:FindFirstChild('HumanoidRootPart')
