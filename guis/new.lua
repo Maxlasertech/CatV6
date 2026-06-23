@@ -5703,7 +5703,7 @@ function mainapi:Load(skipgui, profile)
 	self.Loaded = savecheck
 	self.Categories.Main.Options.Bind:SetBind(self.Keybind)
 
-	if not inputService.KeyboardEnabled or shared.VapeDeveloper then
+	if inputService.TouchEnabled or not inputService.KeyboardEnabled or shared.VapeDeveloper then
 		local hide = isfile('fart/profiles/hide.txt') and readfile('fart/profiles/hide.txt') or nil
 		if hide ~= nil then
 			hide = hide == 'true' and true or false
