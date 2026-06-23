@@ -18166,6 +18166,10 @@ run(function()
                                         if tick() > (FireRates[item.itemType] or 0) then
                                             local projmeta = bedwars.ProjectileMeta[projectile]
                                             local projSpeed, gravity = projmeta.launchVelocity, projmeta.gravitationalAcceleration or 196.2
+                                            print('=== ARROW FIRE ===')
+                                            print('projectile:', projectile)
+                                            print('launchVelocity:', projSpeed)
+                                            print('maxStretchChargeSec:', itemMeta.projectileSource and itemMeta.projectileSource.maxStretchChargeSec)
                                             local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                             local hotbar = getHotbar(item.tool)
                                             if hotbar then
@@ -18181,6 +18185,7 @@ run(function()
                                                 local id = httpService:GenerateGUID(true)
                                                 local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
                                                 local chargeDur = 0
+                                                print('speed sent:', (sdir * projSpeed).Magnitude, 'chargeDur:', chargeDur)
 
                                                 bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = chargeDur})
                                                 local res = projectileRemote:InvokeServer(
