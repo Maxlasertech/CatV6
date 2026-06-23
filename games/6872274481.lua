@@ -17963,6 +17963,7 @@ run(function()
     local function getProjectiles()
         local items = {}
         for _, item in store.inventory.inventory.items do
+            if item.itemType:find('bow') then continue end
             local proj = bedwars.ItemMeta[item.itemType].projectileSource
             local ammo = proj and getAmmo(proj)
             if ammo and table.find(Whitelist.ListEnabled, ammo) then
@@ -17980,6 +17981,7 @@ run(function()
     local function getProjectiles2()
         local items = {}
         for _, item in store.inventory.inventory.items do
+            if item.itemType:find('bow') then continue end
             local proj = bedwars.ItemMeta[item.itemType].projectileSource
             local ammo = proj and getAmmo(proj)
             if ammo and table.find(Whitelist2.ListEnabled, ammo) then
