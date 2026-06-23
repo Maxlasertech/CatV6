@@ -18293,7 +18293,7 @@ run(function()
                                             local hotbar = getHotbar(staff.tool)
                                             if hotbar then
                                                 hotbarSwitch(hotbar)
-                                                if inputService.MouseEnabled then
+                                                if not inputService.TouchEnabled then
                                                     switchItem(staff.tool)
                                                 else
                                                     task.wait(0.05)
@@ -18319,7 +18319,7 @@ run(function()
                                                     }
                                                 end)
 
-                                                if inputService.MouseEnabled then
+                                                if not inputService.TouchEnabled then
                                                     mouse1click()
                                                 else
                                                     local id = httpService:GenerateGUID(true)
@@ -18350,9 +18350,6 @@ run(function()
 
                                             task.spawn(function()
                                                 hotbarSwitch(oldhotbar)
-                                                if FrostLegit.Enabled and oldtool then
-                                                    switchItem(oldtool)
-                                                end
                                                 if oldtool then
                                                     switchItem(oldtool)
                                                 end
