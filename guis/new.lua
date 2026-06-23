@@ -3763,7 +3763,7 @@ function mainapi:CreateGUI()
 
 		task.spawn(function()
 			tooltip.Text = 'Copied!'
-			setclipboard('https://discord.gg/aYu5c9v9zv')
+			setclipboard('https://discord.gg/aethercorev2')
 		end)
 	end)
 	settingsbutton.MouseEnter:Connect(function()
@@ -6125,7 +6125,7 @@ local scarcitybanner = Instance.new('TextLabel')
 scarcitybanner.Size = UDim2.fromScale(1, 0.02)
 scarcitybanner.Position = UDim2.fromScale(0, 0.97)
 scarcitybanner.BackgroundTransparency = 1
-scarcitybanner.Text = 'Thank you for choosing AetherCoreV2! Join discord.gg/aYu5c9v9zv or click the Discord button to join.'
+scarcitybanner.Text = 'Thank you for choosing AetherCoreV2! Join discord.gg/aethercorev2 or click the Discord button to join.'
 scarcitybanner.TextScaled = true
 scarcitybanner.TextColor3 = Color3.new(1, 1, 1)
 scarcitybanner.TextStrokeTransparency = 0.5
