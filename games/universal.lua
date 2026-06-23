@@ -1,7 +1,6 @@
-local vape = shared.vape
-local compile = loadstring
+local vape = shared.vape 
 local loadstring = function(...)
-	local res, err = compile(...)
+	local res, err = loadstring(...)
 	if err and vape then
 		vape:CreateNotification('Vape', 'Failed to load : ' .. err, 30, 'alert')
 	end
@@ -17,7 +16,7 @@ local isfile = isfile
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/' .. readfile('aethercorev2/profiles/commit.txt') .. '/' .. select(1, path:gsub('aethercorev2/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/' .. readfile('catrewrite/profiles/commit.txt') .. '/' .. select(1, path:gsub('catrewrite/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -74,7 +73,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-			blur.Image = getcustomasset('aethercorev2/assets/new/blur.png')
+	blur.Image = getcustomasset('catrewrite/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -225,7 +224,7 @@ vape:Clean(lplr.OnTeleport:Connect(function()
 	end
 end))
 
-vape.Libraries.string = loadstring(downloadFile('aethercorev2/libraries/string.lua'), 'string')()
+vape.Libraries.string = loadstring(downloadFile('catrewrite/libraries/string.lua'), 'string')()
 local frictionTable, oldfrict, entitylib = {}, {}
 local function updateVelocity()
 	if getTableSize(frictionTable) > 0 then
@@ -257,9 +256,9 @@ local function motorMove(target, cf)
 	task.delay(0, part.Destroy, part)
 end
 
-local hash = loadstring(downloadFile('aethercorev2/libraries/hash.lua'), 'hash')()
-local prediction = loadstring(downloadFile('aethercorev2/libraries/prediction.lua'), 'prediction')()
-entitylib = loadstring(downloadFile('aethercorev2/libraries/entity.lua'), 'entitylibrary')()
+local hash = loadstring(downloadFile('catrewrite/libraries/hash.lua'), 'hash')()
+local prediction = loadstring(downloadFile('catrewrite/libraries/prediction.lua'), 'prediction')()
+entitylib = loadstring(downloadFile('catrewrite/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},
 	customtags = {},
@@ -723,7 +722,7 @@ run(function()
 		iconframe.Parent = mainframe
 		local icon = Instance.new('ImageLabel')
 		icon.Size = UDim2.fromOffset(36, 36)
-		icon.Image = getcustomasset('aethercorev2/assets/new/vape.png')
+		icon.Image = getcustomasset('catrewrite/assets/new/vape.png')
 		icon.BackgroundTransparency = 1
 		icon.Parent = iconframe
 		constraint.MaxSize = Vector2.new(math.max(getfontsize(text, 20, textlabel.FontFace).X + 80, 600), math.huge)
@@ -759,7 +758,7 @@ run(function()
 
 		if not first or whitelist.textdata ~= whitelist.olddata then
 			if not first then
-				whitelist.olddata = isfile('aethercorev2/profiles/whitelist.json') and readfile('aethercorev2/profiles/whitelist.json') or nil
+				whitelist.olddata = isfile('catrewrite/profiles/whitelist.json') and readfile('catrewrite/profiles/whitelist.json') or nil
 			end
 
 			local suc, res = pcall(function()
@@ -795,7 +794,7 @@ run(function()
 			if whitelist.textdata ~= whitelist.olddata then
 				whitelist.olddata = whitelist.textdata
 				pcall(function()
-					writefile('aethercorev2/profiles/whitelist.json', whitelist.textdata)
+					writefile('catrewrite/profiles/whitelist.json', whitelist.textdata)
 				end)
 			end
 
@@ -1172,7 +1171,7 @@ run(function()
 		iconframe.Parent = mainframe
 		local icon = Instance.new('ImageLabel')
 		icon.Size = UDim2.fromOffset(36, 36)
-		icon.Image = getcustomasset('aethercorev2/assets/new/vape.png')
+		icon.Image = getcustomasset('catrewrite/assets/new/vape.png')
 		icon.BackgroundTransparency = 1
 		icon.Parent = iconframe
 		constraint.MaxSize = Vector2.new(math.max(getfontsize(text, 20, textlabel.FontFace).X + 80, 600), math.huge)
@@ -1208,7 +1207,7 @@ run(function()
 
 		if not first or whitelist.textdata ~= whitelist.olddata then
 			if not first then
-				whitelist.olddata = isfile('aethercorev2/profiles/whitelist.json') and readfile('aethercorev2/profiles/whitelist.json') or nil
+				whitelist.olddata = isfile('catrewrite/profiles/whitelist.json') and readfile('catrewrite/profiles/whitelist.json') or nil
 			end
 
 			local suc, res = pcall(function()
@@ -1244,7 +1243,7 @@ run(function()
 			if whitelist.textdata ~= whitelist.olddata then
 				whitelist.olddata = whitelist.textdata
 				pcall(function()
-					writefile('aethercorev2/profiles/whitelist.json', whitelist.textdata)
+					writefile('catrewrite/profiles/whitelist.json', whitelist.textdata)
 				end)
 			end
 		end
@@ -1425,7 +1424,7 @@ run(function()
 
 	Radar = vape:CreateOverlay({
 		Name = 'Radar',
-		Icon = getcustomasset('aethercorev2/assets/new/radaricon.png'),
+		Icon = getcustomasset('catrewrite/assets/new/radaricon.png'),
 		Size = UDim2.fromOffset(14, 14),
 		Position = UDim2.fromOffset(12, 13),
 		Function = function(callback)
@@ -1576,7 +1575,7 @@ run(function()
 
 	SessionInfo = vape:CreateOverlay({
 		Name = 'Session Info',
-		Icon = getcustomasset('aethercorev2/assets/new/textguiicon.png'),
+		Icon = getcustomasset('catrewrite/assets/new/textguiicon.png'),
 		Size = UDim2.fromOffset(16, 12),
 		Position = UDim2.fromOffset(12, 14),
 		Function = function(callback)
@@ -1652,8 +1651,8 @@ run(function()
 	Hide = SessionInfo:CreateTextList({
 		Name = 'Blacklist',
 		Tooltip = 'Name of entry to hide.',
-		Icon = getcustomasset('aethercorev2/assets/new/blockedicon.png'),
-		Tab = getcustomasset('aethercorev2/assets/new/blockedtab.png'),
+		Icon = getcustomasset('catrewrite/assets/new/blockedicon.png'),
+		Tab = getcustomasset('catrewrite/assets/new/blockedtab.png'),
 		TabSize = UDim2.fromOffset(21, 16),
 		Color = Color3.fromRGB(250, 50, 56),
 	})
@@ -2757,14 +2756,14 @@ end)
 run(function()
     local Desync
     local hook
-
+    
     local function resync()
         if entitylib.isAlive then
             entitylib.character.RootPart.CFrame += Vector3.new(math.nan, math.nan, math.nan)
             notif('Desync', 'Resynced', 2, 'info')
         end
     end
-
+    
     Desync = vape.Categories.Blatant:CreateModule({
         Name = 'Desync',
         Function = function(callback)
@@ -2773,7 +2772,7 @@ run(function()
                     Desync:Toggle()
                     return
                 end
-
+    
                 hook = function(packet)
                     if packet.AsArray[1] == 0x1b then
                         local data = packet.AsBuffer
@@ -2781,7 +2780,7 @@ run(function()
                         packet:SetData(data)
                     end
                 end
-
+    
                 resync()
                 raknet.add_send_hook(hook)
             elseif hook then
@@ -2791,7 +2790,7 @@ run(function()
         end,
         Tooltip = 'Prevent the server from replicating your current position to other players.'
     })
-
+    
     Desync:CreateButton({
         Name = 'Resync',
         Function = resync
@@ -3775,309 +3774,6 @@ run(function()
     })
 end)
 
-
-run(function()
-    local KeybindBoost
-    local enabled = true
-    local boostSpeed = 250
-    local stopDistance = 2
-    local screenGui
-    local frame
-    local toggleButton
-    local statusLabel
-    local dragging = false
-    local dragStart = Vector2.new()
-    local startPos = UDim2.new()
-    local originalCollisions = {}
-    local isBoosting = false
-    local boostConn
-    local bodyVel
-    local connections = {}
-
-    local function addConnection(connection)
-        table.insert(connections, connection)
-        if KeybindBoost then
-            KeybindBoost:Clean(connection)
-        end
-        return connection
-    end
-
-    local function setStatus(text, color)
-        if statusLabel then
-            statusLabel.Text = text
-            statusLabel.TextColor3 = color
-        end
-    end
-
-    local function getTargetBlock()
-        local mouse = cloneref(lplr:GetMouse())
-        local target = mouse.Target
-        if not target then
-            return
-        end
-        if not target:IsA('BasePart') then
-            return
-        end
-        if lplr.Character and target:IsDescendantOf(lplr.Character) then
-            return
-        end
-        if not target.CanCollide then
-            return
-        end
-        return target
-    end
-
-    local function getLandingPoint(block)
-        local mouse = cloneref(lplr:GetMouse())
-        local hit = mouse.Hit.Position
-        local pos = block.Position
-        local size = block.Size
-        local dx, dy, dz = hit.X - pos.X, hit.Y - pos.Y, hit.Z - pos.Z
-        local ax, ay, az = math.abs(dx), math.abs(dy), math.abs(dz)
-        local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
-
-        if ay > ax and ay > az then
-            return dy > 0 and Vector3.new(hit.X, pos.Y + hy + 0.1, hit.Z) or Vector3.new(hit.X, pos.Y - hy - 0.1, hit.Z)
-        end
-        if ax > ay and ax > az then
-            return dx > 0 and Vector3.new(pos.X + hx + 0.1, hit.Y, hit.Z) or Vector3.new(pos.X - hx - 0.1, hit.Y, hit.Z)
-        end
-        return dz > 0 and Vector3.new(hit.X, hit.Y, pos.Z + hz + 0.1) or Vector3.new(hit.X, hit.Y, pos.Z - hz - 0.1)
-    end
-
-    local function setNoclip(enable)
-        local char = lplr.Character
-        if not char then
-            return
-        end
-        if enable then
-            originalCollisions = {}
-            for _, part in char:GetDescendants() do
-                if part:IsA('BasePart') then
-                    originalCollisions[part] = part.CanCollide
-                    part.CanCollide = false
-                end
-            end
-            return
-        end
-        for part, state in originalCollisions do
-            if part and part.Parent then
-                part.CanCollide = state
-            end
-        end
-        originalCollisions = {}
-    end
-
-    local function cleanup()
-        if boostConn then
-            boostConn:Disconnect()
-            boostConn = nil
-        end
-        if bodyVel then
-            bodyVel:Destroy()
-            bodyVel = nil
-        end
-        setNoclip(false)
-        isBoosting = false
-        if enabled then
-            setStatus('Ready', Color3.fromRGB(100, 255, 100))
-        end
-    end
-
-    local function startBoost()
-        if not enabled or isBoosting then
-            return
-        end
-
-        local block = getTargetBlock()
-        if not block then
-            setStatus('Aim at block!', Color3.fromRGB(255, 100, 100))
-            task.delay(0.5, function()
-                if statusLabel and statusLabel.Text == 'Aim at block!' then
-                    setStatus('Ready', Color3.fromRGB(100, 255, 100))
-                end
-            end)
-            return
-        end
-
-        local target = getLandingPoint(block)
-        local char = lplr.Character
-        local root = char and char:FindFirstChild('HumanoidRootPart')
-        local humanoid = char and char:FindFirstChildOfClass('Humanoid')
-        if not (target and root and humanoid) then
-            return
-        end
-
-        local distance = (target - root.Position).Magnitude
-        if distance < stopDistance then
-            setStatus('Ready', Color3.fromRGB(100, 255, 100))
-            return
-        end
-
-        setNoclip(true)
-        isBoosting = true
-        setStatus(string.format('Boosting! (%.0f studs)', distance), Color3.fromRGB(255, 200, 100))
-
-        bodyVel = Instance.new('BodyVelocity')
-        bodyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-        bodyVel.Velocity = (target - root.Position).Unit * boostSpeed
-        bodyVel.Parent = root
-
-        boostConn = addConnection(runService.RenderStepped:Connect(function()
-            if not isBoosting then
-                cleanup()
-                return
-            end
-
-            local currentRoot = lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart')
-            if not (currentRoot and bodyVel and bodyVel.Parent) then
-                cleanup()
-                return
-            end
-
-            local offset = target - currentRoot.Position
-            local remaining = offset.Magnitude
-            if remaining < stopDistance then
-                currentRoot.AssemblyLinearVelocity = Vector3.zero
-                cleanup()
-                return
-            end
-
-            bodyVel.Velocity = offset.Unit * boostSpeed
-            setStatus(string.format('Boosting: %.0f studs', remaining), Color3.fromRGB(255, 200, 100))
-        end))
-
-        task.delay(5, function()
-            if isBoosting then
-                cleanup()
-            end
-        end)
-    end
-
-    local function updateFeedback()
-        if not enabled or isBoosting then
-            return
-        end
-        local block = getTargetBlock()
-        if block then
-            local root = lplr.Character and lplr.Character:FindFirstChild('HumanoidRootPart')
-            local target = root and getLandingPoint(block)
-            if target then
-                setStatus(string.format('Target: %.0f studs', (target - root.Position).Magnitude), Color3.fromRGB(100, 255, 100))
-                return
-            end
-            setStatus('On block', Color3.fromRGB(100, 255, 100))
-            return
-        end
-        setStatus('No block', Color3.fromRGB(255, 100, 100))
-    end
-
-    local function createGui()
-        if screenGui then
-            screenGui:Destroy()
-            screenGui = nil
-        end
-
-        screenGui = Instance.new('ScreenGui')
-        screenGui.Name = 'GBoostToggle'
-        screenGui.ResetOnSpawn = false
-        screenGui.Parent = lplr:WaitForChild('PlayerGui')
-
-        frame = Instance.new('Frame')
-        frame.Size = UDim2.fromOffset(180, 90)
-        frame.Position = UDim2.fromOffset(10, 10)
-        frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        frame.BorderSizePixel = 0
-        frame.Active = true
-        frame.ClipsDescendants = true
-        frame.Parent = screenGui
-
-        local corner = Instance.new('UICorner')
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = frame
-
-        toggleButton = Instance.new('TextButton')
-        toggleButton.Size = UDim2.new(1, -20, 0.65, -20)
-        toggleButton.Position = UDim2.fromOffset(10, 10)
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-        toggleButton.Text = 'G Boost: ON\nSpeed: ' .. boostSpeed
-        toggleButton.TextColor3 = Color3.new(1, 1, 1)
-        toggleButton.Font = Enum.Font.GothamBold
-        toggleButton.TextSize = 13
-        toggleButton.Parent = frame
-
-        statusLabel = Instance.new('TextLabel')
-        statusLabel.Size = UDim2.new(1, -20, 0.35, -10)
-        statusLabel.Position = UDim2.new(0, 10, 0.65, 0)
-        statusLabel.BackgroundTransparency = 1
-        statusLabel.Text = 'Ready'
-        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        statusLabel.Font = Enum.Font.Gotham
-        statusLabel.TextSize = 11
-        statusLabel.Parent = frame
-
-        addConnection(frame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
-                dragStart = Vector2.new(input.Position.X, input.Position.Y)
-                startPos = frame.Position
-            end
-        end))
-        addConnection(frame.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = false
-            end
-        end))
-        addConnection(inputService.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
-                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
-        end))
-        addConnection(runService.RenderStepped:Connect(updateFeedback))
-        addConnection(inputService.InputBegan:Connect(function(input, gameProcessed)
-            if not gameProcessed and input.KeyCode == Enum.KeyCode.G and enabled and not isBoosting then
-                startBoost()
-            end
-        end))
-        addConnection(toggleButton.MouseButton1Click:Connect(function()
-            enabled = not enabled
-            if enabled then
-                toggleButton.Text = 'G Boost: ON\nSpeed: ' .. boostSpeed
-                toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-                setStatus('Ready', Color3.fromRGB(100, 255, 100))
-                return
-            end
-            toggleButton.Text = 'G Boost: OFF'
-            toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-            setStatus('Disabled', Color3.fromRGB(255, 100, 100))
-            cleanup()
-        end))
-    end
-
-    KeybindBoost = vape.Categories.Blatant:CreateModule({
-        Name = 'Keybind Boost',
-        Function = function(callback)
-            if callback then
-                enabled = true
-                createGui()
-                return
-            end
-            cleanup()
-            dragging = false
-            for _, connection in connections do
-                connection:Disconnect()
-            end
-            table.clear(connections)
-            if screenGui then
-                screenGui:Destroy()
-                screenGui = nil
-            end
-        end,
-        Tooltip = 'Boosts to the solid block under your cursor with G.',
-    })
-end)
-
 run(function()
     local MouseTP
     local Mode
@@ -4967,7 +4663,7 @@ run(function()
     	arrow.BackgroundTransparency = 1
     	arrow.BorderSizePixel = 0
     	arrow.Visible = false
-		arrow.Image = getcustomasset('aethercorev2/assets/new/arrowmodule.png')
+    	arrow.Image = getcustomasset('catrewrite/assets/new/arrowmodule.png')
     	arrow.ImageColor3 = entitylib.getEntityColor(ent) or Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	arrow.Parent = Folder
     	Reference[ent] = arrow
@@ -5933,12 +5629,12 @@ run(function()
     local Mode
     local oldsettings = {}
     local flag
-
+    
     local function ChangeLighting(prop)
         if flag then
             return
         end
-
+    
         flag = true
         lightingService.Ambient = Color3.new(1, 1, 1)
         lightingService.OutdoorAmbient = Color3.new(1, 1, 1)
@@ -5946,7 +5642,7 @@ run(function()
         runService.RenderStepped:Wait()
         flag = false
     end
-
+    
     Fullbright = vape.Categories.Render:CreateModule({
         Name = 'Fullbright',
         Function = function(callback)
@@ -5955,14 +5651,14 @@ run(function()
                     for _, v in {'Ambient', 'OutdoorAmbient', 'Brightness'} do
                         oldsettings[v] = lightingService[v]
                     end
-
+    
                     Fullbright:Clean(lightingService.Changed:Connect(ChangeLighting))
                     task.spawn(ChangeLighting)
                 else
                     local inst = Instance.new('PointLight')
                     inst.Range = 1000
                     Fullbright:Clean(inst)
-
+    
                     repeat
                         inst.Parent = entitylib.isAlive and entitylib.character.RootPart or nil
                         task.wait(0.1)
@@ -8344,283 +8040,6 @@ run(function()
     	end,
     	Tooltip = 'Automatic murder mystery teaming based on equipped roblox tools.',
     })
-end)
-
-
-run(function()
-    local function getEnemyEntities(range)
-        local entities = {}
-        if not entitylib.isAlive then
-            return entities
-        end
-        local origin = entitylib.character.RootPart.Position
-        for _, ent in entitylib.List do
-            if ent.Targetable and ent.RootPart and ent.Player and not isFriend(ent.Player) then
-                local distance = (ent.RootPart.Position - origin).Magnitude
-                if not range or distance <= range then
-                    table.insert(entities, { Entity = ent, Distance = distance })
-                end
-            end
-        end
-        table.sort(entities, function(a, b)
-            return a.Distance < b.Distance
-        end)
-        return entities
-    end
-
-    local function getNearestEnemy(range)
-        return getEnemyEntities(range)[1]
-    end
-
-    local function getTeamName(plr)
-        return plr.Team and plr.Team.Name or 'Unknown'
-    end
-
-    local function getToolName(ent)
-        local tool = ent.Character and ent.Character:FindFirstChildWhichIsA('Tool')
-        return tool and tool.Name or 'No Tool'
-    end
-
-    local function getHealth(ent)
-        return ent.Humanoid and math.floor(ent.Humanoid.Health) or 0
-    end
-
-    local function getBedObjects()
-        local beds = {}
-        for _, obj in workspace:GetDescendants() do
-            if obj:IsA('BasePart') and obj.Name:lower():find('bed') then
-                table.insert(beds, obj)
-            end
-        end
-        return beds
-    end
-
-    local function getMaterialCounts(center, range)
-        local counts = {}
-        local parts = workspace:GetPartBoundsInRadius(center, range)
-        for _, part in parts do
-            if part:IsA('BasePart') and part.CanCollide then
-                local name = part.Material.Name
-                counts[name] = (counts[name] or 0) + 1
-            end
-        end
-        local list = {}
-        for material, count in counts do
-            table.insert(list, material..' x'..count)
-        end
-        table.sort(list)
-        return #list > 0 and table.concat(list, ', ') or 'Unknown'
-    end
-
-    local function createPollingModule(name, tooltip, modes, defaultInterval, callback)
-        local module
-        local Mode
-        local Interval
-        local Range
-        local Notifications
-        module = vape.Categories.Minigames:CreateModule({
-            Name = name,
-            Function = function(enabled)
-                if enabled then
-                    repeat
-                        local text = callback(Mode.Value, Range.Value)
-                        if text and Notifications.Enabled then
-                            notif(name, text, math.max(2, Interval.Value + 1))
-                        end
-                        task.wait(Interval.Value)
-                    until not module.Enabled
-                end
-            end,
-            Tooltip = tooltip,
-        })
-        Mode = module:CreateDropdown({
-            Name = 'Mode',
-            List = modes,
-        })
-        Interval = module:CreateSlider({
-            Name = 'Update Rate',
-            Min = 1,
-            Max = 30,
-            Default = defaultInterval or 5,
-            Suffix = function(val)
-                return val == 1 and 'second' or 'seconds'
-            end,
-        })
-        Range = module:CreateSlider({
-            Name = 'Range',
-            Min = 10,
-            Max = 250,
-            Default = 80,
-            Suffix = function(val)
-                return val == 1 and 'stud' or 'studs'
-            end,
-        })
-        Notifications = module:CreateToggle({
-            Name = 'Notifications',
-            Default = true,
-        })
-    end
-
-    createPollingModule('Fight Recap', 'Summarizes recent nearby combat information.', { 'Damage Summary', 'Threat Summary', 'Cause Summary' }, 8, function(_, range)
-        local enemy = getNearestEnemy(range)
-        if enemy then
-            return 'Main threat: '..enemy.Entity.Player.Name..' | Health difference: '..(entitylib.isAlive and math.floor(entitylib.character.Humanoid.Health - getHealth(enemy.Entity)) or 0)..' | Cause: Active fight pressure'
-        end
-    end)
-
-    createPollingModule('Third Party Alert', 'Warns when an extra enemy is close while fighting.', { 'Distance Warning', 'Direction Warning', 'Threat Warning' }, 3, function(_, range)
-        local enemies = getEnemyEntities(range)
-        if #enemies >= 2 then
-            return 'Third party detected: '..enemies[2].Entity.Player.Name..' | Distance: '..math.floor(enemies[2].Distance)..' studs'
-        end
-    end)
-
-    createPollingModule('Bed Defense Analyzer', 'Scans nearby bed defenses and estimates composition.', { 'Weak Side', 'Block Composition', 'Break Time' }, 10, function(_, range)
-        for _, bed in getBedObjects() do
-            if entitylib.isAlive and (bed.Position - entitylib.character.RootPart.Position).Magnitude <= range then
-                return bed.Name..' | Defense: '..getMaterialCounts(bed.Position, 10)..' | Suggested tool: Pickaxe/Axe'
-            end
-        end
-    end)
-
-    createPollingModule('Enemy Upgrade Tracker', 'Estimates enemy upgrades from nearby health and tools.', { 'Sharpness', 'Protection', 'Forge' }, 10, function(_, range)
-        local enemy = getNearestEnemy(range)
-        if enemy then
-            return enemy.Entity.Player.Name..' | Tool: '..getToolName(enemy.Entity)..' | Armor/Protection estimate: '..getHealth(enemy.Entity)..' HP'
-        end
-    end)
-
-    createPollingModule('Generator Timer Overlay', 'Displays estimated generator timing when near generator parts.', { 'Emeralds', 'Diamonds', 'Both' }, 5, function(_, range)
-        if not entitylib.isAlive then return end
-        local origin = entitylib.character.RootPart.Position
-        local nearest, dist
-        for _, obj in workspace:GetDescendants() do
-            if obj:IsA('BasePart') and (obj.Name:lower():find('emerald') or obj.Name:lower():find('diamond')) then
-                local d = (obj.Position - origin).Magnitude
-                if d <= range and (not dist or d < dist) then
-                    nearest, dist = obj, d
-                end
-            end
-        end
-        if nearest then
-            return nearest.Name..' | Estimated respawn: '..math.floor(30 - (tick() % 30))..'s'
-        end
-    end)
-
-    createPollingModule('Incoming Rush Tracker', 'Detects enemies moving toward your position.', { 'Ground Rush', 'High Bridge', 'All Rushes' }, 3, function(_, range)
-        local enemy = getNearestEnemy(range)
-        if enemy and enemy.Entity.RootPart.AssemblyLinearVelocity.Magnitude > 8 then
-            return 'Incoming Rush | Team: '..getTeamName(enemy.Entity.Player)..' | Distance: '..math.floor(enemy.Distance)..' studs | Type: '..(enemy.Entity.RootPart.Position.Y > entitylib.character.RootPart.Position.Y + 8 and 'High Bridge' or 'Ground Rush')
-        end
-    end)
-
-    createPollingModule('Target Priority HUD', 'Ranks nearby enemies by danger.', { 'Gear', 'Health', 'Overall' }, 4, function(_, range)
-        local enemies, lines = getEnemyEntities(range), {}
-        for i = 1, math.min(3, #enemies) do
-            table.insert(lines, i..'. '..enemies[i].Entity.Player.Name..' - '..getToolName(enemies[i].Entity)..' - '..getHealth(enemies[i].Entity)..' HP')
-        end
-        return #lines > 0 and table.concat(lines, '\n') or nil
-    end)
-
-    createPollingModule('Death Reason Analyzer', 'Explains likely death causes after low health or death.', { 'Primary Cause', 'Secondary Cause', 'Full Report' }, 4, function(_, range)
-        if entitylib.isAlive and entitylib.character.Humanoid.Health > 20 then return end
-        local enemy = getNearestEnemy(range)
-        return 'Death Cause: '..(entitylib.isAlive and 'Critical Health' or 'Death')..' | Primary Cause: '..(enemy and enemy.Entity.Player.Name..' pressure' or 'Void or fall risk')
-    end)
-
-    createPollingModule('Pearl Landing Preview', 'Estimates projectile landing risk from your look direction.', { 'Landing Position', 'Risk Level', 'Obstructions' }, 4, function(_, range)
-        if not entitylib.isAlive then return end
-        local ray = workspace:Raycast(gameCamera.CFrame.Position, gameCamera.CFrame.LookVector * range)
-        return 'Landing: '..(ray and ray.Instance.Name or 'Open air')..' | Risk: '..(ray and 'Medium' or 'High')..' | Distance: '..math.floor(ray and ray.Distance or range)..' studs'
-    end)
-
-    createPollingModule('Match Timeline', 'Records important nearby match events.', { 'Combat', 'Beds', 'Resources' }, 8, function(_, range)
-        local enemy = getNearestEnemy(range)
-        return os.date('!%M:%S', math.floor(os.clock()))..' '..(enemy and enemy.Entity.Player.Name..' nearby at '..math.floor(enemy.Distance)..' studs' or 'No nearby events')
-    end)
-
-    createPollingModule('Enemy Armor Timeline', 'Tracks visible enemy gear progression.', { 'Nearby', 'Teams', 'All Players' }, 8, function(_, range)
-        local enemy = getNearestEnemy(range)
-        if enemy then
-            return enemy.Entity.Player.Name..' | '..os.date('!%M:%S', math.floor(os.clock()))..' | '..getToolName(enemy.Entity)..' | '..getHealth(enemy.Entity)..' HP'
-        end
-    end)
-
-    createPollingModule('Team Resource Tracker', 'Estimates team resource strength from map control.', { 'Generator Control', 'Purchases', 'Overall' }, 10, function(_, range)
-        local counts = {}
-        for _, enemy in getEnemyEntities(range) do
-            local team = getTeamName(enemy.Entity.Player)
-            counts[team] = (counts[team] or 0) + 1
-        end
-        local lines = {}
-        for team, count in counts do
-            table.insert(lines, team..': '..(count > 1 and 'High pressure' or 'Low pressure'))
-        end
-        return #lines > 0 and table.concat(lines, '\n') or nil
-    end)
-
-    createPollingModule('Void Fall Predictor', 'Predicts risky downward momentum.', { 'Risk', 'Suggestion', 'Both' }, 1, function()
-        if entitylib.isAlive and entitylib.character.RootPart.AssemblyLinearVelocity.Y < -55 then
-            return 'Void Risk: High | Suggested Action: Place Block or Use Pearl'
-        end
-    end)
-
-    createPollingModule('Bridge Practice Stats', 'Tracks simple movement-based bridge practice stats.', { 'Speed', 'Accuracy', 'All Stats' }, 5, function()
-        if entitylib.isAlive then
-            return 'Average Speed: '..string.format('%.1f', (entitylib.character.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude / 3)..' BPS | Falls: '..(entitylib.character.RootPart.AssemblyLinearVelocity.Y < -35 and 1 or 0)
-        end
-    end)
-
-    createPollingModule('Rush Path Planner', 'Suggests nearby rush objectives.', { 'Beds', 'Generators', 'Escape' }, 8, function(_, range)
-        local beds = getBedObjects()
-        if entitylib.isAlive and beds[1] then
-            table.sort(beds, function(a, b)
-                return (a.Position - entitylib.character.RootPart.Position).Magnitude < (b.Position - entitylib.character.RootPart.Position).Magnitude
-            end)
-            return 'Recommended path: '..beds[1].Name..' | Distance: '..math.floor((beds[1].Position - entitylib.character.RootPart.Position).Magnitude)..' studs'
-        end
-    end)
-
-    createPollingModule('Shop Value Helper', 'Suggests efficient purchases from visible tools and threats.', { 'Armor', 'Tools', 'Overall' }, 8, function(_, range)
-        local enemy = getNearestEnemy(range)
-        return enemy and 'Recommended: Armor or weapon upgrade | Reason: '..enemy.Entity.Player.Name..' has '..getToolName(enemy.Entity) or 'Recommended: Blocks | Reason: No immediate threat'
-    end)
-
-    createPollingModule('Anti Waste Buyer', 'Warns about inefficient duplicate purchases.', { 'Duplicates', 'Poor Value', 'Both' }, 8, function()
-        local tool = getTool()
-        return tool and 'Purchase Check: Avoid duplicate '..tool.Name..' upgrades unless required.' or 'Purchase Check: Prioritize permanent value.'
-    end)
-
-    createPollingModule('Teammate Danger Alert', 'Warns when teammates appear low near threats.', { 'Critical Health', 'Near Base', 'All Danger' }, 4, function(_, range)
-        if not entitylib.isAlive then return end
-        for _, ent in entitylib.List do
-            if ent.Player and ent.Player ~= lplr and not ent.Targetable and ent.Humanoid and ent.Humanoid.Health <= 20 and ent.RootPart and (ent.RootPart.Position - entitylib.character.RootPart.Position).Magnitude <= range then
-                return 'Teammate Critical | '..ent.Player.Name..' | '..math.floor(ent.Humanoid.Health)..' HP'
-            end
-        end
-    end)
-
-    createPollingModule('Bed Trade Alert', 'Detects nearby enemies while you are near beds.', { 'Defend', 'Trade', 'Both' }, 4, function(_, range)
-        local enemy = getNearestEnemy(range)
-        if enemy and #getBedObjects() > 0 then
-            return 'Bed Trade Warning | '..enemy.Entity.Player.Name..' nearby | Recommendation: Check defense'
-        end
-    end)
-
-    createPollingModule('Weakest Team Finder', 'Ranks teams by visible elimination difficulty.', { 'Defense', 'Players', 'Overall' }, 10, function(_, range)
-        local counts = {}
-        for _, enemy in getEnemyEntities(range) do
-            local team = getTeamName(enemy.Entity.Player)
-            counts[team] = (counts[team] or 0) + 1
-        end
-        local weakest, amount
-        for team, count in counts do
-            if not amount or count < amount then
-                weakest, amount = team, count
-            end
-        end
-        return weakest and 'Weakest Team: '..weakest..' | Reason: Fewest visible nearby players' or nil
-    end)
 end)
 
 --[[
