@@ -6309,74 +6309,305 @@ local profiles = mainapi:CreateCategoryList({
 	Placeholder = 'Type name',
 	Profiles = true
 })
-local json = profiles:CreateTextBox({
-	Name = 'JSON Config',
-	Placeholder = '[]'
-})
-local communityConfig = profiles:CreateDropdown({
-	Name = 'Community Config',
-	List = communityConfigs,
-	Tooltip = 'Select a community-made config from the AetherCoreV2 config catalog.'
-})
+local function createConfigManager(categoryapi)
+	local selectedProfile = mainapi.Profile or 'default'
+	local selectedCommunityConfig = communityConfigs[1] or 'cc'
 
-profiles:CreateButton({
-	Name = 'Download selected community config',
-	Function = function()
-		if installBundledConfig(communityConfig.Value, false) then
-			refreshConfigProfiles()
-			profiles:ChangeValue()
-			mainapi:CreateNotification('Configs', communityConfig.Value..' config downloaded.', 5, 'info')
-		end
+	local manager = Instance.new('Frame')
+	manager.Name = 'ConfigManager'
+	manager.Size = UDim2.new(1, -140, 1, -110)
+	manager.Position = UDim2.fromOffset(70, 55)
+	manager.BackgroundColor3 = uipallet.Main
+	manager.Visible = false
+	manager.Parent = clickgui
+	addBlur(manager)
+	addCorner(manager, UDim.new(0, 12))
+
+	local stroke = Instance.new('UIStroke')
+	stroke.Color = color.Light(uipallet.Main, 0.16)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = manager
+
+	local title = Instance.new('TextLabel')
+	title.Name = 'Title'
+	title.Size = UDim2.new(1, -70, 0, 42)
+	title.Position = UDim2.fromOffset(24, 16)
+	title.BackgroundTransparency = 1
+	title.Text = 'Configs'
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = uipallet.Text
+	title.TextSize = 28
+	title.FontFace = uipallet.Font
+	title.Parent = manager
+
+	local subtitle = Instance.new('TextLabel')
+	subtitle.Name = 'Subtitle'
+	subtitle.Size = UDim2.new(1, -70, 0, 24)
+	subtitle.Position = UDim2.fromOffset(25, 54)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Text = 'Download community configs, reinstall them, delete saved configs, and switch profiles.'
+	subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	subtitle.TextColor3 = color.Dark(uipallet.Text, 0.35)
+	subtitle.TextSize = 14
+	subtitle.FontFace = uipallet.Font
+	subtitle.Parent = manager
+
+	local close = Instance.new('ImageButton')
+	close.Name = 'Close'
+	close.Size = UDim2.fromOffset(18, 18)
+	close.Position = UDim2.new(1, -42, 0, 26)
+	close.BackgroundTransparency = 1
+	close.AutoButtonColor = false
+	close.Image = getcustomasset('aethercorev2/assets/new/close.png')
+	close.ImageColor3 = color.Dark(uipallet.Text, 0.25)
+	close.Parent = manager
+
+	local savedPane = Instance.new('Frame')
+	savedPane.Name = 'SavedConfigs'
+	savedPane.Size = UDim2.new(0.48, -28, 1, -120)
+	savedPane.Position = UDim2.fromOffset(24, 94)
+	savedPane.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+	savedPane.Parent = manager
+	addCorner(savedPane, UDim.new(0, 10))
+
+	local communityPane = savedPane:Clone()
+	communityPane.Name = 'CommunityConfigs'
+	communityPane.Position = UDim2.new(0.48, 14, 0, 94)
+	communityPane.Size = UDim2.new(0.52, -38, 1, -120)
+	communityPane.Parent = manager
+
+	local function makePaneTitle(parent, text, subtext)
+		local paneTitle = Instance.new('TextLabel')
+		paneTitle.Size = UDim2.new(1, -24, 0, 24)
+		paneTitle.Position = UDim2.fromOffset(12, 12)
+		paneTitle.BackgroundTransparency = 1
+		paneTitle.Text = text
+		paneTitle.TextXAlignment = Enum.TextXAlignment.Left
+		paneTitle.TextColor3 = uipallet.Text
+		paneTitle.TextSize = 17
+		paneTitle.FontFace = uipallet.Font
+		paneTitle.Parent = parent
+		local paneSub = Instance.new('TextLabel')
+		paneSub.Size = UDim2.new(1, -24, 0, 20)
+		paneSub.Position = UDim2.fromOffset(12, 36)
+		paneSub.BackgroundTransparency = 1
+		paneSub.Text = subtext
+		paneSub.TextXAlignment = Enum.TextXAlignment.Left
+		paneSub.TextColor3 = color.Dark(uipallet.Text, 0.42)
+		paneSub.TextSize = 12
+		paneSub.FontFace = uipallet.Font
+		paneSub.Parent = parent
 	end
-})
-profiles:CreateButton({
-	Name = 'Reinstall selected community config',
-	Function = function()
-		mainapi:Save()
-		if installBundledConfig(communityConfig.Value, true) then
-			refreshConfigProfiles()
-			profiles:ChangeValue()
-			mainapi:CreateNotification('Configs', communityConfig.Value..' config reinstalled.', 5, 'info')
-		end
+	makePaneTitle(savedPane, 'Saved configs', 'Click a config to load it. Use Delete to remove the selected saved config.')
+	makePaneTitle(communityPane, 'Community configs', 'Choose a community config, then download or reinstall it from GitHub.')
+
+	local savedList = Instance.new('ScrollingFrame')
+	savedList.Name = 'List'
+	savedList.Size = UDim2.new(1, -24, 1, -122)
+	savedList.Position = UDim2.fromOffset(12, 66)
+	savedList.BackgroundTransparency = 1
+	savedList.BorderSizePixel = 0
+	savedList.ScrollBarThickness = 3
+	savedList.CanvasSize = UDim2.new()
+	savedList.Parent = savedPane
+	local savedLayout = Instance.new('UIListLayout')
+	savedLayout.Padding = UDim.new(0, 8)
+	savedLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	savedLayout.Parent = savedList
+
+	local communityList = savedList:Clone()
+	communityList.Parent = communityPane
+	local communityLayout = communityList:FindFirstChildOfClass('UIListLayout')
+
+	local function createButton(parent, text, pos, size, callback)
+		local button = Instance.new('TextButton')
+		button.Name = text:gsub('%s+', '')
+		button.Size = size
+		button.Position = pos
+		button.BackgroundColor3 = Color3.fromRGB(5, 134, 105)
+		button.AutoButtonColor = false
+		button.Text = text
+		button.TextColor3 = Color3.new(1, 1, 1)
+		button.TextSize = 13
+		button.FontFace = uipallet.Font
+		button.Parent = parent
+		addCorner(button, UDim.new(0, 7))
+		button.MouseEnter:Connect(function()
+			tween:Tween(button, uipallet.Tween, {BackgroundColor3 = Color3.fromRGB(7, 160, 128)})
+		end)
+		button.MouseLeave:Connect(function()
+			tween:Tween(button, uipallet.Tween, {BackgroundColor3 = Color3.fromRGB(5, 134, 105)})
+		end)
+		button.MouseButton1Click:Connect(callback)
+		return button
 	end
-})
-profiles:CreateButton({
-	Name = 'Download all community configs',
-	Function = function()
-		if installBundledConfigs(false) then
-			profiles:ChangeValue()
-			mainapi:CreateNotification('Configs', 'Community configs downloaded.', 5, 'info')
-		end
+
+	local function createRow(parent, text, selected, callback)
+		local row = Instance.new('TextButton')
+		row.Name = text
+		row.Size = UDim2.new(1, -2, 0, 42)
+		row.BackgroundColor3 = selected and Color3.fromRGB(5, 134, 105) or color.Light(uipallet.Main, 0.045)
+		row.AutoButtonColor = false
+		row.Text = ''
+		row.Parent = parent
+		addCorner(row, UDim.new(0, 8))
+		local label = Instance.new('TextLabel')
+		label.Size = UDim2.new(1, -24, 1, 0)
+		label.Position = UDim2.fromOffset(12, 0)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = selected and Color3.new(1, 1, 1) or color.Dark(uipallet.Text, 0.16)
+		label.TextSize = 15
+		label.FontFace = uipallet.Font
+		label.Parent = row
+		row.MouseButton1Click:Connect(callback)
+		return row
 	end
-})
-profiles:CreateButton({
-	Name = 'Delete selected saved config',
-	Function = function()
-		local selected = profiles.Selected and profiles.Selected.Name or mainapi.Profile
-		if removeSavedConfig(selected) then
-			profiles:ChangeValue()
-			mainapi:CreateNotification('Configs', selected..' config deleted.', 5, 'info')
+
+	local function refreshManager()
+		refreshConfigProfiles()
+		for _, child in savedList:GetChildren() do
+			if child:IsA('GuiObject') then child:Destroy() end
+		end
+		for _, child in communityList:GetChildren() do
+			if child:IsA('GuiObject') then child:Destroy() end
+		end
+		for _, profile in mainapi.Profiles do
+			createRow(savedList, profile.Name, profile.Name == (mainapi.Profile or selectedProfile), function()
+				selectedProfile = profile.Name
+				mainapi:Save()
+				mainapi:Load(true, profile.Name)
+				mainapi:Save()
+				categoryapi:ChangeValue()
+				refreshManager()
+			end)
+		end
+		for _, name in communityConfigs do
+			createRow(communityList, name, name == selectedCommunityConfig, function()
+				selectedCommunityConfig = name
+				refreshManager()
+			end)
+		end
+		savedList.CanvasSize = UDim2.fromOffset(0, savedLayout.AbsoluteContentSize.Y)
+		communityList.CanvasSize = UDim2.fromOffset(0, communityLayout.AbsoluteContentSize.Y)
+	end
+
+	createButton(savedPane, 'Delete selected saved config', UDim2.new(0, 12, 1, -44), UDim2.new(1, -24, 0, 32), function()
+		local target = selectedProfile or mainapi.Profile
+		if removeSavedConfig(target) then
+			selectedProfile = mainapi.Profile
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', target..' config deleted.', 5, 'info')
 		else
 			mainapi:CreateNotification('Configs', 'Select a saved config to delete.', 5, 'warning')
 		end
-	end
-})
-profiles:CreateButton({
-	Name = 'Import json',
-	Function = function()
-		local success, result = pcall(function() 
-			return httpService:JSONDecode(json.Value) 
+	end)
+	createButton(communityPane, 'Download selected config', UDim2.new(0, 12, 1, -80), UDim2.new(0.5, -18, 0, 32), function()
+		if installBundledConfig(selectedCommunityConfig, false) then
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config downloaded.', 5, 'info')
+		end
+	end)
+	createButton(communityPane, 'Reinstall selected config', UDim2.new(0.5, 6, 1, -80), UDim2.new(0.5, -18, 0, 32), function()
+		mainapi:Save()
+		if installBundledConfig(selectedCommunityConfig, true) then
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config reinstalled.', 5, 'info')
+		end
+	end)
+	createButton(communityPane, 'Download all community configs', UDim2.new(0, 12, 1, -44), UDim2.new(1, -24, 0, 32), function()
+		if installBundledConfigs(false) then
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', 'Community configs downloaded.', 5, 'info')
+		end
+	end)
+
+	local importBox = Instance.new('TextBox')
+	importBox.Name = 'JSONConfig'
+	importBox.Size = UDim2.new(1, -210, 0, 34)
+	importBox.Position = UDim2.new(0, 24, 1, -46)
+	importBox.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+	importBox.ClearTextOnFocus = false
+	importBox.PlaceholderText = 'Paste JSON config...'
+	importBox.Text = ''
+	importBox.TextColor3 = uipallet.Text
+	importBox.PlaceholderColor3 = color.Dark(uipallet.Text, 0.45)
+	importBox.TextSize = 13
+	importBox.TextXAlignment = Enum.TextXAlignment.Left
+	importBox.FontFace = uipallet.Font
+	importBox.Parent = manager
+	addCorner(importBox, UDim.new(0, 7))
+	createButton(manager, 'Import JSON', UDim2.new(1, -174, 1, -46), UDim2.fromOffset(150, 34), function()
+		local success, result = pcall(function()
+			return httpService:JSONDecode(importBox.Text)
 		end)
-		if success and result then
-			local awesome = `imported ({#mainapi.Profiles + 1})`
-			table.insert(mainapi.Profiles, {Name = awesome, Bind = {}})
-			mainapi:Save(awesome)
-			writefile(getConfigPath(awesome), result.config)
+		if success and result and result.config and result.gui then
+			local imported = `imported ({#mainapi.Profiles + 1})`
+			table.insert(mainapi.Profiles, {Name = imported, Bind = {}})
+			mainapi:Save(imported)
+			writefile(getConfigPath(imported), result.config)
 			writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', result.gui)
-			mainapi:Load(true, awesome)
+			mainapi:Load(true, imported)
+			selectedProfile = imported
+			categoryapi:ChangeValue()
+			refreshManager()
+		else
+			mainapi:CreateNotification('Configs', 'Invalid JSON config.', 5, 'warning')
+		end
+	end)
+
+	close.MouseButton1Click:Connect(function()
+		if categoryapi.Button and categoryapi.Button.Enabled then
+			categoryapi.Button:Toggle()
+		else
+			manager.Visible = false
+			categoryapi.Expanded = false
+		end
+	end)
+
+	function categoryapi:Expand()
+		manager.Visible = not manager.Visible
+		self.Expanded = manager.Visible
+		self.Object.Visible = false
+		if self.Button then
+			self.Button.Enabled = manager.Visible
+		end
+		if manager.Visible then
+			selectedProfile = mainapi.Profile or selectedProfile
+			refreshManager()
 		end
 	end
-})
+
+	if categoryapi.Button then
+		local oldToggle = categoryapi.Button.Toggle
+		function categoryapi.Button:Toggle()
+			oldToggle(self)
+			categoryapi.Object.Visible = false
+			if not mainapi.Loaded then
+				if self.Enabled then
+					oldToggle(self)
+				end
+				manager.Visible = false
+				categoryapi.Expanded = false
+				return
+			end
+			manager.Visible = self.Enabled
+			categoryapi.Expanded = manager.Visible
+			if manager.Visible then
+				selectedProfile = mainapi.Profile or selectedProfile
+				refreshManager()
+			end
+		end
+	end
+
+	categoryapi.ConfigManager = manager
+end
+createConfigManager(profiles)
 
 --[[
 	Targets
