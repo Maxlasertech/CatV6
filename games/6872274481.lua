@@ -18165,7 +18165,12 @@ run(function()
                                         local item, ammo, projectile, itemMeta = unpack(projectiles[1])
                                         if tick() > (FireRates[item.itemType] or 0) then
                                             local projmeta = bedwars.ProjectileMeta[projectile]
-                                            local projSpeed, gravity = projmeta.launchVelocity, projmeta.gravitationalAcceleration or 196.2
+                                            local maxChargeSec = itemMeta.projectileSource.maxStrengthChargeSec or itemMeta.projectileSource.maxStretchChargeSec or 1
+                                            local minScalar = itemMeta.projectileSource.minStrengthScalar or 1
+                                            local chargeDur = maxChargeSec
+                                            local chargeRatio = math.clamp(chargeDur / maxChargeSec, 0, 1)
+                                            local projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
+                                            local gravity = projmeta.gravitationalAcceleration or 196.2
                                             local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                             local hotbar = getHotbar(item.tool)
                                             if hotbar then
@@ -18180,7 +18185,6 @@ run(function()
                                                 local sdir = CFrame.lookAt(localPosition, calc).LookVector
                                                 local id = httpService:GenerateGUID(true)
                                                 local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
-                                                local chargeDur = 0
 
                                                 bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = chargeDur})
                                                 local res = projectileRemote:InvokeServer(
@@ -18227,7 +18231,12 @@ run(function()
                                         local item, ammo, projectile, itemMeta = unpack(projectiles[1])
                                         if tick() > (FireRates2[item.itemType] or 0) then
                                             local projmeta = bedwars.ProjectileMeta[projectile]
-                                            local projSpeed, gravity = projmeta.launchVelocity, projmeta.gravitationalAcceleration or 196.2
+                                            local maxChargeSec = itemMeta.projectileSource.maxStrengthChargeSec or itemMeta.projectileSource.maxStretchChargeSec or 1
+                                            local minScalar = itemMeta.projectileSource.minStrengthScalar or 1
+                                            local chargeDur = maxChargeSec
+                                            local chargeRatio = math.clamp(chargeDur / maxChargeSec, 0, 1)
+                                            local projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
+                                            local gravity = projmeta.gravitationalAcceleration or 196.2
                                             local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                             local hotbar = getHotbar(item.tool)
                                             if hotbar then
@@ -18242,7 +18251,6 @@ run(function()
                                                 local sdir = CFrame.lookAt(localPosition, calc).LookVector
                                                 local id = httpService:GenerateGUID(true)
                                                 local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
-                                                local chargeDur = 0
 
                                                 bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = chargeDur})
                                                 local res = projectileRemote:InvokeServer(
