@@ -385,7 +385,7 @@ local function ensureDataFolders()
 end
 
 local function getConfigPath(profile)
-	return configFolder..'/'..profile..mainapi.Place..'.txt'
+	return configFolder..'/'..profile..mainapi.Place..'.json'
 end
 
 local function getLegacyProfilePath(profile)
@@ -407,7 +407,7 @@ local function refreshConfigProfiles()
 	end
 
 	if listfiles then
-		local suffix = tostring(mainapi.Place)..'.txt'
+		local suffix = tostring(mainapi.Place)..'.json'
 		local suc, files = pcall(listfiles, configFolder)
 		if suc then
 			for _, path in files do
@@ -431,6 +431,71 @@ local function refreshConfigProfiles()
 end
 
 ensureDataFolders()
+
+local communityConfigs = {'cc', 'rage'}
+local defaultConfigs = communityConfigs
+
+local function installBundledConfig(name, force)
+	local sourcePath = 'aethercorev2/configs/'..name..'.json'
+	if force or not isfile(sourcePath) then
+		downloadFile(sourcePath)
+	end
+	local wrapper = loadJson(sourcePath)
+	if not wrapper then return false end
+	local configName = wrapper.name or name
+	local configPath = getConfigPath(configName)
+	if force or not isfile(configPath) then
+		writefile(configPath, wrapper.config or '{}')
+	end
+	if wrapper.gui then
+		local guiPath = 'aethercorev2/profiles/'..game.GameId..'.gui.txt'
+		local guidata = isfile(guiPath) and loadJson(guiPath) or nil
+		local defaultGui = httpService:JSONDecode(wrapper.gui)
+		guidata = guidata or defaultGui
+		guidata.Profiles = guidata.Profiles or {}
+		local exists = false
+		for _, profile in guidata.Profiles do
+			if profile.Name == configName then
+				exists = true
+				break
+			end
+		end
+		if not exists then
+			table.insert(guidata.Profiles, {Name = configName, Bind = {}})
+			writefile(guiPath, httpService:JSONEncode(guidata))
+		end
+	end
+	return true
+end
+
+local function installBundledConfigs(force)
+	local installed = false
+	for _, name in defaultConfigs do
+		installed = installBundledConfig(name, force) or installed
+	end
+	refreshConfigProfiles()
+	return installed
+end
+
+local function removeSavedConfig(name)
+	name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+	if name == '' or name == 'default' then return false end
+	if isfile(getConfigPath(name)) and delfile then
+		delfile(getConfigPath(name))
+	end
+	for i = #mainapi.Profiles, 1, -1 do
+		if mainapi.Profiles[i].Name == name then
+			table.remove(mainapi.Profiles, i)
+		end
+	end
+	if mainapi.Profile == name then
+		mainapi.Profile = 'default'
+	end
+	mainapi:Save(mainapi.Profile)
+	refreshConfigProfiles()
+	return true
+end
+installBundledConfigs(false)
 downloadFile('aethercorev2/profiles/features.json')
 local newModules = loadJson('aethercorev2/profiles/features.json') or {}
 local function makeDraggable(gui, window)
@@ -6248,6 +6313,54 @@ local json = profiles:CreateTextBox({
 	Name = 'JSON Config',
 	Placeholder = '[]'
 })
+local communityConfig = profiles:CreateDropdown({
+	Name = 'Community Config',
+	List = communityConfigs,
+	Tooltip = 'Select a community-made config from the AetherCoreV2 config catalog.'
+})
+
+profiles:CreateButton({
+	Name = 'Download selected community config',
+	Function = function()
+		if installBundledConfig(communityConfig.Value, false) then
+			refreshConfigProfiles()
+			profiles:ChangeValue()
+			mainapi:CreateNotification('Configs', communityConfig.Value..' config downloaded.', 5, 'info')
+		end
+	end
+})
+profiles:CreateButton({
+	Name = 'Reinstall selected community config',
+	Function = function()
+		mainapi:Save()
+		if installBundledConfig(communityConfig.Value, true) then
+			refreshConfigProfiles()
+			profiles:ChangeValue()
+			mainapi:CreateNotification('Configs', communityConfig.Value..' config reinstalled.', 5, 'info')
+		end
+	end
+})
+profiles:CreateButton({
+	Name = 'Download all community configs',
+	Function = function()
+		if installBundledConfigs(false) then
+			profiles:ChangeValue()
+			mainapi:CreateNotification('Configs', 'Community configs downloaded.', 5, 'info')
+		end
+	end
+})
+profiles:CreateButton({
+	Name = 'Delete selected saved config',
+	Function = function()
+		local selected = profiles.Selected and profiles.Selected.Name or mainapi.Profile
+		if removeSavedConfig(selected) then
+			profiles:ChangeValue()
+			mainapi:CreateNotification('Configs', selected..' config deleted.', 5, 'info')
+		else
+			mainapi:CreateNotification('Configs', 'Select a saved config to delete.', 5, 'warning')
+		end
+	end
+})
 profiles:CreateButton({
 	Name = 'Import json',
 	Function = function()
@@ -6258,8 +6371,8 @@ profiles:CreateButton({
 			local awesome = `imported ({#mainapi.Profiles + 1})`
 			table.insert(mainapi.Profiles, {Name = awesome, Bind = {}})
 			mainapi:Save(awesome)
-			writefile('catrewrite/profiles/'..awesome..mainapi.Place..'.txt', result.config)
-			writefile('catrewrite/profiles/'..game.GameId..'.gui.txt', result.gui)
+			writefile(getConfigPath(awesome), result.config)
+			writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', result.gui)
 			mainapi:Load(true, awesome)
 		end
 	end
@@ -6315,16 +6428,16 @@ general:CreateButton({
 	Name = 'Export to JSON',
 	Function = function()
 		local tab = {}
-		if isfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt') then
-			tab.config = readfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		if isfile(getConfigPath(mainapi.Profile)) then
+			tab.config = readfile(getConfigPath(mainapi.Profile))
 		end
-		if isfile('catrewrite/profiles/'..game.GameId..'.gui.txt') then
-			tab.gui = readfile('catrewrite/profiles/'..game.GameId..'.gui.txt')
+		if isfile('aethercorev2/profiles/'..game.GameId..'.gui.txt') then
+			tab.gui = readfile('aethercorev2/profiles/'..game.GameId..'.gui.txt')
 		end
 		tab.game = tostring(mainapi.Place or 'universal'.. game.PlaceId)
 		setclipboard(httpService:JSONEncode(tab))
 	end,
-	Tooltip = 'Converts ur config to json format'
+	Tooltip = 'Converts your config to JSON format'
 })
 general:CreateButton({
 	Name = 'Self destruct',

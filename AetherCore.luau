@@ -52819,7 +52819,7 @@ run(function()
         Name = 'Effects',
         List = WinEffectName
     })
-end)end)
+end)
 ]===]
 local aetherCoreChunk, aetherCoreCompileError = loadstring(aetherCorePayload, 'AetherCore/games/6872274481.luau:AetherCore')
 if not aetherCoreChunk then

@@ -57,7 +57,7 @@ local function wipeFolder(path)
 end
 
 
-for _, folder in {'aethercorev2', 'aethercorev2/games', 'aethercorev2/profiles', 'aethercorev2/assets', 'aethercorev2/libraries', 'aethercorev2/guis'} do
+for _, folder in {'aethercorev2', 'aethercorev2/games', 'aethercorev2/profiles', 'aethercorev2/assets', 'aethercorev2/libraries', 'aethercorev2/guis', 'aethercorev2/configs'} do
 	if not isfolder(folder) then
 		downloader.Text = 'Downloading '.. folder
 		makefolder(folder)
@@ -74,9 +74,10 @@ if not shared.VapeDeveloper then
 		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
 		commit = commit and #commit == 40 and commit or 'main'
 	end
-	if commit == 'main' or (isfile('aethercorev2/profiles/commit.txt') and readfile('aethercorev2/profiles/commit.txt') or '') ~= commit then
-		if commit ~= 'main' and isfile('aethercorev2/profiles/commit.txt') then
-			shared.updated = readfile('aethercorev2/profiles/commit.txt')
+	local oldCommit = isfile('aethercorev2/profiles/commit.txt') and readfile('aethercorev2/profiles/commit.txt') or ''
+	if oldCommit ~= commit then
+		if commit ~= 'main' and oldCommit ~= '' then
+			shared.updated = oldCommit
 		end
 		wipeFolder('aethercorev2')
 		wipeFolder('aethercorev2/games')
@@ -87,4 +88,7 @@ if not shared.VapeDeveloper then
 end
 
 downloader.Text = ''
+if downloader.Parent then
+	downloader.Parent:Destroy()
+end
 return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)
