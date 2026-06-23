@@ -18424,6 +18424,7 @@ run(function()
     local Sort
     local Legit
     local Angle
+    local SwingOnly
     local lastFrostShot = tick()
     local frostFireDelay = 0
     local projectileRemote = {InvokeServer = function(self, ...) end}
@@ -18452,6 +18453,7 @@ run(function()
                     if not entitylib.isAlive then continue end
                     if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then continue end
                     if tick() < lastFrostShot or tick() < frostFireDelay then continue end
+                    if SwingOnly.Enabled and (tick() - bedwars.SwordController.lastSwing) > 0.3 then continue end
 
                     local staff, projectile = getFrostStaff()
                     if not staff then continue end
@@ -18593,6 +18595,11 @@ run(function()
         Name = 'Legit Switch',
         Default = false,
         Tooltip = 'Switches back to original item after each shot',
+    })
+    SwingOnly = FrostAuto:CreateToggle({
+        Name = 'Swing Only',
+        Default = true,
+        Tooltip = 'Only fires frost staff when actively swinging sword',
     })
 end)
 
