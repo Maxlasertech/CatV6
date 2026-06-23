@@ -18292,10 +18292,8 @@ run(function()
                                             local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                             local hotbar = getHotbar(staff.tool)
                                             if hotbar then
-                                                switchItem(staff.tool)
-                                                if FrostLegit.Enabled then
-                                                    hotbarSwitch(hotbar)
-                                                end
+                                                hotbarSwitch(hotbar)
+                                                task.wait(0.05)
                                             end
 
                                             local calc = prediction.SolveTrajectory(localPosition, projSpeed, gravity, ent.RootPart.Position, ent.RootPart.Velocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, nil, nil, lplr:GetNetworkPing())
@@ -18303,40 +18301,29 @@ run(function()
                                                 local sdir = CFrame.lookAt(localPosition, calc).LookVector
                                                 local id = httpService:GenerateGUID(true)
                                                 local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
-                                                bedwars.ProjectileController:createLocalProjectile(itemMeta, projectile, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 0})
-                                                local res = projectileRemote:InvokeServer(
-                                                    staff.tool,
-                                                    projectile,
-                                                    projectile,
-                                                    shootPosition,
-                                                    pos,
-                                                    sdir * projSpeed,
+                                                bedwars.Client:Get(remotes.FireProjectile):CallServerAsync(
+                                                    staff.tool, projectile, projectile,
+                                                    shootPosition, pos, sdir * projSpeed,
                                                     id,
                                                     {
                                                         drawDurationSeconds = 0,
                                                         shotId = httpService:GenerateGUID(false),
-                                                        chargeRatio = 0
+                                                        chargeRatio = 0,
                                                     },
                                                     workspace:GetServerTimeNow() - 0.045
                                                 )
-                                                if res then
-                                                    pcall(function()
-                                                        res.Parent = replicatedStorage
-                                                    end)
-                                                    frostFireDelay = tick() + (itemMeta.projectileSource.fireDelaySec or 1)
-                                                    local shoot = itemMeta.projectileSource.launchSound
-                                                    shoot = shoot and shoot[math.random(1, #shoot)] or nil
-                                                    if shoot then
-                                                        bedwars.SoundManager:playSound(shoot)
-                                                    end
+
+                                                frostFireDelay = tick() + (itemMeta.projectileSource.fireDelaySec or 1)
+                                                local shoot = itemMeta.projectileSource.launchSound
+                                                shoot = shoot and shoot[math.random(1, #shoot)] or nil
+                                                if shoot then
+                                                    bedwars.SoundManager:playSound(shoot)
                                                 end
                                                 lastFrostShot = tick() + (lplr:GetNetworkPing() + FrostFireRate.Value)
                                             end
 
                                             task.spawn(function()
-                                                if FrostLegit.Enabled then
-                                                    hotbarSwitch(oldhotbar)
-                                                end
+                                                hotbarSwitch(oldhotbar)
                                                 if oldtool then
                                                     switchItem(oldtool)
                                                 end
