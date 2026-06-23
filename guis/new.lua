@@ -223,7 +223,18 @@ end
 local function addTooltip(gui, text)
 	if not text then return end
 
+	local function configManagerVisible()
+		return mainapi.Categories
+			and mainapi.Categories.Profiles
+			and mainapi.Categories.Profiles.ConfigManager
+			and mainapi.Categories.Profiles.ConfigManager.Visible
+	end
+
 	local function tooltipMoved(x, y)
+		if configManagerVisible() then
+			tooltip.Visible = false
+			return
+		end
 		local right = x + 16 + tooltip.Size.X.Offset > (scale.Scale * 1920)
 		tooltip.Position = UDim2.fromOffset(
 			(right and x - (tooltip.Size.X.Offset * scale.Scale) - 16 or x + 16) / scale.Scale,
@@ -233,6 +244,7 @@ local function addTooltip(gui, text)
 	end
 
 	gui.MouseEnter:Connect(function(x, y)
+		if configManagerVisible() then return end
 		local tooltipSize = getfontsize(text, tooltip.TextSize, uipallet.Font)
 		tooltip.Size = UDim2.fromOffset(tooltipSize.X + 10, tooltipSize.Y + 10)
 		tooltip.Text = text
@@ -465,6 +477,15 @@ local function installBundledConfig(name, force)
 			writefile(guiPath, httpService:JSONEncode(guidata))
 		end
 	end
+	return true
+end
+
+local function applySavedConfig(name)
+	name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+	if name == '' then return false end
+	mainapi:Save()
+	mainapi:Load(true, name)
+	mainapi:Save(name)
 	return true
 end
 
@@ -6456,16 +6477,36 @@ local function createConfigManager(categoryapi)
 		end
 	end
 
+	local inputBlocker = Instance.new('TextButton')
+	inputBlocker.Name = 'ConfigManagerInputBlocker'
+	inputBlocker.Size = UDim2.fromScale(1, 1)
+	inputBlocker.BackgroundTransparency = 1
+	inputBlocker.Text = ''
+	inputBlocker.AutoButtonColor = false
+	inputBlocker.Active = true
+	inputBlocker.ZIndex = 49
+	inputBlocker.Visible = false
+	inputBlocker.Parent = clickgui
+
 	local manager = Instance.new('Frame')
 	manager.Name = 'ConfigManager'
 	manager.Size = UDim2.new(1, -28, 1, -28)
 	manager.Position = UDim2.fromOffset(14, 14)
 	manager.BackgroundColor3 = Color3.fromRGB(7, 9, 16)
+	manager.Active = true
+	manager.ZIndex = 50
 	manager.Visible = false
 	manager.ClipsDescendants = true
 	manager.Parent = clickgui
 	addBlur(manager)
 	addCorner(manager, UDim.new(0, 13))
+
+	local function setManagerLayer(object)
+		if object:IsA('GuiObject') then
+			object.ZIndex = math.max(object.ZIndex, manager.ZIndex + 1)
+		end
+	end
+	manager.DescendantAdded:Connect(setManagerLayer)
 
 	local managerStroke = Instance.new('UIStroke')
 	managerStroke.Transparency = 0.12
@@ -7119,9 +7160,7 @@ local function createConfigManager(categoryapi)
 				createRow(savedList, profile.Name, profile.Name == (mainapi.Profile or selectedProfile), function()
 					selectedProfile = profile.Name
 					previewMode = 'saved'
-					mainapi:Save()
-					mainapi:Load(true, profile.Name)
-					mainapi:Save()
+					applySavedConfig(profile.Name)
 					categoryapi:ChangeValue()
 					refreshManager()
 				end, false)
@@ -7153,9 +7192,10 @@ local function createConfigManager(categoryapi)
 		if installBundledConfig(selectedCommunityConfig, false) then
 			selectedProfile = selectedCommunityConfig
 			previewMode = 'community'
+			applySavedConfig(selectedCommunityConfig)
 			categoryapi:ChangeValue()
 			refreshManager()
-			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config downloaded.', 5, 'info')
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config downloaded and applied.', 5, 'info')
 		end
 	end, 'primary')
 
@@ -7164,9 +7204,10 @@ local function createConfigManager(categoryapi)
 		if installBundledConfig(selectedCommunityConfig, true) then
 			selectedProfile = selectedCommunityConfig
 			previewMode = 'community'
+			applySavedConfig(selectedCommunityConfig)
 			categoryapi:ChangeValue()
 			refreshManager()
-			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config reinstalled.', 5, 'info')
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' config reinstalled and applied.', 5, 'info')
 		end
 	end, 'neutral')
 
@@ -7218,6 +7259,7 @@ local function createConfigManager(categoryapi)
 			categoryapi.Button:Toggle()
 		else
 			manager.Visible = false
+			inputBlocker.Visible = false
 			categoryapi.Expanded = false
 		end
 	end, 'neutral')
@@ -7233,6 +7275,7 @@ local function createConfigManager(categoryapi)
 			categoryapi.Button:Toggle()
 		else
 			manager.Visible = false
+			inputBlocker.Visible = false
 			categoryapi.Expanded = false
 		end
 	end)
@@ -7243,8 +7286,10 @@ local function createConfigManager(categoryapi)
 
 	function categoryapi:Expand()
 		manager.Visible = not manager.Visible
+		inputBlocker.Visible = manager.Visible
 		self.Expanded = manager.Visible
 		self.Object.Visible = false
+		tooltip.Visible = false
 		if self.Button then self.Button.Enabled = manager.Visible end
 		if manager.Visible then
 			selectedProfile = mainapi.Profile or selectedProfile
@@ -7261,11 +7306,14 @@ local function createConfigManager(categoryapi)
 			if not mainapi.Loaded then
 				if self.Enabled then oldToggle(self) end
 				manager.Visible = false
+				inputBlocker.Visible = false
 				categoryapi.Expanded = false
 				return
 			end
 			manager.Visible = self.Enabled
+			inputBlocker.Visible = manager.Visible
 			categoryapi.Expanded = manager.Visible
+			tooltip.Visible = false
 			if manager.Visible then
 				selectedProfile = mainapi.Profile or selectedProfile
 				previewMode = 'community'
