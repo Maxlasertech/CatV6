@@ -112,6 +112,7 @@ getgenv().store = store
 
 local Reach = {}
 local HitBoxes = {}
+local HeadHit = {}
 local InfiniteFly = {}
 local TrapDisabler
 local AntiFallPart
@@ -1058,6 +1059,15 @@ run(function()
 						if Reach.Enabled or HitBoxes.Enabled then
 							attackTable.validate.raycast = attackTable.validate.raycast or {}
 							attackTable.validate.selfPosition.value += CFrame.lookAt(selfpos, targetpos).LookVector * math.max((selfpos - targetpos).Magnitude - 14.399, 0)
+						end
+
+						if HeadHit and HeadHit.Enabled then
+							local head = attackTable.entityInstance and attackTable.entityInstance:FindFirstChild('Head')
+							if head then
+								attackTable.validate.raycast = attackTable.validate.raycast or {}
+								attackTable.validate.raycast.cameraPosition = {value = selfpos}
+								attackTable.validate.raycast.cursorDirection = {value = (head.Position - selfpos).Unit}
+							end
 						end
 
 						if suc and plr then
@@ -3782,6 +3792,13 @@ run(function()
         Suffix = function(val)
             return val == 1 and 'stud' or 'studs'
         end
+    })
+end)
+
+run(function()
+    HeadHit = vape.Categories.Blatant:CreateModule({
+        Name = 'Head Hit',
+        Tooltip = 'Redirects the attack raycast to the enemy Head so all hits register as head hits'
     })
 end)
 
