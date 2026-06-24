@@ -9033,7 +9033,7 @@ run(function()
     local AutoRelease
     local Percentage
     local Delay
-    local WhitelistItems = {}
+    local Whitelist
     
     local launchHook, last = nil, 0
     local charge = 0
@@ -9046,8 +9046,8 @@ run(function()
     				local args = {...}
     				local projName = tostring(args[1] or '')
     				local projmeta = args[2]
-    				print('AutoRelease proj:', projName, '| whitelist size:', #WhitelistItems)
-    				if #WhitelistItems > 0 and not table.find(WhitelistItems, projName) then
+    				local wl = Whitelist and Whitelist.ListEnabled
+    				if wl and #wl > 0 and not table.find(wl, projName) then
     					return nextLaunch(...)
     				end
     				if projmeta and typeof(projmeta) == 'table' then
@@ -9093,16 +9093,9 @@ run(function()
     		return val <= 1 and 'sec' or 'secs'
     	end,
     })
-    AutoRelease:CreateTextList({
+    Whitelist = AutoRelease:CreateTextList({
         Name = 'Whitelist',
         Placeholder = 'projectile name',
-        Function = function(list)
-            WhitelistItems = {}
-            for i = 1, #list do
-                WhitelistItems[i] = list[i]
-            end
-            print('AutoRelease whitelist updated:', #WhitelistItems, 'items')
-        end
     })
 end)
 
