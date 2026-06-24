@@ -8273,6 +8273,233 @@ run(function()
     })
 end)
 
+
+run(function()
+    local EmberHorizon, Objects = nil, {}
+    local saved = {}
+    local props = {'Ambient', 'OutdoorAmbient', 'Brightness', 'ClockTime', 'ExposureCompensation', 'EnvironmentDiffuseScale', 'EnvironmentSpecularScale', 'FogColor', 'FogStart', 'FogEnd'}
+
+    local function restore()
+        for _, obj in Objects do
+            obj:Destroy()
+        end
+        table.clear(Objects)
+        for _, prop in props do
+            if saved[prop] ~= nil then
+                lightingService[prop] = saved[prop]
+            end
+        end
+        table.clear(saved)
+    end
+
+    EmberHorizon = (vape.Categories.Visuals or vape.Categories.Render):CreateModule({
+        Name = 'Ember Horizon',
+        Function = function(callback)
+            if callback then
+                for _, prop in props do
+                    saved[prop] = lightingService[prop]
+                end
+                lightingService.ClockTime = 17.85
+                lightingService.Brightness = 3.4
+                lightingService.Ambient = Color3.fromRGB(112, 58, 32)
+                lightingService.OutdoorAmbient = Color3.fromRGB(82, 39, 25)
+                lightingService.ExposureCompensation = 0.05
+                lightingService.EnvironmentDiffuseScale = 0.45
+                lightingService.EnvironmentSpecularScale = 0.7
+                lightingService.FogColor = Color3.fromRGB(255, 144, 77)
+                lightingService.FogStart = 80
+                lightingService.FogEnd = 650
+
+                Objects.Atmosphere = Instance.new('Atmosphere')
+                Objects.Atmosphere.Name = 'AetherEmberAtmosphere'
+                Objects.Atmosphere.Color = Color3.fromRGB(255, 154, 92)
+                Objects.Atmosphere.Decay = Color3.fromRGB(96, 40, 24)
+                Objects.Atmosphere.Density = 0.3
+                Objects.Atmosphere.Offset = 0.18
+                Objects.Atmosphere.Glare = 0.8
+                Objects.Atmosphere.Haze = 1.35
+
+                Objects.Color = Instance.new('ColorCorrectionEffect')
+                Objects.Color.Name = 'AetherEmberColor'
+                Objects.Color.Brightness = 0.04
+                Objects.Color.Contrast = 0.32
+                Objects.Color.Saturation = 0.28
+                Objects.Color.TintColor = Color3.fromRGB(255, 218, 172)
+
+                Objects.Bloom = Instance.new('BloomEffect')
+                Objects.Bloom.Name = 'AetherEmberBloom'
+                Objects.Bloom.Intensity = 0.75
+                Objects.Bloom.Size = 58
+                Objects.Bloom.Threshold = 0.68
+
+                Objects.Rays = Instance.new('SunRaysEffect')
+                Objects.Rays.Name = 'AetherEmberRays'
+                Objects.Rays.Intensity = 0.18
+                Objects.Rays.Spread = 0.42
+
+                for _, obj in Objects do
+                    obj.Parent = lightingService
+                end
+            else
+                restore()
+            end
+        end,
+        Tooltip = 'Adds a molten sunset grade with golden haze, strong sun rays, warm fog and cinematic bloom.'
+    })
+end)
+
+run(function()
+    local NeonCity, Objects = nil, {}
+    local saved = {}
+    local props = {'Ambient', 'OutdoorAmbient', 'Brightness', 'ClockTime', 'ExposureCompensation', 'EnvironmentDiffuseScale', 'EnvironmentSpecularScale', 'FogColor', 'FogStart', 'FogEnd'}
+
+    local function restore()
+        for _, obj in Objects do
+            obj:Destroy()
+        end
+        table.clear(Objects)
+        for _, prop in props do
+            if saved[prop] ~= nil then
+                lightingService[prop] = saved[prop]
+            end
+        end
+        table.clear(saved)
+    end
+
+    NeonCity = (vape.Categories.Visuals or vape.Categories.Render):CreateModule({
+        Name = 'Neon City',
+        Function = function(callback)
+            if callback then
+                for _, prop in props do
+                    saved[prop] = lightingService[prop]
+                end
+                lightingService.ClockTime = 1.2
+                lightingService.Brightness = 2.1
+                lightingService.Ambient = Color3.fromRGB(36, 22, 78)
+                lightingService.OutdoorAmbient = Color3.fromRGB(8, 10, 26)
+                lightingService.ExposureCompensation = -0.1
+                lightingService.EnvironmentDiffuseScale = 0.2
+                lightingService.EnvironmentSpecularScale = 1
+                lightingService.FogColor = Color3.fromRGB(40, 16, 80)
+                lightingService.FogStart = 45
+                lightingService.FogEnd = 520
+
+                Objects.Atmosphere = Instance.new('Atmosphere')
+                Objects.Atmosphere.Name = 'AetherNeonAtmosphere'
+                Objects.Atmosphere.Color = Color3.fromRGB(106, 55, 255)
+                Objects.Atmosphere.Decay = Color3.fromRGB(5, 8, 30)
+                Objects.Atmosphere.Density = 0.34
+                Objects.Atmosphere.Offset = 0.08
+                Objects.Atmosphere.Glare = 0.15
+                Objects.Atmosphere.Haze = 1.75
+
+                Objects.Color = Instance.new('ColorCorrectionEffect')
+                Objects.Color.Name = 'AetherNeonColor'
+                Objects.Color.Brightness = 0.02
+                Objects.Color.Contrast = 0.48
+                Objects.Color.Saturation = 0.62
+                Objects.Color.TintColor = Color3.fromRGB(214, 224, 255)
+
+                Objects.Bloom = Instance.new('BloomEffect')
+                Objects.Bloom.Name = 'AetherNeonBloom'
+                Objects.Bloom.Intensity = 1.15
+                Objects.Bloom.Size = 72
+                Objects.Bloom.Threshold = 0.55
+
+                Objects.Depth = Instance.new('DepthOfFieldEffect')
+                Objects.Depth.Name = 'AetherNeonDepth'
+                Objects.Depth.FarIntensity = 0.12
+                Objects.Depth.NearIntensity = 0
+                Objects.Depth.FocusDistance = 95
+                Objects.Depth.InFocusRadius = 55
+
+                for _, obj in Objects do
+                    obj.Parent = lightingService
+                end
+            else
+                restore()
+            end
+        end,
+        Tooltip = 'Builds a high-contrast cyberpunk scene with violet fog, glossy highlights, bright bloom and saturated neon colour grading.'
+    })
+end)
+
+run(function()
+    local AbyssalDepths, Objects = nil, {}
+    local saved = {}
+    local props = {'Ambient', 'OutdoorAmbient', 'Brightness', 'ClockTime', 'ExposureCompensation', 'EnvironmentDiffuseScale', 'EnvironmentSpecularScale', 'FogColor', 'FogStart', 'FogEnd'}
+
+    local function restore()
+        for _, obj in Objects do
+            obj:Destroy()
+        end
+        table.clear(Objects)
+        for _, prop in props do
+            if saved[prop] ~= nil then
+                lightingService[prop] = saved[prop]
+            end
+        end
+        table.clear(saved)
+    end
+
+    AbyssalDepths = (vape.Categories.Visuals or vape.Categories.Render):CreateModule({
+        Name = 'Abyssal Depths',
+        Function = function(callback)
+            if callback then
+                for _, prop in props do
+                    saved[prop] = lightingService[prop]
+                end
+                lightingService.ClockTime = 6.15
+                lightingService.Brightness = 1.8
+                lightingService.Ambient = Color3.fromRGB(18, 67, 86)
+                lightingService.OutdoorAmbient = Color3.fromRGB(7, 28, 44)
+                lightingService.ExposureCompensation = -0.2
+                lightingService.EnvironmentDiffuseScale = 0.28
+                lightingService.EnvironmentSpecularScale = 0.5
+                lightingService.FogColor = Color3.fromRGB(34, 116, 132)
+                lightingService.FogStart = 25
+                lightingService.FogEnd = 360
+
+                Objects.Atmosphere = Instance.new('Atmosphere')
+                Objects.Atmosphere.Name = 'AetherAbyssAtmosphere'
+                Objects.Atmosphere.Color = Color3.fromRGB(78, 188, 204)
+                Objects.Atmosphere.Decay = Color3.fromRGB(4, 28, 45)
+                Objects.Atmosphere.Density = 0.47
+                Objects.Atmosphere.Offset = -0.08
+                Objects.Atmosphere.Glare = 0.05
+                Objects.Atmosphere.Haze = 2.4
+
+                Objects.Color = Instance.new('ColorCorrectionEffect')
+                Objects.Color.Name = 'AetherAbyssColor'
+                Objects.Color.Brightness = -0.03
+                Objects.Color.Contrast = 0.34
+                Objects.Color.Saturation = 0.16
+                Objects.Color.TintColor = Color3.fromRGB(179, 246, 255)
+
+                Objects.Bloom = Instance.new('BloomEffect')
+                Objects.Bloom.Name = 'AetherAbyssBloom'
+                Objects.Bloom.Intensity = 0.42
+                Objects.Bloom.Size = 46
+                Objects.Bloom.Threshold = 0.84
+
+                Objects.Depth = Instance.new('DepthOfFieldEffect')
+                Objects.Depth.Name = 'AetherAbyssDepth'
+                Objects.Depth.FarIntensity = 0.22
+                Objects.Depth.NearIntensity = 0
+                Objects.Depth.FocusDistance = 70
+                Objects.Depth.InFocusRadius = 38
+
+                for _, obj in Objects do
+                    obj.Parent = lightingService
+                end
+            else
+                restore()
+            end
+        end,
+        Tooltip = 'Turns the match into a deep aquatic atmosphere with dense teal fog, underwater haze, soft bloom and cool depth grading.'
+    })
+end)
+
 run(function()
     local SkinChanger
     local Skin, SkinType
