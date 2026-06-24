@@ -11927,6 +11927,7 @@ run(function()
     AutoBuy:CreateTextList({
         Name = 'Item',
         Placeholder = 'priority/item/amount/after',
+        Default = {'99/wool_white/64'},
         Function = function(list)
             table.clear(Custom)
             table.clear(CustomPost)
