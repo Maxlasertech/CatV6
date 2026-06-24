@@ -9033,11 +9033,9 @@ run(function()
     local AutoRelease
     local Percentage
     local Delay
-    local Whitelist
-    
+
     local launchHook, last = nil, 0
     local charge = 0
-    local lastProj = ''
 
     AutoRelease = vape.Categories.Utility:CreateModule({
     	Name = 'Auto Release',
@@ -9045,7 +9043,6 @@ run(function()
     		if call then
     			launchHook = bedwars.ProjectileLaunchHook:Add('AutoRelease', 20, function(nextLaunch, ...)
     				local args = {...}
-    				lastProj = tostring(args[1] or '')
     				local projmeta = args[2]
     				if projmeta and typeof(projmeta) == 'table' then
     					charge = (projmeta.velocityMultiplier / 1) * 100
@@ -9056,12 +9053,9 @@ run(function()
 
     			repeat
     				if last > os.clock() and charge >= Percentage.Value then
-    					local wl = Whitelist and Whitelist.ListEnabled
-    					if wl and #wl > 0 and table.find(wl, lastProj) then
-    						task.wait(Delay.Value)
-    						mouse1click()
-    						task.wait(0.2)
-    					end
+    					task.wait(Delay.Value)
+    					mouse1click()
+    					task.wait(0.2)
     				end
     				task.wait()
     			until not AutoRelease.Enabled
@@ -9074,7 +9068,7 @@ run(function()
     	end,
         Tooltip = 'Automatically releases ur projectile source when\nat certain charging percentage'
     })
-    
+
     Percentage = AutoRelease:CreateSlider({
     	Name = 'Percentage',
     	Min = 0,
@@ -9091,10 +9085,6 @@ run(function()
     	Suffix = function(val)
     		return val <= 1 and 'sec' or 'secs'
     	end,
-    })
-    Whitelist = AutoRelease:CreateTextList({
-        Name = 'Whitelist',
-        Placeholder = 'projectile name',
     })
 end)
 
