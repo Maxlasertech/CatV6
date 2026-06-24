@@ -3794,15 +3794,22 @@ run(function()
         Name = 'Head Hit',
         Function = function(callback)
             if callback then
-                rayCheck.FilterDescendantsInstances = lplr.Character and {lplr.Character} or {}
-                rayCheck.FilterType = Enum.RaycastFilterType.Exclude
                 launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
                     local ok, result = pcall(function()
                         local _, projmeta, worldmeta, origin, shootpos = ...
-                        if not entitylib.isAlive or not projmeta or not projmeta.getProjectileMeta then return end
+                        if not entitylib.isAlive or not projmeta then return end
 
                         local selfpos = entitylib.character.RootPart.Position
-                        local offsetpos = (shootpos or selfpos) + (projmeta.projectile ~= 'owl_projectile' and (projmeta.fromPositionOffset or Vector3.zero) or Vector3.zero)
+                        local offsetpos = shootpos or selfpos
+
+                        -- Robust meta lookup: try method first, then direct table lookup
+                        local meta = (projmeta.getProjectileMeta and projmeta:getProjectileMeta())
+                            or (projmeta.projectile and bedwars.ProjectileMeta[projmeta.projectile])
+                        if not meta then return end
+
+                        local gravity = (meta.gravitationalAcceleration or 196.2) * (projmeta.gravityMultiplier or 1)
+                        local projSpeed = meta.launchVelocity or 100
+                        local finalSpeed = projSpeed * (projmeta.velocityMultiplier or 1)
 
                         local ent = entitylib.EntityMouse({
                             Origin = selfpos,
@@ -3812,25 +3819,23 @@ run(function()
                             NPCs = true,
                             Wallcheck = false,
                         })
-
                         if not ent or not ent.Head then return end
 
-                        local meta = projmeta:getProjectileMeta()
-                        if not meta then return end
+                        local headpos = ent.Head.Position
 
-                        local gravity = (meta.gravitationalAcceleration or 196.2) * projmeta.gravityMultiplier
-                        local projSpeed = meta.launchVelocity or 100
-
+                        -- Trajectory prediction with no wall filter so it always finds a path
                         local calc = prediction.SolveTrajectory(
-                            offsetpos, projSpeed, gravity,
-                            ent.Head.Position, ent.RootPart.Velocity,
-                            workspace.Gravity, 0, nil, rayCheck
+                            offsetpos, finalSpeed, gravity,
+                            headpos, ent.RootPart.Velocity,
+                            workspace.Gravity, 0, nil, nil
                         )
 
-                        if not calc then return end
+                        -- Fallback: aim directly at head if prediction fails
+                        local dir = (calc and (calc - offsetpos) or (headpos - offsetpos)).Unit
+                        if dir ~= dir then return end  -- NaN guard
 
                         return {
-                            initialVelocity = CFrame.new(offsetpos, calc).LookVector * (projSpeed * (projmeta.velocityMultiplier or 1)),
+                            initialVelocity = dir * finalSpeed,
                             positionFrom = offsetpos,
                             deltaT = meta.lifetimeSec or 3,
                         }
