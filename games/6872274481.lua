@@ -12845,78 +12845,49 @@ run(function()
 end)
 
 run(function()
-    local AutoBuyBlocks
-    local GUICheck
+    local AutoBuyBlock
     local DelaySlider
-    local running = false
 
-    local function getShopNPC()
-        local shopFound = false
-        if entitylib.isAlive then
-            local localPosition = entitylib.character.RootPart.Position
-            for _, v in store.shop do
-                if (v.RootPart.Position - localPosition).Magnitude <= 20 then
-                    shopFound = true
-                    break
-                end
-            end
-        end
-        return shopFound
-    end
-
-    AutoBuyBlocks = vape.Categories.Inventory:CreateModule({
-        Name = 'AutoBuyBlocks',
-        Tooltip = 'auto buy blocks',
-        Function = function(enabled)
-            running = enabled
-            if enabled then
-                task.spawn(function()
-                    while running do
-                        local canBuy = true
-                        if GUICheck.Enabled then
-                            if bedwars.AppController:isAppOpen('BedwarsItemShopApp') then
-                                canBuy = true
-                            else
-                                canBuy = false
+    AutoBuyBlock = vape.Categories.Inventory:CreateModule({
+        Name = 'Auto Buy Block',
+        Tooltip = 'Automatically buys wool blocks from the shop',
+        Function = function(callback)
+            if callback then
+                repeat
+                    local shopId
+                    if entitylib.isAlive then
+                        local localPosition = entitylib.character.RootPart.Position
+                        for _, v in store.shop do
+                            if v.Shop and (v.RootPart.Position - localPosition).Magnitude <= 20 then
+                                shopId = v.Id
+                                break
                             end
-                        else
-                            canBuy = getShopNPC()
                         end
-                        if canBuy then
-                            local args = {
-                                {
-                                    shopItem = {
-                                        currency = 'iron',
-                                        itemType = 'wool_white',
-                                        amount = 16,
-                                        price = 8,
-                                        disabledInQueue = {'mine_wars'},
-                                        category = 'Blocks'
-                                    },
-                                    shopId = '1_item_shop'
-                                }
-                            }
-                            pcall(function()
-                                bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync(unpack(args))
-                            end)
-                        end
-                        task.wait(DelaySlider.Value)
                     end
-                end)
+                    if shopId then
+                        bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
+                            shopItem = {
+                                currency = 'iron',
+                                itemType = 'wool_white',
+                                amount = 16,
+                                price = 8,
+                                disabledInQueue = {'mine_wars'},
+                                category = 'Blocks'
+                            },
+                            shopId = shopId
+                        })
+                    end
+                    task.wait(DelaySlider.Value)
+                until not AutoBuyBlock.Enabled
             end
-        end
+        end,
     })
 
-    GUICheck = AutoBuyBlocks:CreateToggle({
-        Name = 'GUI Check',
-        Default = false,
-    })
-
-    DelaySlider = AutoBuyBlocks:CreateSlider({
+    DelaySlider = AutoBuyBlock:CreateSlider({
         Name = 'Delay',
         Min = 0,
         Max = 2,
-        Default = 0.1,
+        Default = 0.3,
         Decimal = 10,
     })
 end)
