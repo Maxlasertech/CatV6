@@ -8503,7 +8503,9 @@ end)
 
 run(function()
     local IRLReplica, Objects = nil, {}
-    local saved = {}
+    local saved, savedClouds = {}, {}
+    local storageFolder, cloudObject, cloudsCreated
+    local terrain = workspace.Terrain
     local props = {'Ambient', 'OutdoorAmbient', 'Brightness', 'ClockTime', 'ExposureCompensation', 'EnvironmentDiffuseScale', 'EnvironmentSpecularScale', 'FogColor', 'FogStart', 'FogEnd', 'GlobalShadows'}
     local Season = {Value = 'Summer'}
     local DayMood = {Value = 'Balanced'}
@@ -8580,6 +8582,24 @@ run(function()
             obj:Destroy()
         end
         table.clear(Objects)
+        if cloudObject then
+            if cloudsCreated then
+                cloudObject:Destroy()
+            else
+                for prop, value in savedClouds do
+                    cloudObject[prop] = value
+                end
+            end
+        end
+        cloudObject, cloudsCreated = nil, nil
+        table.clear(savedClouds)
+        if storageFolder then
+            for _, obj in storageFolder:GetChildren() do
+                obj.Parent = lightingService
+            end
+            storageFolder:Destroy()
+            storageFolder = nil
+        end
         for _, prop in props do
             if saved[prop] ~= nil then
                 lightingService[prop] = saved[prop]
@@ -8642,6 +8662,17 @@ run(function()
         Objects.Depth.NearIntensity = 0
         Objects.Depth.FocusDistance = 145
         Objects.Depth.InFocusRadius = math.clamp(95 + (clarity * 75), 70, 180)
+        Objects.Sky.CelestialBodiesShown = true
+        Objects.Sky.StarCount = math.floor(1000 + (night * 5000))
+        Objects.Sky.SunAngularSize = math.clamp(12 + (sun * 8) + (goldenHour * 4), 8, 24)
+        Objects.Sky.MoonAngularSize = math.clamp(9 + (night * 6), 8, 18)
+
+        if cloudObject then
+            cloudObject.Cover = math.clamp(0.18 + (cloud * 0.64) + ((1 - clarity) * 0.12), 0, 0.95)
+            cloudObject.Density = math.clamp(0.28 + (cloud * 0.48) + ((1 - clarity) * 0.12), 0.05, 0.9)
+            cloudObject.Color = blendColor(blendColor(Color3.fromRGB(245, 246, 242), season.fog, cloud * 0.28), golden, goldenHour * 0.14)
+            cloudObject.Enabled = true
+        end
     end
 
     IRLReplica = (vape.Categories.Visuals or vape.Categories.Render):CreateModule({
@@ -8650,6 +8681,40 @@ run(function()
             if callback then
                 for _, prop in props do
                     saved[prop] = lightingService[prop]
+                end
+
+                storageFolder = Instance.new('Folder')
+                storageFolder.Name = 'AetherIRLStoredLighting'
+                storageFolder.Parent = vape.gui
+                for _, obj in lightingService:GetChildren() do
+                    if obj:IsA('Sky') or obj:IsA('Atmosphere') or obj:IsA('ColorCorrectionEffect') or obj:IsA('BloomEffect') or obj:IsA('SunRaysEffect') or obj:IsA('DepthOfFieldEffect') then
+                        obj.Parent = storageFolder
+                    end
+                end
+
+                Objects.Sky = Instance.new('Sky')
+                Objects.Sky.Name = 'AetherIRLSky'
+                Objects.Sky.CelestialBodiesShown = true
+                Objects.Sky.StarCount = 1500
+                Objects.Sky.SunAngularSize = 18
+                Objects.Sky.MoonAngularSize = 11
+
+                cloudObject = terrain and terrain:FindFirstChildOfClass('Clouds')
+                if cloudObject then
+                    for _, prop in {'Cover', 'Density', 'Color', 'Enabled'} do
+                        savedClouds[prop] = cloudObject[prop]
+                    end
+                    cloudsCreated = false
+                else
+                    local suc, clouds = pcall(function()
+                        return Instance.new('Clouds')
+                    end)
+                    if suc and clouds then
+                        cloudObject = clouds
+                        cloudObject.Name = 'AetherIRLClouds'
+                        cloudObject.Parent = terrain
+                        cloudsCreated = true
+                    end
                 end
 
                 Objects.Atmosphere = Instance.new('Atmosphere')
@@ -8671,7 +8736,7 @@ run(function()
                 restore()
             end
         end,
-        Tooltip = 'Ultra-realistic natural daylight simulator with season, time, mood, cloud cover, air clarity and sunlight controls.'
+        Tooltip = 'Ultra-realistic natural daylight simulator with physical sun and moon sizing, stars, volumetric clouds, sun rays, seasonal air, realistic fog and mood controls.'
     })
     Season = IRLReplica:CreateDropdown({
         Name = 'Season',
