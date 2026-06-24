@@ -13597,6 +13597,10 @@ run(function()
     local customlist, parts = {}, {}
     local cachedTeammates = {}
     local cachedTeammatesTime = 0
+    local VulnerableCheck
+    local VulnerableOnly
+    local defenseCache = {}
+    local defenseCacheExpire = {}
 
     local function getAccountTier()
         return 0
@@ -13862,6 +13866,68 @@ run(function()
         return bestYeti
     end
 
+    local function isBedVulnerable(bed)
+        local bedPos = roundPos(bed.Position)
+        local cacheKey = bedPos.X .. '_' .. bedPos.Y .. '_' .. bedPos.Z
+        local now = tick()
+        if defenseCache[cacheKey] ~= nil and now < (defenseCacheExpire[cacheKey] or 0) then
+            return defenseCache[cacheKey]
+        end
+
+        -- Count placed blocks within the defense zone
+        local nearbyBlocks = 0
+        for _, v in store.blocks do
+            if v and v.Parent and v ~= bed then
+                if (v.Position - bedPos).Magnitude <= 15 then
+                    nearbyBlocks += 1
+                end
+            end
+        end
+
+        -- Fewer than 4 blocks = just undefended, not fake
+        if nearbyBlocks < 4 then
+            defenseCache[cacheKey] = false
+            defenseCacheExpire[cacheKey] = now + 2
+            return false
+        end
+
+        -- BFS outward from the bed through air only.
+        -- If we can reach a position beyond the defense shell (>12 studs) without
+        -- crossing any placed block, an unobstructed path from outside exists.
+        local escapeRadius = 15
+        local visited = {}
+        local queue = {bedPos}
+        visited[bedPos.X .. '_' .. bedPos.Y .. '_' .. bedPos.Z] = true
+
+        local qi = 1
+        local result = false
+        while qi <= #queue and qi <= 2000 do
+            local pos = queue[qi]
+            qi += 1
+            for _, side in sides do
+                local next = pos + side
+                local dist = (next - bedPos).Magnitude
+                if dist > escapeRadius then continue end
+                local key = next.X .. '_' .. next.Y .. '_' .. next.Z
+                if visited[key] then continue end
+                visited[key] = true
+                if dist > 12 then
+                    result = true
+                    break
+                end
+                local block = getPlacedBlock(next)
+                if not block or block == bed then
+                    table.insert(queue, next)
+                end
+            end
+            if result then break end
+        end
+
+        defenseCache[cacheKey] = result
+        defenseCacheExpire[cacheKey] = now + 2
+        return result
+    end
+
     BedBreaking = vape.Categories.Minigames:CreateModule({
         Name = 'Bed Breaking',
         Function = function(callback)
@@ -14010,7 +14076,30 @@ run(function()
                                     bestDist = dist
                                 end
                             end
-                            eval(Bed.Enabled and beds)
+                            if Bed.Enabled and beds then
+                                if VulnerableCheck and VulnerableCheck.Enabled then
+                                    local vulnBed, vulnDist = nil, math.huge
+                                    local normBed, normDist = nil, math.huge
+                                    for _, v in beds do
+                                        if not v or not v.Parent then continue end
+                                        local dist = (v.Position - localPosition).Magnitude
+                                        if dist >= Range.Value then continue end
+                                        if not passesChecks(v) then continue end
+                                        if isBedVulnerable(v) then
+                                            if dist < vulnDist then vulnDist = dist; vulnBed = v end
+                                        elseif not VulnerableOnly.Enabled then
+                                            if dist < normDist then normDist = dist; normBed = v end
+                                        end
+                                    end
+                                    local bedTarget = vulnBed or normBed
+                                    if bedTarget then
+                                        local d = bedTarget == vulnBed and vulnDist or normDist
+                                        if d < bestDist then best = bedTarget; bestDist = d end
+                                    end
+                                else
+                                    eval(beds)
+                                end
+                            end
                             eval(customlist)
                             eval(LuckyBlock.Enabled and luckyblock)
                             eval(IronOre.Enabled and ironores)
@@ -14249,6 +14338,28 @@ run(function()
                 blockHighlightInstance.Color3 = Color3.fromHSV(hue, sat, val)
             end
         end
+    })
+
+    VulnerableCheck = BedBreaking:CreateToggle({
+        Name = 'Vulnerability Check',
+        Default = false,
+        Tooltip = 'Analyzes each bed defense via flood-fill to detect fake or exposed protection. Vulnerable beds get priority.',
+        Function = function(callback)
+            if VulnerableOnly and VulnerableOnly.Object then
+                VulnerableOnly.Object.Visible = callback
+            end
+            if not callback then
+                table.clear(defenseCache)
+                table.clear(defenseCacheExpire)
+            end
+        end
+    })
+    VulnerableOnly = BedBreaking:CreateToggle({
+        Name = 'Vulnerable Only',
+        Default = false,
+        Darker = true,
+        Visible = false,
+        Tooltip = 'Skip beds with solid defenses — only target beds with a detectable opening or fake cover'
     })
 
     task.defer(function()
