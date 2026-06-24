@@ -3787,49 +3787,50 @@ run(function()
 end)
 
 run(function()
-    local launchHook
+    local objects = {}
+
+    local function createHeadHitbox(ent)
+        if ent.Targetable and ent.Player then
+            local head = ent.Character:FindFirstChild('Head')
+            if not head then return end
+            local hitbox = Instance.new('Part')
+            hitbox.Name = 'Head'
+            hitbox.Size = Vector3.new(4, 7, 4)
+            hitbox.CanCollide = false
+            hitbox.Massless = true
+            hitbox.Transparency = 1
+            hitbox.Parent = ent.Character
+            local weld = Instance.new('Motor6D')
+            weld.Part0 = hitbox
+            weld.Part1 = head
+            weld.C1 = CFrame.new(0, -2.5, 0)
+            weld.Parent = hitbox
+            objects[ent] = hitbox
+        end
+    end
 
     HeadHit = vape.Categories.Blatant:CreateModule({
         Name = 'Head Hit',
         Function = function(callback)
             if callback then
-                launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
-                    local self, projmeta, worldmeta, origin, shootpos = ...
-                    if not entitylib.isAlive then return nextLaunch(...) end
-                    local plr = entitylib.EntityMouse({
-                        Part = 'RootPart',
-                        Range = 300,
-                        Players = true,
-                        NPCs = true,
-                        Wallcheck = false,
-                        Origin = shootpos or entitylib.character.RootPart.Position,
-                    })
-                    if not plr or not plr.Head then return nextLaunch(...) end
-                    local pos = shootpos or self:getLaunchPosition(origin)
-                    if not pos then return nextLaunch(...) end
-                    local meta = projmeta:getProjectileMeta()
-                    local gravity = (meta.gravitationalAcceleration or 196.2) * projmeta.gravityMultiplier
-                    local projSpeed = meta.launchVelocity or 100
-                    local offsetpos = pos + projmeta.fromPositionOffset
-                    local targetpos = plr.Head.Position
-                    local newlook = CFrame.new(offsetpos, targetpos)
-                    local calc = prediction.SolveTrajectory(newlook.p, projSpeed * projmeta.velocityMultiplier, gravity, targetpos, plr.RootPart.Velocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil, nil)
-                    if calc then
-                        return {
-                            initialVelocity = CFrame.new(newlook.Position, calc).LookVector * (projSpeed * projmeta.velocityMultiplier),
-                            positionFrom = offsetpos,
-                            deltaT = meta.lifetimeSec or 3,
-                            gravitationalAcceleration = gravity,
-                            drawDurationSeconds = projmeta.drawDurationSeconds,
-                        }
+                HeadHit:Clean(entitylib.Events.EntityAdded:Connect(createHeadHitbox))
+                HeadHit:Clean(entitylib.Events.EntityRemoving:Connect(function(ent)
+                    if objects[ent] then
+                        objects[ent]:Destroy()
+                        objects[ent] = nil
                     end
-                    return nextLaunch(...)
-                end)
+                end))
+                for _, ent in entitylib.List do
+                    createHeadHitbox(ent)
+                end
             else
-                if launchHook then launchHook(); launchHook = nil end
+                for _, part in objects do
+                    part:Destroy()
+                end
+                table.clear(objects)
             end
         end,
-        Tooltip = 'Aims all projectiles at the enemy Head so they register as head hits'
+        Tooltip = 'Expands enemy Head hitbox to cover the whole body — projectile hits anywhere register as head hits'
     })
 end)
 
