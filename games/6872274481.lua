@@ -12715,6 +12715,50 @@ run(function()
         Active = false
     end
     
+    local AutoBuyBlock
+    local AutoBuyBlockDelay
+    AutoBuyBlock = vape.Categories.Inventory:CreateModule({
+        Name = 'Auto Buy Block',
+        Tooltip = 'Automatically buys wool blocks from the shop',
+        Function = function(callback)
+            if callback then
+                repeat
+                    local shopId
+                    if entitylib.isAlive then
+                        local localPosition = entitylib.character.RootPart.Position
+                        for _, v in store.shop do
+                            if v.Shop and (v.RootPart.Position - localPosition).Magnitude <= 20 then
+                                shopId = v.Id
+                                break
+                            end
+                        end
+                    end
+                    if shopId then
+                        bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
+                            shopItem = {
+                                currency = 'iron',
+                                itemType = 'wool_white',
+                                amount = 16,
+                                price = 8,
+                                disabledInQueue = {'mine_wars'},
+                                category = 'Blocks'
+                            },
+                            shopId = shopId
+                        })
+                    end
+                    task.wait(AutoBuyBlockDelay.Value)
+                until not AutoBuyBlock.Enabled
+            end
+        end,
+    })
+    AutoBuyBlockDelay = AutoBuyBlock:CreateSlider({
+        Name = 'Delay',
+        Min = 0,
+        Max = 2,
+        Default = 0.3,
+        Decimal = 10,
+    })
+
     AutoHotbar = vape.Categories.Inventory:CreateModule({
         Name = 'Auto Hotbar',
         Function = function(callback)
@@ -12844,53 +12888,6 @@ run(function()
     })
 end)
 
-run(function()
-    local AutoBuyBlock
-    local DelaySlider
-
-    AutoBuyBlock = vape.Categories.Inventory:CreateModule({
-        Name = 'Auto Buy Block',
-        Tooltip = 'Automatically buys wool blocks from the shop',
-        Function = function(callback)
-            if callback then
-                repeat
-                    local shopId
-                    if entitylib.isAlive then
-                        local localPosition = entitylib.character.RootPart.Position
-                        for _, v in store.shop do
-                            if v.Shop and (v.RootPart.Position - localPosition).Magnitude <= 20 then
-                                shopId = v.Id
-                                break
-                            end
-                        end
-                    end
-                    if shopId then
-                        bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
-                            shopItem = {
-                                currency = 'iron',
-                                itemType = 'wool_white',
-                                amount = 16,
-                                price = 8,
-                                disabledInQueue = {'mine_wars'},
-                                category = 'Blocks'
-                            },
-                            shopId = shopId
-                        })
-                    end
-                    task.wait(DelaySlider.Value)
-                until not AutoBuyBlock.Enabled
-            end
-        end,
-    })
-
-    DelaySlider = AutoBuyBlock:CreateSlider({
-        Name = 'Delay',
-        Min = 0,
-        Max = 2,
-        Default = 0.3,
-        Decimal = 10,
-    })
-end)
 
 run(function()
     local Value
