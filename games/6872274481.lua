@@ -3787,50 +3787,61 @@ run(function()
 end)
 
 run(function()
-    local objects = {}
-
-    local function createHeadHitbox(ent)
-        if ent.Targetable then
-            local head = ent.Head
-            if not head then return end
-            local hitbox = Instance.new('Part')
-            hitbox.Name = 'Head'
-            hitbox.Size = Vector3.new(4, 7, 4)
-            hitbox.CanCollide = false
-            hitbox.Massless = true
-            hitbox.Transparency = 1
-            hitbox.Parent = ent.Character
-            local weld = Instance.new('Motor6D')
-            weld.Part0 = hitbox
-            weld.Part1 = head
-            weld.C1 = CFrame.new(0, ent.NPC and 0 or -2.5, 0)
-            weld.Parent = hitbox
-            objects[ent] = hitbox
-        end
-    end
+    local launchHook
+    local rayCheck = RaycastParams.new()
 
     HeadHit = vape.Categories.Blatant:CreateModule({
         Name = 'Head Hit',
         Function = function(callback)
             if callback then
-                HeadHit:Clean(entitylib.Events.EntityAdded:Connect(createHeadHitbox))
-                HeadHit:Clean(entitylib.Events.EntityRemoving:Connect(function(ent)
-                    if objects[ent] then
-                        objects[ent]:Destroy()
-                        objects[ent] = nil
-                    end
-                end))
-                for _, ent in entitylib.List do
-                    createHeadHitbox(ent)
-                end
+                rayCheck.FilterDescendantsInstances = lplr.Character and {lplr.Character} or {}
+                rayCheck.FilterType = Enum.RaycastFilterType.Exclude
+                launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
+                    local self, projmeta, worldmeta, origin, shootpos = ...
+                    if not entitylib.isAlive or not projmeta then return nextLaunch(...) end
+
+                    local selfpos = entitylib.character.RootPart.Position
+                    local pos = shootpos or (self and self.getLaunchPosition and self:getLaunchPosition(origin)) or selfpos
+                    local offsetpos = pos + (projmeta.projectile ~= 'owl_projectile' and (projmeta.fromPositionOffset or Vector3.zero) or Vector3.zero)
+
+                    local ent = entitylib.EntityMouse({
+                        Origin = selfpos,
+                        Range = 180,
+                        Part = 'RootPart',
+                        Players = true,
+                        NPCs = true,
+                        Wallcheck = false,
+                    })
+
+                    if not ent then return nextLaunch(...) end
+
+                    local meta = projmeta:getProjectileMeta()
+                    local gravity = (meta.gravitationalAcceleration or 196.2) * projmeta.gravityMultiplier
+                    local projSpeed = meta.launchVelocity or 100
+                    local headpos = ent.Head.Position
+
+                    local calc = prediction.SolveTrajectory(
+                        offsetpos, projSpeed, gravity,
+                        headpos, ent.RootPart.Velocity,
+                        workspace.Gravity, 0, nil, rayCheck
+                    )
+
+                    if not calc then return nextLaunch(...) end
+
+                    return {
+                        initialVelocity = CFrame.new(offsetpos, calc).LookVector * (projSpeed * (projmeta.velocityMultiplier or 1)),
+                        positionFrom = offsetpos,
+                        deltaT = meta.lifetimeSec or 3,
+                    }
+                end)
             else
-                for _, part in objects do
-                    part:Destroy()
+                if launchHook then
+                    launchHook()
+                    launchHook = nil
                 end
-                table.clear(objects)
             end
         end,
-        Tooltip = 'Expands enemy Head hitbox to cover the whole body — projectile hits anywhere register as head hits'
+        Tooltip = 'Redirects all projectiles to hit the enemy head for head damage'
     })
 end)
 
