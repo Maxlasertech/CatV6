@@ -14183,16 +14183,19 @@ run(function()
                         end
 
                         if best then
+                            local layerBroke = false
                             if LayerBreak and LayerBreak.Enabled then
                                 local pathBlock = findPathBlock(best.Position, localPosition)
                                 if pathBlock then
                                     best = pathBlock
+                                    layerBroke = true
                                 end
                             end
                             if not MouseDown or not MouseDown.Enabled or inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                                -- Hollow/fake defense: break an outer block first so it doesn't
-                                -- look like the bed vanished with nothing broken
-                                if best.Name == 'bed' and VulnerableCheck and VulnerableCheck.Enabled and isBedVulnerable(best) then
+                                -- If targeting a bed and no outer block was found on the straight
+                                -- line path (hollow/open defense), break a decoy outer block first
+                                -- so it doesn't look like the bed vanished with nothing broken
+                                if best.Name == 'bed' and not layerBroke then
                                     local decoy = findDecoyBlock(best, localPosition)
                                     if decoy then doBreak(decoy) end
                                 end
