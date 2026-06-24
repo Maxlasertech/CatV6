@@ -11964,24 +11964,33 @@ run(function()
             if enabled then
                 task.spawn(function()
                     while AutoBuyBlocks.Enabled do
-                        local nearShop = false
-                        if GUICheck.Enabled then
-                            nearShop = bedwars.AppController:isAppOpen('BedwarsItemShopApp')
-                        else
-                            local _, items, _, newid = getShopNPC()
-                            if newid then id = newid end
-                            nearShop = items ~= false
+                        local shopId = nil
+                        for _, v in store.shop or {} do
+                            if v.Shop and v.Id then
+                                shopId = v.Id
+                                id = shopId
+                                break
+                            end
                         end
-                        if nearShop and id then
+                        local nearShop = GUICheck.Enabled
+                            and bedwars.AppController:isAppOpen('BedwarsItemShopApp')
+                            or shopId ~= nil
+                        if nearShop and shopId then
                             local team = lplr:GetAttribute('Team')
                             local woolType = 'wool_' .. string.lower(tostring(team or 'white'))
-                            local v = bedwars.Shop.getShopItem and bedwars.Shop.getShopItem(woolType, lplr)
-                            if v then
-                                local currencytable = {}
-                                for _ = 1, SetsSlider.Value do
-                                    if not canBuy(v, currencytable) then break end
-                                    buyItem(v, currencytable)
-                                end
+                            local getShopItem = bedwars.Shop and bedwars.Shop.getShopItem
+                            local v = getShopItem and getShopItem(woolType, lplr)
+                            if not v then
+                                v = {currency = 'iron', itemType = woolType, amount = 16, price = 8}
+                            end
+                            local currencytable = {}
+                            for _ = 1, SetsSlider.Value do
+                                if not canBuy(v, currencytable) then break end
+                                bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
+                                    shopItem = v,
+                                    shopId = shopId
+                                })
+                                currencytable[v.currency] -= v.price
                             end
                         end
                         task.wait(math.max(DelaySlider.Value, 0.05))
