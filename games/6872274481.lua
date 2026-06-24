@@ -8500,6 +8500,226 @@ run(function()
     })
 end)
 
+
+run(function()
+    local IRLReplica, Objects = nil, {}
+    local saved = {}
+    local props = {'Ambient', 'OutdoorAmbient', 'Brightness', 'ClockTime', 'ExposureCompensation', 'EnvironmentDiffuseScale', 'EnvironmentSpecularScale', 'FogColor', 'FogStart', 'FogEnd', 'GlobalShadows'}
+    local Season = {Value = 'Summer'}
+    local DayMood = {Value = 'Balanced'}
+    local TimeOfDay = {Value = 12.5}
+    local CloudCover = {Value = 35}
+    local AirClarity = {Value = 72}
+    local SunStrength = {Value = 64}
+
+    local seasonProfiles = {
+        Spring = {
+            ambient = Color3.fromRGB(128, 143, 132),
+            outdoor = Color3.fromRGB(168, 178, 158),
+            fog = Color3.fromRGB(205, 219, 207),
+            tint = Color3.fromRGB(246, 255, 239),
+            atmosphere = Color3.fromRGB(204, 224, 214),
+            decay = Color3.fromRGB(114, 132, 110),
+            saturation = 0.08,
+            haze = 0.45,
+            temperature = 0.04
+        },
+        Summer = {
+            ambient = Color3.fromRGB(145, 142, 128),
+            outdoor = Color3.fromRGB(188, 178, 145),
+            fog = Color3.fromRGB(225, 220, 194),
+            tint = Color3.fromRGB(255, 248, 226),
+            atmosphere = Color3.fromRGB(226, 221, 198),
+            decay = Color3.fromRGB(143, 121, 82),
+            saturation = 0.12,
+            haze = 0.28,
+            temperature = 0.08
+        },
+        Autumn = {
+            ambient = Color3.fromRGB(142, 112, 86),
+            outdoor = Color3.fromRGB(178, 139, 96),
+            fog = Color3.fromRGB(218, 184, 145),
+            tint = Color3.fromRGB(255, 231, 204),
+            atmosphere = Color3.fromRGB(222, 184, 142),
+            decay = Color3.fromRGB(108, 73, 45),
+            saturation = 0.04,
+            haze = 0.68,
+            temperature = 0.1
+        },
+        Winter = {
+            ambient = Color3.fromRGB(126, 137, 148),
+            outdoor = Color3.fromRGB(174, 184, 194),
+            fog = Color3.fromRGB(215, 226, 234),
+            tint = Color3.fromRGB(232, 244, 255),
+            atmosphere = Color3.fromRGB(210, 225, 235),
+            decay = Color3.fromRGB(126, 145, 162),
+            saturation = -0.12,
+            haze = 0.72,
+            temperature = -0.08
+        }
+    }
+
+    local moodProfiles = {
+        Balanced = {brightness = 0, contrast = 0.05, saturation = 0, exposure = 0, haze = 0, bloom = 0, fog = 0},
+        Crisp = {brightness = 0.02, contrast = 0.12, saturation = 0.05, exposure = 0.05, haze = -0.16, bloom = -0.04, fog = 80},
+        Overcast = {brightness = -0.08, contrast = -0.03, saturation = -0.1, exposure = -0.08, haze = 0.24, bloom = -0.1, fog = -120},
+        Golden = {brightness = 0.04, contrast = 0.1, saturation = 0.1, exposure = 0.02, haze = 0.18, bloom = 0.12, fog = -40},
+        Melancholy = {brightness = -0.1, contrast = 0.04, saturation = -0.18, exposure = -0.15, haze = 0.34, bloom = -0.08, fog = -170}
+    }
+
+    local function blendColor(a, b, alpha)
+        return Color3.new(
+            a.R + (b.R - a.R) * alpha,
+            a.G + (b.G - a.G) * alpha,
+            a.B + (b.B - a.B) * alpha
+        )
+    end
+
+    local function restore()
+        for _, obj in Objects do
+            obj:Destroy()
+        end
+        table.clear(Objects)
+        for _, prop in props do
+            if saved[prop] ~= nil then
+                lightingService[prop] = saved[prop]
+            end
+        end
+        table.clear(saved)
+    end
+
+    local function applyReplica()
+        if not IRLReplica or not IRLReplica.Enabled then
+            return
+        end
+
+        local season = seasonProfiles[Season.Value] or seasonProfiles.Summer
+        local mood = moodProfiles[DayMood.Value] or moodProfiles.Balanced
+        local clock = TimeOfDay.Value
+        local noonDistance = math.abs(clock - 12) / 12
+        local sunriseDistance = math.min(math.abs(clock - 6.25), math.abs(clock - 18.2)) / 6
+        local goldenHour = math.clamp(1 - sunriseDistance, 0, 1)
+        local night = math.clamp((noonDistance - 0.62) / 0.38, 0, 1)
+        local cloud = CloudCover.Value / 100
+        local clarity = AirClarity.Value / 100
+        local sun = SunStrength.Value / 100
+        local daylight = 1 - (night * 0.72)
+        local skyBlue = Color3.fromRGB(176, 206, 232)
+        local golden = Color3.fromRGB(255, 203, 145)
+        local nightBlue = Color3.fromRGB(56, 71, 100)
+        local cloudGrey = Color3.fromRGB(185, 191, 194)
+
+        lightingService.GlobalShadows = true
+        lightingService.ClockTime = clock
+        lightingService.Brightness = math.clamp((2.05 + (sun * 1.25) - (cloud * 0.85) - (night * 1.05) + mood.brightness), 0.25, 4)
+        lightingService.ExposureCompensation = math.clamp((-0.08 + (sun * 0.18) - (cloud * 0.22) - (night * 0.16) + mood.exposure), -0.8, 0.45)
+        lightingService.EnvironmentDiffuseScale = math.clamp(0.45 + (clarity * 0.28) - (cloud * 0.22), 0.1, 1)
+        lightingService.EnvironmentSpecularScale = math.clamp(0.38 + (sun * 0.42) - (cloud * 0.18), 0.05, 1)
+        lightingService.Ambient = blendColor(blendColor(season.ambient, nightBlue, night * 0.58), cloudGrey, cloud * 0.2)
+        lightingService.OutdoorAmbient = blendColor(blendColor(season.outdoor, golden, goldenHour * 0.32), nightBlue, night * 0.5)
+        lightingService.FogColor = blendColor(blendColor(season.fog, skyBlue, clarity * 0.22), golden, goldenHour * 0.18)
+        lightingService.FogStart = math.clamp(65 + (clarity * 125) - (cloud * 65) + mood.fog, 18, 260)
+        lightingService.FogEnd = math.clamp(520 + (clarity * 900) - (cloud * 440) + (sun * 160) + (mood.fog * 2.4), 180, 1800)
+
+        Objects.Atmosphere.Color = blendColor(blendColor(season.atmosphere, skyBlue, clarity * 0.28), golden, goldenHour * 0.22)
+        Objects.Atmosphere.Decay = blendColor(season.decay, nightBlue, night * 0.34)
+        Objects.Atmosphere.Density = math.clamp(0.18 + ((1 - clarity) * 0.24) + (cloud * 0.16) + season.haze * 0.08 + mood.haze, 0.08, 0.66)
+        Objects.Atmosphere.Offset = math.clamp(0.05 + (goldenHour * 0.1) - (night * 0.12), -0.18, 0.24)
+        Objects.Atmosphere.Glare = math.clamp((sun * 0.34 * daylight) + (goldenHour * 0.24) - (cloud * 0.18), 0, 0.75)
+        Objects.Atmosphere.Haze = math.clamp(0.42 + ((1 - clarity) * 1.45) + (cloud * 1.35) + season.haze + mood.haze, 0.05, 3)
+
+        Objects.Color.Brightness = math.clamp(0.01 + (goldenHour * 0.025) - (night * 0.045) + mood.brightness, -0.25, 0.25)
+        Objects.Color.Contrast = math.clamp(0.08 + (clarity * 0.12) - (cloud * 0.1) + mood.contrast, -0.12, 0.35)
+        Objects.Color.Saturation = math.clamp(season.saturation + (sun * 0.08) - (cloud * 0.12) - (night * 0.08) + mood.saturation, -0.35, 0.35)
+        Objects.Color.TintColor = blendColor(blendColor(season.tint, golden, goldenHour * (0.36 + season.temperature)), nightBlue, night * 0.2)
+
+        Objects.Bloom.Intensity = math.clamp(0.08 + (sun * 0.16) + (goldenHour * 0.12) - (cloud * 0.07) + mood.bloom, 0, 0.42)
+        Objects.Bloom.Size = math.clamp(22 + (sun * 18) + (goldenHour * 10), 12, 56)
+        Objects.Bloom.Threshold = math.clamp(1.08 - (sun * 0.18) + (cloud * 0.12), 0.78, 1.25)
+        Objects.Rays.Intensity = math.clamp((sun * 0.08 * daylight) + (goldenHour * 0.1) - (cloud * 0.09), 0, 0.2)
+        Objects.Rays.Spread = math.clamp(0.55 + (goldenHour * 0.18) + (cloud * 0.12), 0.35, 0.9)
+        Objects.Depth.FarIntensity = math.clamp(0.015 + ((1 - clarity) * 0.05) + (cloud * 0.025), 0, 0.12)
+        Objects.Depth.NearIntensity = 0
+        Objects.Depth.FocusDistance = 145
+        Objects.Depth.InFocusRadius = math.clamp(95 + (clarity * 75), 70, 180)
+    end
+
+    IRLReplica = (vape.Categories.Visuals or vape.Categories.Render):CreateModule({
+        Name = 'IRL Replica',
+        Function = function(callback)
+            if callback then
+                for _, prop in props do
+                    saved[prop] = lightingService[prop]
+                end
+
+                Objects.Atmosphere = Instance.new('Atmosphere')
+                Objects.Atmosphere.Name = 'AetherIRLAtmosphere'
+                Objects.Color = Instance.new('ColorCorrectionEffect')
+                Objects.Color.Name = 'AetherIRLColor'
+                Objects.Bloom = Instance.new('BloomEffect')
+                Objects.Bloom.Name = 'AetherIRLBloom'
+                Objects.Rays = Instance.new('SunRaysEffect')
+                Objects.Rays.Name = 'AetherIRLRays'
+                Objects.Depth = Instance.new('DepthOfFieldEffect')
+                Objects.Depth.Name = 'AetherIRLDepth'
+
+                for _, obj in Objects do
+                    obj.Parent = lightingService
+                end
+                applyReplica()
+            else
+                restore()
+            end
+        end,
+        Tooltip = 'Ultra-realistic natural daylight simulator with season, time, mood, cloud cover, air clarity and sunlight controls.'
+    })
+    Season = IRLReplica:CreateDropdown({
+        Name = 'Season',
+        List = {'Spring', 'Summer', 'Autumn', 'Winter'},
+        Default = 'Summer',
+        Function = applyReplica
+    })
+    DayMood = IRLReplica:CreateDropdown({
+        Name = 'Mood',
+        List = {'Balanced', 'Crisp', 'Overcast', 'Golden', 'Melancholy'},
+        Default = 'Balanced',
+        Function = applyReplica
+    })
+    TimeOfDay = IRLReplica:CreateSlider({
+        Name = 'Time',
+        Min = 5,
+        Max = 20,
+        Default = 12.5,
+        Decimal = 10,
+        Suffix = 'h',
+        Function = applyReplica
+    })
+    CloudCover = IRLReplica:CreateSlider({
+        Name = 'Cloud Cover',
+        Min = 0,
+        Max = 100,
+        Default = 35,
+        Suffix = '%',
+        Function = applyReplica
+    })
+    AirClarity = IRLReplica:CreateSlider({
+        Name = 'Air Clarity',
+        Min = 0,
+        Max = 100,
+        Default = 72,
+        Suffix = '%',
+        Function = applyReplica
+    })
+    SunStrength = IRLReplica:CreateSlider({
+        Name = 'Sun Strength',
+        Min = 0,
+        Max = 100,
+        Default = 64,
+        Suffix = '%',
+        Function = applyReplica
+    })
+end)
+
 run(function()
     local SkinChanger
     local Skin, SkinType
