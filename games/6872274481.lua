@@ -112,6 +112,7 @@ getgenv().store = store
 
 local Reach = {}
 local HitBoxes = {}
+local HeadHit = {}
 local InfiniteFly = {}
 local TrapDisabler
 local AntiFallPart
@@ -3782,6 +3783,54 @@ run(function()
         Suffix = function(val)
             return val == 1 and 'stud' or 'studs'
         end
+    })
+end)
+
+run(function()
+    local objects = {}
+
+    local function createHeadHitbox(ent)
+        if ent.Targetable then
+            local head = ent.Character:FindFirstChild('Head')
+            if not head then return end
+            local hitbox = Instance.new('Part')
+            hitbox.Name = 'Head'
+            hitbox.Size = Vector3.new(4, 7, 4)
+            hitbox.CanCollide = false
+            hitbox.Massless = true
+            hitbox.Transparency = 1
+            hitbox.Parent = ent.Character
+            local weld = Instance.new('Motor6D')
+            weld.Part0 = hitbox
+            weld.Part1 = head
+            weld.C1 = CFrame.new(0, -2.5, 0)
+            weld.Parent = hitbox
+            objects[ent] = hitbox
+        end
+    end
+
+    HeadHit = vape.Categories.Blatant:CreateModule({
+        Name = 'Head Hit',
+        Function = function(callback)
+            if callback then
+                HeadHit:Clean(entitylib.Events.EntityAdded:Connect(createHeadHitbox))
+                HeadHit:Clean(entitylib.Events.EntityRemoving:Connect(function(ent)
+                    if objects[ent] then
+                        objects[ent]:Destroy()
+                        objects[ent] = nil
+                    end
+                end))
+                for _, ent in entitylib.List do
+                    createHeadHitbox(ent)
+                end
+            else
+                for _, part in objects do
+                    part:Destroy()
+                end
+                table.clear(objects)
+            end
+        end,
+        Tooltip = 'Expands enemy Head hitbox to cover the whole body — projectile hits anywhere register as head hits'
     })
 end)
 
