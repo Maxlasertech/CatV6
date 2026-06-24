@@ -9057,7 +9057,7 @@ run(function()
     			repeat
     				if last > os.clock() and charge >= Percentage.Value then
     					local wl = Whitelist and Whitelist.ListEnabled
-    					if not wl or #wl == 0 or table.find(wl, lastProj) then
+    					if wl and #wl > 0 and table.find(wl, lastProj) then
     						task.wait(Delay.Value)
     						mouse1click()
     						task.wait(0.2)
