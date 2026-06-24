@@ -13601,6 +13601,9 @@ run(function()
     local VulnerableOnly
     local defenseCache = {}
     local defenseCacheExpire = {}
+    local BedScanner
+    local scannerAdornments = {}
+    local scannerLastState = {}
 
     local function getAccountTier()
         return 0
@@ -13953,6 +13956,36 @@ run(function()
     end
 
     local function runBedScanner(beds)
+        local function isExposed(bed)
+            local bedPos = roundPos(bed.Position)
+            local nearbyBlocks = 0
+            for _, v in store.blocks do
+                if v and v.Parent and v ~= bed then
+                    if (v.Position - bedPos).Magnitude <= 12 then nearbyBlocks += 1 end
+                end
+            end
+            if nearbyBlocks < 4 then return true end
+            local visited = {}
+            local queue = {bedPos}
+            visited[bedPos.X..'_'..bedPos.Y..'_'..bedPos.Z] = true
+            local qi = 1
+            while qi <= #queue and qi <= 2000 do
+                local pos = queue[qi]; qi += 1
+                for _, side in sides do
+                    local next = pos + side
+                    local dist = (next - bedPos).Magnitude
+                    if dist > 15 then continue end
+                    local key = next.X..'_'..next.Y..'_'..next.Z
+                    if visited[key] then continue end
+                    visited[key] = true
+                    if dist > 12 then return true end
+                    local block = getPlacedBlock(next)
+                    if not block or block == bed then table.insert(queue, next) end
+                end
+            end
+            return false
+        end
+
         local function clearAll()
             for _, d in scannerAdornments do
                 if d.billboard and d.billboard.Parent then d.billboard:Destroy() end
@@ -13978,7 +14011,7 @@ run(function()
                 local id = tostring(bed)
                 seenIds[id] = true
 
-                local vulnerable = isBedVulnerable(bed)
+                local vulnerable = isExposed(bed)
                 local prev = scannerLastState[id]
 
                 if not scannerAdornments[id] then
@@ -14019,11 +14052,11 @@ run(function()
                     d.box.Color3 = Color3.fromRGB(255, 60, 60)
                 end
 
-                if prev ~= nil and prev ~= vulnerable then
+                if prev == nil or prev ~= vulnerable then
                     if vulnerable then
                         notif('Bed Scanner', 'Good to go! Bed is exposed', 5, 'info')
                     else
-                        notif('Bed Scanner', "Don't go for bed — it's now protected", 5, 'warning')
+                        notif('Bed Scanner', "Don't go for bed — it's protected", 5, 'warning')
                     end
                 end
                 scannerLastState[id] = vulnerable
