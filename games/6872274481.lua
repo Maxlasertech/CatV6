@@ -3795,21 +3795,15 @@ run(function()
         Function = function(callback)
             if callback then
                 launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
-                    local ok, result = pcall(function()
-                        local _, projmeta, worldmeta, origin, shootpos = ...
-                        if not entitylib.isAlive or not projmeta then return end
+                    -- Always call nextLaunch first so original code (Handle setup etc.) runs fully
+                    local origResult = nextLaunch(...)
 
+                    local ok, modified = pcall(function()
+                        if not origResult or not origResult.initialVelocity then return end
+                        if not entitylib.isAlive then return end
+
+                        local _, projmeta = ...
                         local selfpos = entitylib.character.RootPart.Position
-                        local offsetpos = shootpos or selfpos
-
-                        -- Robust meta lookup: try method first, then direct table lookup
-                        local meta = (projmeta.getProjectileMeta and projmeta:getProjectileMeta())
-                            or (projmeta.projectile and bedwars.ProjectileMeta[projmeta.projectile])
-                        if not meta then return end
-
-                        local gravity = (meta.gravitationalAcceleration or 196.2) * (projmeta.gravityMultiplier or 1)
-                        local projSpeed = meta.launchVelocity or 100
-                        local finalSpeed = projSpeed * (projmeta.velocityMultiplier or 1)
 
                         local ent = entitylib.EntityMouse({
                             Origin = selfpos,
@@ -3821,27 +3815,35 @@ run(function()
                         })
                         if not ent or not ent.Head then return end
 
+                        local positionFrom = origResult.positionFrom or selfpos
+                        local speed = origResult.initialVelocity.Magnitude
                         local headpos = ent.Head.Position
 
-                        -- Trajectory prediction with no wall filter so it always finds a path
+                        local gravity = 196.2
+                        if projmeta then
+                            local meta = (projmeta.getProjectileMeta and projmeta:getProjectileMeta())
+                                or (projmeta.projectile and bedwars.ProjectileMeta[projmeta.projectile])
+                            if meta then
+                                gravity = (meta.gravitationalAcceleration or 196.2) * (projmeta.gravityMultiplier or 1)
+                            end
+                        end
+
                         local calc = prediction.SolveTrajectory(
-                            offsetpos, finalSpeed, gravity,
+                            positionFrom, speed, gravity,
                             headpos, ent.RootPart.Velocity,
                             workspace.Gravity, 0, nil, nil
                         )
 
-                        -- Fallback: aim directly at head if prediction fails
-                        local dir = (calc and (calc - offsetpos) or (headpos - offsetpos)).Unit
-                        if dir ~= dir then return end  -- NaN guard
+                        local dir = (calc and (calc - positionFrom) or (headpos - positionFrom)).Unit
+                        if dir ~= dir then return end
 
-                        return {
-                            initialVelocity = dir * finalSpeed,
-                            positionFrom = offsetpos,
-                            deltaT = meta.lifetimeSec or 3,
-                        }
+                        local out = {}
+                        for k, v in origResult do out[k] = v end
+                        out.initialVelocity = dir * speed
+                        return out
                     end)
 
-                    return (ok and result) or nextLaunch(...)
+                    return (ok and modified) or origResult
                 end)
             else
                 if launchHook then
