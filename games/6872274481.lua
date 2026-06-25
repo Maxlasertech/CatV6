@@ -112,7 +112,6 @@ getgenv().store = store
 
 local Reach = {}
 local HitBoxes = {}
-local HeadHit = {}
 local InfiniteFly = {}
 local TrapDisabler
 local AntiFallPart
@@ -1067,44 +1066,6 @@ run(function()
 
 						return call:SendToServer(attackTable, ...)
 					end
-				}
-			elseif remoteName == remotes.FireProjectile then
-				local orig = call
-				local function redirectVelocity(tool, ammo, projectile, shootPos, selfPos, velocity, ...)
-					if HeadHit.Enabled then
-						local ent = entitylib.EntityMouse({
-							Part = 'RootPart',
-							Range = 2000,
-							Players = true,
-							NPCs = true,
-							Wallcheck = false,
-							Origin = selfPos,
-						})
-						if ent and ent.Head then
-							local speed = velocity.Magnitude
-							local projmeta = bedwars.ProjectileMeta[projectile]
-							local gravity = projmeta and projmeta.gravitationalAcceleration or 196.2
-							local calc = prediction.SolveTrajectory(
-								shootPos, speed, gravity,
-								ent.Head.Position, ent.RootPart.Velocity,
-								workspace.Gravity, ent.HipHeight,
-								ent.Jumping and 42.6 or nil, nil
-							)
-							if calc then
-								velocity = CFrame.new(shootPos, calc).LookVector * speed
-							end
-						end
-					end
-					return tool, ammo, projectile, shootPos, selfPos, velocity, ...
-				end
-				return {
-					instance = orig.instance,
-					CallServerAsync = function(_, ...)
-						return orig:CallServerAsync(redirectVelocity(...))
-					end,
-					InvokeServer = function(_, ...)
-						return orig.instance:InvokeServer(redirectVelocity(...))
-					end,
 				}
 			elseif remoteName == 'StepOnSnapTrap' and TrapDisabler.Enabled then
 				return {SendToServer = function() end}
@@ -3824,114 +3785,6 @@ run(function()
     })
 end)
 
-run(function()
-    local orig_raycast
-    local launchHook
-    local rawFireRemote
-
-    pcall(function()
-        rawFireRemote = bedwars.Client:Get(remotes.FireProjectile).instance
-    end)
-
-    pcall(function()
-        local origNamecall
-        origNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-            if HeadHit and HeadHit.Enabled and getnamecallmethod() == "InvokeServer" and self == rawFireRemote then
-                local args = {...}
-                local shootPos, selfPos, velocity = args[4], args[5], args[6]
-                if typeof(velocity) == "Vector3" and selfPos then
-                    local ent = entitylib.EntityMouse({Part='RootPart', Range=2000, Players=true, NPCs=true, Wallcheck=false, Origin=selfPos})
-                    if ent and ent.Head then
-                        local speed = velocity.Magnitude
-                        local pm = bedwars.ProjectileMeta and bedwars.ProjectileMeta[tostring(args[3])]
-                        local gravity = pm and pm.gravitationalAcceleration or 196.2
-                        local calc = prediction.SolveTrajectory(
-                            shootPos, speed, gravity,
-                            ent.Head.Position, ent.RootPart.Velocity,
-                            workspace.Gravity, ent.HipHeight,
-                            ent.Jumping and 42.6 or nil, nil
-                        )
-                        if calc then
-                            args[6] = CFrame.new(shootPos, calc).LookVector * speed
-                        end
-                    end
-                end
-                return origNamecall(self, table.unpack(args))
-            end
-            return origNamecall(self, ...)
-        end)
-    end)
-
-    HeadHit = vape.Categories.Blatant:CreateModule({
-        Name = 'Head Hit',
-        Function = function(callback)
-            if callback then
-                orig_raycast = bedwars.QueryUtil.raycast
-                bedwars.QueryUtil.raycast = function(self, origin, direction, params)
-                    local result = orig_raycast(self, origin, direction, params)
-                    if result then
-                        local hitPart = result.Instance
-                        local char = hitPart and hitPart.Parent
-                        if char then
-                            for _, ent in entitylib.List do
-                                if ent.Targetable and ent.Character == char and ent.Head and hitPart ~= ent.Head then
-                                    return {
-                                        Instance = ent.Head,
-                                        Position = result.Position,
-                                        Normal = result.Normal,
-                                        Material = result.Material,
-                                    }
-                                end
-                            end
-                        end
-                    end
-                    return result
-                end
-
-                launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
-                    local ok, result = pcall(function()
-                        local self, projmeta, worldmeta, origin, shootpos = ...
-                        if not projmeta then return end
-                        local fromPos = shootpos or (entitylib.isAlive and entitylib.character and entitylib.character.RootPart.Position)
-                        if not fromPos then return end
-                        local ent = entitylib.EntityMouse({Part='RootPart', Range=2000, Players=true, NPCs=true, Wallcheck=false, Origin=fromPos})
-                        if not ent or not ent.Head then return end
-                        local meta = projmeta:getProjectileMeta()
-                        if not meta then return end
-                        local gravity = (meta.gravitationalAcceleration or 196.2) * (projmeta.gravityMultiplier or 1)
-                        local projSpeed = meta.launchVelocity or 100
-                        local offsetpos = fromPos + (projmeta.fromPositionOffset or Vector3.zero)
-                        local calc = prediction.SolveTrajectory(
-                            offsetpos, projSpeed, gravity,
-                            ent.Head.Position, ent.RootPart.Velocity,
-                            workspace.Gravity, ent.HipHeight,
-                            ent.Jumping and 42.6 or nil, nil
-                        )
-                        if not calc then return end
-                        return {
-                            initialVelocity = CFrame.new(offsetpos, calc).LookVector * (projSpeed * math.max(projmeta.velocityMultiplier or 1, 0.1)),
-                            positionFrom = offsetpos,
-                            deltaT = (worldmeta and meta.predictionLifetimeSec or meta.lifetimeSec or 3),
-                            gravitationalAcceleration = gravity,
-                            drawDurationSeconds = projmeta.drawDurationSeconds,
-                        }
-                    end)
-                    return (ok and result) or nextLaunch(...)
-                end)
-            else
-                if orig_raycast then
-                    bedwars.QueryUtil.raycast = orig_raycast
-                    orig_raycast = nil
-                end
-                if launchHook then
-                    launchHook()
-                    launchHook = nil
-                end
-            end
-        end,
-        Tooltip = 'Redirects arrow shots to enemy head for consistent headshot damage'
-    })
-end)
 
 run(function()
     local InfiniteShield
