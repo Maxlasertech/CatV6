@@ -45,7 +45,7 @@ local function createLoadingScreen()
 	local card = Instance.new('Frame')
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(430, 260)
+	card.Size = UDim2.fromOffset(540, 330)
 	card.BackgroundColor3 = Color3.fromRGB(12, 15, 24)
 	card.BackgroundTransparency = 0.08
 	card.BorderSizePixel = 0
@@ -62,7 +62,7 @@ local function createLoadingScreen()
 	local glow = Instance.new('Frame')
 	glow.AnchorPoint = Vector2.new(0.5, 0.5)
 	glow.Position = UDim2.fromScale(0.5, 0.5)
-	glow.Size = UDim2.fromOffset(360, 3)
+	glow.Size = UDim2.fromOffset(430, 3)
 	glow.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
 	glow.BackgroundTransparency = 0.68
 	glow.BorderSizePixel = 0
@@ -74,8 +74,8 @@ local function createLoadingScreen()
 	local logo = Instance.new('ImageLabel')
 	logo.Name = 'Logo'
 	logo.AnchorPoint = Vector2.new(0.5, 0)
-	logo.Position = UDim2.new(0.5, 0, 0, 32)
-	logo.Size = UDim2.fromOffset(290, 96)
+	logo.Position = UDim2.new(0.5, 0, 0, 28)
+	logo.Size = UDim2.fromOffset(250, 108)
 	logo.BackgroundTransparency = 1
 	logo.ImageTransparency = 0.02
 	logo.ScaleType = Enum.ScaleType.Fit
@@ -85,7 +85,7 @@ local function createLoadingScreen()
 	local version = Instance.new('TextLabel')
 	version.Name = 'Version'
 	version.AnchorPoint = Vector2.new(0.5, 0)
-	version.Position = UDim2.new(0.5, 0, 0, 128)
+	version.Position = UDim2.new(0.5, 0, 0, 142)
 	version.Size = UDim2.fromOffset(260, 22)
 	version.BackgroundTransparency = 1
 	version.Font = Enum.Font.GothamMedium
@@ -96,11 +96,11 @@ local function createLoadingScreen()
 
 	local status = Instance.new('TextLabel')
 	status.Name = 'Status'
-	status.Position = UDim2.fromOffset(35, 166)
-	status.Size = UDim2.fromOffset(360, 20)
+	status.Position = UDim2.fromOffset(54, 202)
+	status.Size = UDim2.fromOffset(432, 22)
 	status.BackgroundTransparency = 1
 	status.Font = Enum.Font.Gotham
-	status.TextSize = 13
+	status.TextSize = 14
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.TextColor3 = Color3.fromRGB(235, 238, 255)
 	status.Text = 'Starting AetherCore...'
@@ -108,8 +108,8 @@ local function createLoadingScreen()
 
 	local track = Instance.new('Frame')
 	track.Name = 'ProgressTrack'
-	track.Position = UDim2.fromOffset(35, 196)
-	track.Size = UDim2.fromOffset(360, 8)
+	track.Position = UDim2.fromOffset(54, 238)
+	track.Size = UDim2.fromOffset(432, 10)
 	track.BackgroundColor3 = Color3.fromRGB(28, 34, 50)
 	track.BackgroundTransparency = 0.18
 	track.BorderSizePixel = 0
@@ -130,18 +130,24 @@ local function createLoadingScreen()
 
 	local detail = Instance.new('TextLabel')
 	detail.Name = 'Detail'
-	detail.Position = UDim2.fromOffset(35, 214)
-	detail.Size = UDim2.fromOffset(360, 18)
+	detail.Position = UDim2.fromOffset(54, 260)
+	detail.Size = UDim2.fromOffset(432, 20)
 	detail.BackgroundTransparency = 1
 	detail.Font = Enum.Font.Gotham
-	detail.TextSize = 11
+	detail.TextSize = 12
 	detail.TextXAlignment = Enum.TextXAlignment.Left
 	detail.TextColor3 = Color3.fromRGB(130, 142, 170)
 	detail.Text = 'Preparing files and assets.'
 	detail.Parent = card
 
 	local lastProgress = 0.06
+	local function closeScreen()
+		if screen and screen.Parent then
+			screen:Destroy()
+		end
+	end
 	_G.AetherCoreLoadingScreen = screen
+	_G.AetherCoreCloseLoadingScreen = closeScreen
 	_G.AetherCoreSetLoadingStatus = function(text, progress)
 		if not screen.Parent then return end
 		lastProgress = math.clamp(progress or lastProgress, lastProgress, 1)
@@ -167,6 +173,7 @@ local function downloadFile(path, func)
 			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
+			if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
 			error(res)
 		end
 		if path:find('.lua') then
@@ -228,4 +235,17 @@ _G.AetherCoreSetLoadingStatus('Preparing loading artwork...', 0.70)
 downloadFile('aethercorev2/assets/new/loading.png')
 
 _G.AetherCoreSetLoadingStatus('Loading main script...', 0.82)
-return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)
+local mainSource = downloadFile('aethercorev2/main.lua')
+local mainChunk, compileError = loadstring(mainSource, 'main')
+if not mainChunk then
+	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
+	error(compileError)
+end
+local ok, result = xpcall(function()
+	return mainChunk(license)
+end, debug.traceback)
+if not ok then
+	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
+	error(result)
+end
+return result

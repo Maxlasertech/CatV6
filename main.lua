@@ -62,7 +62,7 @@ local function createInlineLoadingScreen()
 	local card = Instance.new('Frame')
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(430, 260)
+	card.Size = UDim2.fromOffset(540, 330)
 	card.BackgroundColor3 = Color3.fromRGB(12, 15, 24)
 	card.BackgroundTransparency = 0.08
 	card.BorderSizePixel = 0
@@ -79,7 +79,7 @@ local function createInlineLoadingScreen()
 	local glow = Instance.new('Frame')
 	glow.AnchorPoint = Vector2.new(0.5, 0.5)
 	glow.Position = UDim2.fromScale(0.5, 0.5)
-	glow.Size = UDim2.fromOffset(360, 3)
+	glow.Size = UDim2.fromOffset(430, 3)
 	glow.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
 	glow.BackgroundTransparency = 0.68
 	glow.BorderSizePixel = 0
@@ -91,8 +91,8 @@ local function createInlineLoadingScreen()
 	local logo = Instance.new('ImageLabel')
 	logo.Name = 'Logo'
 	logo.AnchorPoint = Vector2.new(0.5, 0)
-	logo.Position = UDim2.new(0.5, 0, 0, 32)
-	logo.Size = UDim2.fromOffset(290, 96)
+	logo.Position = UDim2.new(0.5, 0, 0, 28)
+	logo.Size = UDim2.fromOffset(250, 108)
 	logo.BackgroundTransparency = 1
 	logo.ImageTransparency = 0.02
 	logo.ScaleType = Enum.ScaleType.Fit
@@ -102,7 +102,7 @@ local function createInlineLoadingScreen()
 	local version = Instance.new('TextLabel')
 	version.Name = 'Version'
 	version.AnchorPoint = Vector2.new(0.5, 0)
-	version.Position = UDim2.new(0.5, 0, 0, 128)
+	version.Position = UDim2.new(0.5, 0, 0, 142)
 	version.Size = UDim2.fromOffset(260, 22)
 	version.BackgroundTransparency = 1
 	version.Font = Enum.Font.GothamMedium
@@ -113,11 +113,11 @@ local function createInlineLoadingScreen()
 
 	local status = Instance.new('TextLabel')
 	status.Name = 'Status'
-	status.Position = UDim2.fromOffset(35, 166)
-	status.Size = UDim2.fromOffset(360, 20)
+	status.Position = UDim2.fromOffset(54, 202)
+	status.Size = UDim2.fromOffset(432, 22)
 	status.BackgroundTransparency = 1
 	status.Font = Enum.Font.Gotham
-	status.TextSize = 13
+	status.TextSize = 14
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.TextColor3 = Color3.fromRGB(235, 238, 255)
 	status.Text = 'Starting AetherCore...'
@@ -125,8 +125,8 @@ local function createInlineLoadingScreen()
 
 	local track = Instance.new('Frame')
 	track.Name = 'ProgressTrack'
-	track.Position = UDim2.fromOffset(35, 196)
-	track.Size = UDim2.fromOffset(360, 8)
+	track.Position = UDim2.fromOffset(54, 238)
+	track.Size = UDim2.fromOffset(432, 10)
 	track.BackgroundColor3 = Color3.fromRGB(28, 34, 50)
 	track.BackgroundTransparency = 0.18
 	track.BorderSizePixel = 0
@@ -147,18 +147,24 @@ local function createInlineLoadingScreen()
 
 	local detail = Instance.new('TextLabel')
 	detail.Name = 'Detail'
-	detail.Position = UDim2.fromOffset(35, 214)
-	detail.Size = UDim2.fromOffset(360, 18)
+	detail.Position = UDim2.fromOffset(54, 260)
+	detail.Size = UDim2.fromOffset(432, 20)
 	detail.BackgroundTransparency = 1
 	detail.Font = Enum.Font.Gotham
-	detail.TextSize = 11
+	detail.TextSize = 12
 	detail.TextXAlignment = Enum.TextXAlignment.Left
 	detail.TextColor3 = Color3.fromRGB(130, 142, 170)
 	detail.Text = 'Preparing files and assets.'
 	detail.Parent = card
 
 	local lastProgress = 0.06
+	local function closeScreen()
+		if screen and screen.Parent then
+			screen:Destroy()
+		end
+	end
 	_G.AetherCoreLoadingScreen = screen
+	_G.AetherCoreCloseLoadingScreen = closeScreen
 	_G.AetherCoreSetLoadingStatus = function(text, progress)
 		if not screen.Parent then return end
 		lastProgress = math.clamp(progress or lastProgress, lastProgress, 1)
@@ -187,6 +193,7 @@ local function closeLoadingScreen()
 	end
 	_G.AetherCoreLoadingScreen = nil
 	_G.AetherCoreSetLoadingStatus = nil
+	_G.AetherCoreCloseLoadingScreen = nil
 end
 
 local redirect = function()
@@ -221,7 +228,8 @@ local function downloadFile(path, func)
 			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
-			task.spawn(error, res)
+			closeLoadingScreen()
+			error(res)
 		end
 		if suc then
 			if path:find('.lua') then
@@ -232,6 +240,24 @@ local function downloadFile(path, func)
 		end
 	end
 	return (func or readfile)(path)
+end
+
+
+local function runLoadingChunk(source, chunkName, ...)
+	local chunk = loadstring(source, chunkName)
+	if not chunk then
+		closeLoadingScreen()
+		error('Failed to compile '..chunkName)
+	end
+	local args = {...}
+	local ok, result = xpcall(function()
+		return chunk(table.unpack(args))
+	end, debug.traceback)
+	if not ok then
+		closeLoadingScreen()
+		error(result)
+	end
+	return result
 end
 
 local function finishLoading()
@@ -273,10 +299,8 @@ local function finishLoading()
 		end
 	end))
 
-	closeLoadingScreen()
 	if not shared.vapereload then
-		if not vape.Categories then return end
-		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
+		if vape.Categories and vape.Categories.Main.Options['GUI bind indicator'].Enabled then
 			if vape.Place ~= 6872274481 then
 				--task.spawn(redirect)
 			end
@@ -291,6 +315,10 @@ local function finishLoading()
 			end)
 		end
 	end
+
+	setLoadingStatus('Finished Loading!', 1)
+	task.wait(2)
+	closeLoadingScreen()
 end
 
 if not isfile('aethercorev2/profiles/gui.txt') then
@@ -307,7 +335,7 @@ end
 
 getgenv().used_init = true
 setLoadingStatus('Loading interface...', 0.84)
-vape = loadstring(downloadFile('aethercorev2/guis/'..gui..'.lua'), 'gui')(license)
+vape = runLoadingChunk(downloadFile('aethercorev2/guis/'..gui..'.lua'), 'gui', license)
 _G.vape = vape
 shared.vape = vape
 
@@ -320,16 +348,16 @@ end
 
 if not shared.VapeIndependent then
 	setLoadingStatus('Loading universal modules...', 0.88)
-	loadstring(downloadFile('aethercorev2/games/universal.lua'), 'universal')(license)
+	runLoadingChunk(downloadFile('aethercorev2/games/universal.lua'), 'universal', license)
 	if isfile('aethercorev2/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
+		runLoadingChunk(readfile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId), license)
 	else
 		if not shared.VapeDeveloper then
 			local suc, res = pcall(function()
 				return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
 			end)
 			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
+				runLoadingChunk(downloadFile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId), license)
 			end
 		end
 	end
@@ -337,6 +365,5 @@ if not shared.VapeIndependent then
 else
 	vape.Init = finishLoading
 	setLoadingStatus('Ready for independent initialization.', 1)
-	task.delay(1, closeLoadingScreen)
 	return vape
 end
