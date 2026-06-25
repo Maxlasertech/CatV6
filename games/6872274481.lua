@@ -3787,50 +3787,41 @@ run(function()
 end)
 
 run(function()
-    local objects = {}
-
-    local function createHeadHitbox(ent)
-        if ent.Targetable then
-            local head = ent.Head
-            if not head then return end
-            local hitbox = Instance.new('Part')
-            hitbox.Name = 'Head'
-            hitbox.Size = Vector3.new(4, 7, 4)
-            hitbox.CanCollide = false
-            hitbox.Massless = true
-            hitbox.Transparency = 1
-            hitbox.Parent = ent.Character
-            local weld = Instance.new('Motor6D')
-            weld.Part0 = hitbox
-            weld.Part1 = head
-            weld.C1 = CFrame.new(0, ent.NPC and 0 or -2.5, 0)
-            weld.Parent = hitbox
-            objects[ent] = hitbox
-        end
-    end
+    local orig_raycast
 
     HeadHit = vape.Categories.Blatant:CreateModule({
         Name = 'Head Hit',
         Function = function(callback)
             if callback then
-                HeadHit:Clean(entitylib.Events.EntityAdded:Connect(createHeadHitbox))
-                HeadHit:Clean(entitylib.Events.EntityRemoving:Connect(function(ent)
-                    if objects[ent] then
-                        objects[ent]:Destroy()
-                        objects[ent] = nil
+                orig_raycast = bedwars.QueryUtil.raycast
+                bedwars.QueryUtil.raycast = function(self, origin, direction, params)
+                    local result = orig_raycast(self, origin, direction, params)
+                    if result then
+                        local hitPart = result.Instance
+                        local char = hitPart and hitPart.Parent
+                        if char then
+                            for _, ent in entitylib.List do
+                                if ent.Targetable and ent.Character == char and ent.Head and hitPart ~= ent.Head then
+                                    return {
+                                        Instance = ent.Head,
+                                        Position = result.Position,
+                                        Normal = result.Normal,
+                                        Material = result.Material,
+                                    }
+                                end
+                            end
+                        end
                     end
-                end))
-                for _, ent in entitylib.List do
-                    createHeadHitbox(ent)
+                    return result
                 end
             else
-                for _, part in objects do
-                    part:Destroy()
+                if orig_raycast then
+                    bedwars.QueryUtil.raycast = orig_raycast
+                    orig_raycast = nil
                 end
-                table.clear(objects)
             end
         end,
-        Tooltip = 'Enlarges enemy head hitbox to cover the full body'
+        Tooltip = 'Registers all hits on enemy body as headshots for bonus damage'
     })
 end)
 
