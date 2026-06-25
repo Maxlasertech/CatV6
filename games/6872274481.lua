@@ -8478,9 +8478,17 @@ run(function()
     }
 
     local function getSeason() return seasons[Settings.Season.Value] or seasons.Spring end
-    local function getPreset() return timePresets[Settings.TimePreset.Value] or timePresets[getSeason().time] or timePresets.Sunset end
+    local function getWeatherName() local season = getSeason(); return Settings.Weather.Value == 'Auto' and season.weather or Settings.Weather.Value end
+    local function getPreset()
+        local weatherName = getWeatherName()
+        if weatherName == 'Rain' or weatherName == 'Blizzard' then return timePresets.Stormy end
+        if weatherName == 'Fog' then return timePresets.Foggy end
+        return timePresets[Settings.TimePreset.Value] or timePresets[getSeason().time] or timePresets.Sunset
+    end
     local function lerpColor(a, b, t) return a:Lerp(b, math.clamp(t, 0, 1)) end
     local function safeSet(obj, prop, value) pcall(function() obj[prop] = value end) end
+    local function setValue(option, value) if option then option.Value = value end end
+    local function setEnabled(option, value) if option then option.Enabled = value end end
     local function randomOffset(scale) return Vector3.new(math.random(-scale, scale), 0, math.random(-scale, scale)) / 10 end
     local function isProtectedPart(part)
         local name = part.Name:lower()
@@ -8518,47 +8526,64 @@ run(function()
     function RealLifeBedWars.ApplyLighting()
         if not Settings.CinematicLighting.Enabled then return end
         local season, preset = getSeason(), getPreset()
+        local weatherName, intensity = getWeatherName(), Settings.WeatherIntensity.Value / 100
+        local stormAmount = (weatherName == 'Rain' and .35 or weatherName == 'Blizzard' and .55 or weatherName == 'Fog' and .5 or weatherName == 'Dust' and .18 or 0) * intensity
         lightingService.GlobalShadows = true
         lightingService.ShadowSoftness = Settings.UltraRealism.Enabled and .18 or .32
         lightingService.ClockTime = preset.clock
-        lightingService.Brightness = Settings.UltraRealism.Enabled and 3.15 or 2.25
+        lightingService.Brightness = (Settings.UltraRealism.Enabled and 3.15 or 2.25) - stormAmount * 1.35
         lightingService.ExposureCompensation = season == seasons.Winter and -.08 or .03
         lightingService.EnvironmentDiffuseScale = .62
         lightingService.EnvironmentSpecularScale = Settings.UltraRealism.Enabled and .92 or .55
         lightingService.Ambient = season.ambient
         lightingService.OutdoorAmbient = season.outdoor
         lightingService.FogColor = season.fog
-        lightingService.FogStart = 35 + preset.clarity * 80
-        lightingService.FogEnd = 260 + preset.clarity * 780 - preset.cloud * 260
+        lightingService.FogStart = math.max(10, 35 + preset.clarity * 80 - stormAmount * 70)
+        lightingService.FogEnd = math.max(120, 260 + preset.clarity * 780 - preset.cloud * 260 - stormAmount * 520)
         lightingService.ColorShift_Top = lerpColor(season.tint, Color3.fromRGB(135,180,235), .35)
         lightingService.ColorShift_Bottom = lerpColor(season.ambient, Color3.fromRGB(255,190,105), preset.clock > 16 and .35 or .1)
         if Objects.Atmosphere then
             Objects.Atmosphere.Color = season.fog; Objects.Atmosphere.Decay = lerpColor(season.ambient, Color3.fromRGB(70,85,105), .45)
-            Objects.Atmosphere.Density = season.density + (1 - preset.clarity) * .18; Objects.Atmosphere.Haze = season.haze + preset.cloud * 1.2
+            Objects.Atmosphere.Density = season.density + (1 - preset.clarity) * .18 + stormAmount * .22; Objects.Atmosphere.Haze = season.haze + preset.cloud * 1.2 + stormAmount * 2.4
             Objects.Atmosphere.Glare = season.rays * 2.5; Objects.Atmosphere.Offset = .08
         end
-        if Objects.Color then Objects.Color.TintColor = season.tint; Objects.Color.Saturation = season.saturation; Objects.Color.Contrast = season.contrast; Objects.Color.Brightness = .025 end
+        if Objects.Color then Objects.Color.TintColor = stormAmount > 0 and season.tint:Lerp(season.fog, math.clamp(stormAmount, 0, .65)) or season.tint; Objects.Color.Saturation = season.saturation - stormAmount * .18; Objects.Color.Contrast = season.contrast + stormAmount * .12; Objects.Color.Brightness = .025 - stormAmount * .035 end
         if Objects.Bloom then Objects.Bloom.Intensity = season.bloom; Objects.Bloom.Size = Settings.UltraRealism.Enabled and 64 or 36; Objects.Bloom.Threshold = .78 end
         if Objects.Rays then Objects.Rays.Intensity = season.rays; Objects.Rays.Spread = .62 end
         if Objects.Depth then Objects.Depth.FarIntensity = .025 + (1 - preset.clarity) * .035; Objects.Depth.NearIntensity = 0; Objects.Depth.FocusDistance = 180; Objects.Depth.InFocusRadius = 140 end
-        if cloudObject then cloudObject.Enabled = true; cloudObject.Cover = math.clamp(preset.cloud + (season == seasons.Winter and .18 or 0), 0, .98); cloudObject.Density = .35 + preset.cloud * .42; cloudObject.Color = lerpColor(Color3.fromRGB(255,255,255), season.fog, .38) end
+        if cloudObject then cloudObject.Enabled = true; cloudObject.Cover = math.clamp(preset.cloud + (season == seasons.Winter and .18 or 0) + stormAmount, 0, .98); cloudObject.Density = math.clamp(.35 + preset.cloud * .42 + stormAmount * .45, 0, 1); cloudObject.Color = lerpColor(Color3.fromRGB(255,255,255), season.fog, .38 + stormAmount * .4) end
+    end
+
+    function RealLifeBedWars.RestoreMaterials()
+        for part, data in materialCache do
+            if part and part.Parent then
+                for prop, value in data do safeSet(part, prop, value) end
+            end
+        end
+        table.clear(materialCache)
     end
 
     function RealLifeBedWars.ApplyMaterials()
+        RealLifeBedWars.RestoreMaterials()
         if not Settings.MaterialOverhaul.Enabled then return end
         local season = getSeason()
+        local style = Settings.MaterialStyle.Value
+        local styleVariation = style == 'Weathered' and 28 or style == 'Fantasy Realism' and 10 or 18
+        local styleReflectance = style == 'Weathered' and -.01 or style == 'Fantasy Realism' and .08 or 0
+        local styleTransparency = style == 'Fantasy Realism' and .05 or 0
         local count, limit = 0, Settings.UltraRealism.Enabled and 1800 or 700
         for _, part in workspace:GetDescendants() do
             if count >= limit then break end
             if part:IsA('BasePart') and part ~= terrain and part.Size.Magnitude > 1.5 and (not Settings.PreserveGameplayVisibility.Enabled or not isProtectedPart(part)) then
                 if not materialCache[part] then materialCache[part] = {Material = part.Material, Color = part.Color, Reflectance = part.Reflectance, Transparency = part.Transparency} end
                 local info = materialMap[classify(part)] or {mat = Enum.Material.Concrete, color = 'stone'}
-                part.Material = info.mat
+                part.Material = style == 'Weathered' and (info.mat == Enum.Material.Glass and Enum.Material.Ice or info.mat) or style == 'Fantasy Realism' and (info.mat == Enum.Material.Metal and Enum.Material.Neon or info.mat) or info.mat
                 local base = type(info.color) == 'string' and season[info.color] or info.color
-                local variation = math.noise(part.Position.X * .07, part.Position.Y * .05, part.Position.Z * .07) * 18
+                local variation = math.noise(part.Position.X * .07, part.Position.Y * .05, part.Position.Z * .07) * styleVariation
+                if style == 'Weathered' then base = base:Lerp(Color3.fromRGB(90, 84, 76), .18) elseif style == 'Fantasy Realism' then base = base:Lerp(season.tint, .22) end
                 part.Color = Color3.fromRGB(math.clamp(base.R * 255 + variation, 0, 255), math.clamp(base.G * 255 + variation, 0, 255), math.clamp(base.B * 255 + variation, 0, 255))
-                part.Reflectance = info.reflect or (season == seasons.Winter and .04 or .015)
-                part.Transparency = math.max(part.Transparency, info.trans or 0)
+                part.Reflectance = math.max(0, (info.reflect or (season == seasons.Winter and .04 or .015)) + styleReflectance)
+                part.Transparency = math.max(part.Transparency, (info.trans or 0) + styleTransparency)
                 count += 1
             end
         end
@@ -8600,7 +8625,7 @@ run(function()
         if particleFolder then particleFolder:Destroy() end
         if not Settings.Particles.Enabled then return end
         particleFolder = Instance.new('Folder'); particleFolder.Name = 'AetherIRLParticles'; particleFolder.Parent = workspace
-        local season = getSeason(); local weatherName = Settings.Weather.Value == 'Auto' and season.weather or Settings.Weather.Value
+        local weatherName = getWeatherName()
         local profile = weatherProfiles[weatherName] or weatherProfiles.Clear
         if (profile.rate or 0) > 0 then
             local rig = Instance.new('Part'); rig.Name = 'AetherIRLWeatherVolume'; rig.Anchored = true; rig.CanCollide = false; rig.CanTouch = false; rig.CanQuery = false; rig.Transparency = 1; rig.Size = Vector3.new(Settings.DetailRange.Value, 1, Settings.DetailRange.Value); rig.CFrame = gameCamera.CFrame + Vector3.new(0, 145, 0); rig.Parent = particleFolder
@@ -8644,7 +8669,7 @@ run(function()
         if weatherConnection then weatherConnection:Disconnect(); weatherConnection = nil end
         RealLifeBedWars.ClearDecorations()
         for _, obj in Objects do obj:Destroy() end; table.clear(Objects)
-        for part, data in materialCache do if part and part.Parent then for prop, value in data do safeSet(part, prop, value) end end end; table.clear(materialCache)
+        RealLifeBedWars.RestoreMaterials()
         if cloudObject then if cloudsCreated then cloudObject:Destroy() else for prop, value in savedClouds do safeSet(cloudObject, prop, value) end end end
         cloudObject, cloudsCreated = nil, nil; table.clear(savedClouds)
         if storageFolder then for _, obj in storageFolder:GetChildren() do obj.Parent = lightingService end storageFolder:Destroy(); storageFolder = nil end
@@ -8685,23 +8710,23 @@ run(function()
         Tooltip = 'Complete visual rewrite: realistic materials, cinematic lighting, weather, ambience, decorative world detail and four fully themed seasons without changing gameplay mechanics.'
     })
 
-    Settings.Season = IRLReplica:CreateDropdown({Name = 'Season', List = {'Spring', 'Summer', 'Autumn', 'Winter'}, Default = 'Spring', Function = function(v) RealLifeBedWars.Config.Season = v; RealLifeBedWars.RefreshMap() end})
-    Settings.Weather = IRLReplica:CreateDropdown({Name = 'Weather', List = {'Auto', 'Clear', 'Rain', 'Snow', 'Blizzard', 'Petals', 'Leaves', 'Dust', 'Fog'}, Default = 'Auto', Function = function(v) RealLifeBedWars.Config.WeatherName = v; RealLifeBedWars.RefreshMap() end})
-    Settings.TimePreset = IRLReplica:CreateDropdown({Name = 'Time Preset', List = {'Morning', 'Noon', 'Sunset', 'Night', 'Stormy', 'Foggy'}, Default = 'Sunset', Function = function(v) RealLifeBedWars.Config.TimePreset = v; RealLifeBedWars.ApplyLighting() end})
-    Settings.MaterialStyle = IRLReplica:CreateDropdown({Name = 'Material Style', List = {'Cinematic', 'Weathered', 'Fantasy Realism'}, Default = 'Cinematic', Function = function() RealLifeBedWars.ApplyMaterials() end})
-    Settings.WeatherIntensity = IRLReplica:CreateSlider({Name = 'Weather Intensity', Min = 0, Max = 100, Default = 70, Suffix = '%', Function = function(v) RealLifeBedWars.Config.WeatherIntensity = v / 100; RealLifeBedWars.ApplyParticles(); RealLifeBedWars.ApplyAmbience() end})
-    Settings.ParticleDensity = IRLReplica:CreateSlider({Name = 'Particle Density', Min = 0, Max = 100, Default = 55, Suffix = '%', Function = function(v) RealLifeBedWars.Config.ParticleDensity = v / 100; RealLifeBedWars.ApplyParticles() end})
-    Settings.DecorationDensity = IRLReplica:CreateSlider({Name = 'Decoration Density', Min = 0, Max = 100, Default = 35, Suffix = '%', Function = function() RealLifeBedWars.ApplySeasonDetails() end})
-    Settings.DetailRange = IRLReplica:CreateSlider({Name = 'Weather Range', Min = 250, Max = 2000, Default = 900, Suffix = ' studs', Function = function() RealLifeBedWars.ApplyParticles() end})
-    Settings.UltraRealism = IRLReplica:CreateToggle({Name = 'Ultra Realism', Default = true, Function = function(v) RealLifeBedWars.Config.UltraRealism = v; RealLifeBedWars.RefreshMap() end})
-    Settings.MaterialOverhaul = IRLReplica:CreateToggle({Name = 'Material Overhaul', Default = true, Function = function(v) RealLifeBedWars.Config.MaterialOverhaul = v; if v then RealLifeBedWars.ApplyMaterials() end end})
-    Settings.DecorativeDetails = IRLReplica:CreateToggle({Name = 'Decorative Details', Default = true, Function = function(v) RealLifeBedWars.Config.DecorativeDetails = v; if v then RealLifeBedWars.ApplySeasonDetails() else if decorFolder then decorFolder:Destroy() end end end})
-    Settings.Particles = IRLReplica:CreateToggle({Name = 'Particles', Default = true, Function = function(v) RealLifeBedWars.Config.Particles = v; RealLifeBedWars.ApplyParticles() end})
-    Settings.AmbientSounds = IRLReplica:CreateToggle({Name = 'Ambient Sounds', Default = true, Function = function(v) RealLifeBedWars.Config.AmbientSounds = v; RealLifeBedWars.ApplyAmbience() end})
-    Settings.CinematicLighting = IRLReplica:CreateToggle({Name = 'Cinematic Lighting', Default = true, Function = function(v) RealLifeBedWars.Config.CinematicLighting = v; RealLifeBedWars.ApplyLighting() end})
-    Settings.DayNightCycle = IRLReplica:CreateToggle({Name = 'Day/Night Cycle', Default = false, Function = function(v) RealLifeBedWars.Config.DayNightCycle = v; if cycleConnection then cycleConnection:Disconnect(); cycleConnection = nil end; if v and IRLReplica.Enabled then cycleConnection = runService.Heartbeat:Connect(function(dt) lightingService.ClockTime = (lightingService.ClockTime + dt / 90) % 24 end) end end})
-    Settings.PreserveGameplayVisibility = IRLReplica:CreateToggle({Name = 'Preserve Visibility', Default = true, Function = function(v) RealLifeBedWars.Config.PreserveGameplayVisibility = v; RealLifeBedWars.ApplyMaterials() end})
-    Settings.GeneratorGlow = IRLReplica:CreateToggle({Name = 'Generator Glow', Default = true, Function = RealLifeBedWars.ApplyParticles})
+    Settings.Season = IRLReplica:CreateDropdown({Name = 'Season', List = {'Spring', 'Summer', 'Autumn', 'Winter'}, Default = 'Spring', Function = function(v) setValue(Settings.Season, v); RealLifeBedWars.Config.Season = v; RealLifeBedWars.RefreshMap() end})
+    Settings.Weather = IRLReplica:CreateDropdown({Name = 'Weather', List = {'Auto', 'Clear', 'Rain', 'Snow', 'Blizzard', 'Petals', 'Leaves', 'Dust', 'Fog'}, Default = 'Auto', Function = function(v) setValue(Settings.Weather, v); RealLifeBedWars.Config.WeatherName = v; RealLifeBedWars.RefreshMap() end})
+    Settings.TimePreset = IRLReplica:CreateDropdown({Name = 'Time Preset', List = {'Morning', 'Noon', 'Sunset', 'Night', 'Stormy', 'Foggy'}, Default = 'Sunset', Function = function(v) setValue(Settings.TimePreset, v); RealLifeBedWars.Config.TimePreset = v; RealLifeBedWars.ApplyLighting() end})
+    Settings.MaterialStyle = IRLReplica:CreateDropdown({Name = 'Material Style', List = {'Cinematic', 'Weathered', 'Fantasy Realism'}, Default = 'Cinematic', Function = function(v) setValue(Settings.MaterialStyle, v); RealLifeBedWars.ApplyMaterials() end})
+    Settings.WeatherIntensity = IRLReplica:CreateSlider({Name = 'Weather Intensity', Min = 0, Max = 100, Default = 70, Suffix = '%', Function = function(v) setValue(Settings.WeatherIntensity, v); RealLifeBedWars.Config.WeatherIntensity = v / 100; RealLifeBedWars.ApplyParticles(); RealLifeBedWars.ApplyAmbience() end})
+    Settings.ParticleDensity = IRLReplica:CreateSlider({Name = 'Particle Density', Min = 0, Max = 100, Default = 55, Suffix = '%', Function = function(v) setValue(Settings.ParticleDensity, v); RealLifeBedWars.Config.ParticleDensity = v / 100; RealLifeBedWars.ApplyParticles() end})
+    Settings.DecorationDensity = IRLReplica:CreateSlider({Name = 'Decoration Density', Min = 0, Max = 100, Default = 35, Suffix = '%', Function = function(v) setValue(Settings.DecorationDensity, v); RealLifeBedWars.ApplySeasonDetails() end})
+    Settings.DetailRange = IRLReplica:CreateSlider({Name = 'Weather Range', Min = 250, Max = 2000, Default = 900, Suffix = ' studs', Function = function(v) setValue(Settings.DetailRange, v); RealLifeBedWars.ApplyParticles() end})
+    Settings.UltraRealism = IRLReplica:CreateToggle({Name = 'Ultra Realism', Default = true, Function = function(v) setEnabled(Settings.UltraRealism, v); RealLifeBedWars.Config.UltraRealism = v; RealLifeBedWars.RefreshMap() end})
+    Settings.MaterialOverhaul = IRLReplica:CreateToggle({Name = 'Material Overhaul', Default = true, Function = function(v) setEnabled(Settings.MaterialOverhaul, v); RealLifeBedWars.Config.MaterialOverhaul = v; RealLifeBedWars.ApplyMaterials() end})
+    Settings.DecorativeDetails = IRLReplica:CreateToggle({Name = 'Decorative Details', Default = true, Function = function(v) setEnabled(Settings.DecorativeDetails, v); RealLifeBedWars.Config.DecorativeDetails = v; if v then RealLifeBedWars.ApplySeasonDetails() else if decorFolder then decorFolder:Destroy(); decorFolder = nil end end end})
+    Settings.Particles = IRLReplica:CreateToggle({Name = 'Particles', Default = true, Function = function(v) setEnabled(Settings.Particles, v); RealLifeBedWars.Config.Particles = v; RealLifeBedWars.ApplyParticles() end})
+    Settings.AmbientSounds = IRLReplica:CreateToggle({Name = 'Ambient Sounds', Default = true, Function = function(v) setEnabled(Settings.AmbientSounds, v); RealLifeBedWars.Config.AmbientSounds = v; RealLifeBedWars.ApplyAmbience() end})
+    Settings.CinematicLighting = IRLReplica:CreateToggle({Name = 'Cinematic Lighting', Default = true, Function = function(v) setEnabled(Settings.CinematicLighting, v); RealLifeBedWars.Config.CinematicLighting = v; if v then RealLifeBedWars.ApplyLighting() else for _, prop in props do if saved[prop] ~= nil then safeSet(lightingService, prop, saved[prop]) end end end end})
+    Settings.DayNightCycle = IRLReplica:CreateToggle({Name = 'Day/Night Cycle', Default = false, Function = function(v) setEnabled(Settings.DayNightCycle, v); RealLifeBedWars.Config.DayNightCycle = v; if cycleConnection then cycleConnection:Disconnect(); cycleConnection = nil end; if v and IRLReplica.Enabled then cycleConnection = runService.Heartbeat:Connect(function(dt) lightingService.ClockTime = (lightingService.ClockTime + dt / 90) % 24 end) end end})
+    Settings.PreserveGameplayVisibility = IRLReplica:CreateToggle({Name = 'Preserve Visibility', Default = true, Function = function(v) setEnabled(Settings.PreserveGameplayVisibility, v); RealLifeBedWars.Config.PreserveGameplayVisibility = v; RealLifeBedWars.ApplyMaterials() end})
+    Settings.GeneratorGlow = IRLReplica:CreateToggle({Name = 'Generator Glow', Default = true, Function = function(v) setEnabled(Settings.GeneratorGlow, v); RealLifeBedWars.ApplyParticles() end})
 end)
 
 run(function()
