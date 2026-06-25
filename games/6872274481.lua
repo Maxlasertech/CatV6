@@ -1068,6 +1068,49 @@ run(function()
 						return call:SendToServer(attackTable, ...)
 					end
 				}
+			elseif remoteName == remotes.FireProjectile then
+				local orig = call
+				local function redirectVelocity(tool, ammo, projectile, shootPos, selfPos, velocity, ...)
+					if HeadHit.Enabled then
+						local ent = entitylib.EntityMouse({
+							Part = 'RootPart',
+							Range = 2000,
+							Players = true,
+							NPCs = true,
+							Wallcheck = false,
+							Origin = selfPos,
+						})
+						if ent and ent.Head then
+							local speed = velocity.Magnitude
+							local projmeta = bedwars.ProjectileMeta[projectile]
+							local gravity = projmeta and projmeta.gravitationalAcceleration or 196.2
+							local calc = prediction.SolveTrajectory(
+								shootPos, speed, gravity,
+								ent.Head.Position, ent.RootPart.Velocity,
+								workspace.Gravity, ent.HipHeight,
+								ent.Jumping and 42.6 or nil, nil
+							)
+							if calc then
+								warn('[HeadHit] FireProjectile redirected to head')
+								velocity = CFrame.new(shootPos, calc).LookVector * speed
+							else
+								warn('[HeadHit] FireProjectile SolveTrajectory nil')
+							end
+						else
+							warn('[HeadHit] FireProjectile no ent found')
+						end
+					end
+					return tool, ammo, projectile, shootPos, selfPos, velocity, ...
+				end
+				return {
+					instance = orig.instance,
+					CallServerAsync = function(_, ...)
+						return orig:CallServerAsync(redirectVelocity(...))
+					end,
+					InvokeServer = function(_, ...)
+						return orig.instance:InvokeServer(redirectVelocity(...))
+					end,
+				}
 			elseif remoteName == 'StepOnSnapTrap' and TrapDisabler.Enabled then
 				return {SendToServer = function() end}
 			end
