@@ -173,7 +173,6 @@ local function downloadFile(path, func)
 			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
-			if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
 			error(res)
 		end
 		if path:find('.lua') then
@@ -231,21 +230,6 @@ end
 
 _G.AetherCoreSetLoadingStatus('Checking version...', 0.62)
 downloadFile('aethercorev2/version.txt')
-_G.AetherCoreSetLoadingStatus('Preparing loading artwork...', 0.70)
-downloadFile('aethercorev2/assets/new/loading.png')
 
 _G.AetherCoreSetLoadingStatus('Loading main script...', 0.82)
-local mainSource = downloadFile('aethercorev2/main.lua')
-local mainChunk, compileError = loadstring(mainSource, 'main')
-if not mainChunk then
-	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
-	error(compileError)
-end
-local ok, result = xpcall(function()
-	return mainChunk(license)
-end, debug.traceback)
-if not ok then
-	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
-	error(result)
-end
-return result
+return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)

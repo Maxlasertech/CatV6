@@ -445,13 +445,14 @@ end
 
 ensureDataFolders()
 
-local communityConfigs = {'cc', 'rage', 'legit', 'bedwars sweat', 'sky pvp', 'utility stack'}
+local communityConfigs = {'cc', 'rage'}
 local defaultConfigs = communityConfigs
 
 local function installBundledConfig(name, force)
 	local sourcePath = 'aethercorev2/configs/'..name..'.json'
 	if force or not isfile(sourcePath) then
-		downloadFile(sourcePath)
+		local downloaded = pcall(downloadFile, sourcePath)
+		if not downloaded then return false end
 	end
 	local wrapper = loadJson(sourcePath)
 	if not wrapper then return false end
