@@ -19820,7 +19820,8 @@ end)
 run(function()
 	local NoCollision
 	local connections = {}
-	local savedParts = {}
+	local localSaved = {}  -- part -> original CanCollide (local player only)
+	local querySaved = {}  -- part -> original CanQuery  (other entities only)
 	local lastWeaponState = nil
 
 	local function hasValidWeapon()
@@ -19829,38 +19830,60 @@ run(function()
 		return t == 'sword' or t == 'bow'
 	end
 
-	local function applyLocal(disable)
+	-- CanCollide=false on local player so you physically walk through everyone
+	local function disableLocalCollide()
 		if not entitylib.isAlive then return end
 		local char = entitylib.character.Character
 		if not char then return end
-
-		if disable then
-			if not savedParts[char] then
-				local list = {}
-				savedParts[char] = list
-				for _, part in char:GetDescendants() do
-					if part:IsA('BasePart') then
-						table.insert(list, {part = part, orig = part.CanCollide})
-						part.CanCollide = false
-					end
+		for _, part in char:GetDescendants() do
+			if part:IsA('BasePart') then
+				if localSaved[part] == nil then
+					localSaved[part] = part.CanCollide
 				end
-			else
-				for _, entry in savedParts[char] do
-					if entry.part and entry.part.Parent then
-						entry.part.CanCollide = false
-					end
+				part.CanCollide = false
+			end
+		end
+	end
+
+	local function restoreLocalCollide()
+		for part, orig in localSaved do
+			if part and part.Parent then
+				part.CanCollide = orig
+			end
+		end
+		table.clear(localSaved)
+	end
+
+	-- CanQuery=false on other entities so mining raycasts pass through them
+	-- Never touch CanCollide on others — that's what causes NPCs to sink/disappear
+	local function disableEntityQuery(char)
+		if not char then return end
+		for _, part in char:GetDescendants() do
+			if part:IsA('BasePart') then
+				if querySaved[part] == nil then
+					querySaved[part] = part.CanQuery
+				end
+				part.CanQuery = false
+			end
+		end
+	end
+
+	local function restoreEntityQuery(char)
+		if char then
+			for _, part in char:GetDescendants() do
+				local orig = querySaved[part]
+				if orig ~= nil then
+					if part.Parent then part.CanQuery = orig end
+					querySaved[part] = nil
 				end
 			end
 		else
-			local list = savedParts[char]
-			if list then
-				for _, entry in list do
-					if entry.part and entry.part.Parent then
-						entry.part.CanCollide = entry.orig
-					end
+			for part, orig in querySaved do
+				if part and part.Parent then
+					part.CanQuery = orig
 				end
-				savedParts[char] = nil
 			end
+			table.clear(querySaved)
 		end
 	end
 
@@ -19870,44 +19893,55 @@ run(function()
 			if callback then
 				lastWeaponState = hasValidWeapon()
 				if not lastWeaponState then
-					applyLocal(true)
+					disableLocalCollide()
+				end
+				for _, entity in entitylib.List do
+					disableEntityQuery(entity.Character)
 				end
 
 				table.insert(connections, runService.Heartbeat:Connect(function()
 					local weapon = hasValidWeapon()
 					if weapon ~= lastWeaponState then
 						lastWeaponState = weapon
-						applyLocal(not weapon)
+						if weapon then
+							restoreLocalCollide()
+						else
+							disableLocalCollide()
+						end
+					elseif not weapon then
+						-- re-apply each frame since game may restore CanCollide
+						disableLocalCollide()
 					end
 				end))
 
+				table.insert(connections, entitylib.Events.EntityAdded:Connect(function(entity)
+					if entity.Character then
+						task.wait(0.05)
+						disableEntityQuery(entity.Character)
+					end
+				end))
+
+				table.insert(connections, entitylib.Events.EntityRemoved:Connect(function(entity)
+					restoreEntityQuery(entity.Character)
+				end))
+
 				table.insert(connections, entitylib.Events.LocalAdded:Connect(function()
-					table.clear(savedParts)
+					table.clear(localSaved)
 					if not hasValidWeapon() then
-						applyLocal(true)
+						disableLocalCollide()
 					end
 				end))
 
 				table.insert(connections, entitylib.Events.LocalRemoved:Connect(function()
-					table.clear(savedParts)
+					table.clear(localSaved)
 				end))
-
-				if vapeEvents and vapeEvents.InventoryChanged then
-					table.insert(connections, vapeEvents.InventoryChanged.Event:Connect(function()
-						local weapon = hasValidWeapon()
-						if weapon ~= lastWeaponState then
-							lastWeaponState = weapon
-							applyLocal(not weapon)
-						end
-					end))
-				end
 			else
 				for _, conn in connections do
 					conn:Disconnect()
 				end
 				table.clear(connections)
-				applyLocal(false)
-				table.clear(savedParts)
+				restoreLocalCollide()
+				restoreEntityQuery(nil)
 				lastWeaponState = nil
 			end
 		end,
