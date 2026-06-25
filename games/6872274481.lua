@@ -19820,9 +19820,14 @@ end)
 run(function()
 	local NoCollision
 	local connections = {}
-	local localSaved = {}  -- part -> original CanCollide (local player only)
-	local querySaved = {}  -- part -> original CanQuery  (other entities only)
+	local localSaved = {}   -- part -> original CollisionGroup (local player)
+	local entitySaved = {}  -- part -> original CollisionGroup (other characters)
 	local lastWeaponState = nil
+	local groupsReady = false
+
+	local physicsService = cloneref(game:GetService('PhysicsService'))
+	local NC_SELF  = 'VapeNC_Self'
+	local NC_CHARS = 'VapeNC_Chars'
 
 	local function hasValidWeapon()
 		if not store.hand or not store.hand.tool then return false end
@@ -19830,60 +19835,59 @@ run(function()
 		return t == 'sword' or t == 'bow'
 	end
 
-	-- CanCollide=false on local player so you physically walk through everyone
-	local function disableLocalCollide()
+	-- Two collision groups that ignore each other.
+	-- Both still collide with Default, so terrain/blocks work normally
+	-- and NPCs still stand on the floor — CanCollide is never touched.
+	local function ensureGroups()
+		if groupsReady then return true end
+		local ok = pcall(function()
+			physicsService:RegisterCollisionGroup(NC_SELF)
+			physicsService:RegisterCollisionGroup(NC_CHARS)
+			physicsService:CollisionGroupSetCollidable(NC_SELF, NC_CHARS, false)
+		end)
+		groupsReady = ok
+		return ok
+	end
+
+	local function applyLocal(enable)
 		if not entitylib.isAlive then return end
 		local char = entitylib.character.Character
 		if not char then return end
 		for _, part in char:GetDescendants() do
 			if part:IsA('BasePart') then
-				if localSaved[part] == nil then
-					localSaved[part] = part.CanCollide
+				if enable then
+					if localSaved[part] == nil then
+						localSaved[part] = part.CollisionGroup
+					end
+					pcall(function() part.CollisionGroup = NC_SELF end)
+				else
+					local orig = localSaved[part]
+					if orig ~= nil then
+						pcall(function() part.CollisionGroup = orig end)
+						localSaved[part] = nil
+					end
 				end
-				part.CanCollide = false
 			end
 		end
 	end
 
-	local function restoreLocalCollide()
-		for part, orig in localSaved do
-			if part and part.Parent then
-				part.CanCollide = orig
-			end
-		end
-		table.clear(localSaved)
-	end
-
-	-- CanQuery=false on other entities so mining raycasts pass through them
-	-- Never touch CanCollide on others — that's what causes NPCs to sink/disappear
-	local function disableEntityQuery(char)
+	local function applyEntity(char, enable)
 		if not char then return end
 		for _, part in char:GetDescendants() do
 			if part:IsA('BasePart') then
-				if querySaved[part] == nil then
-					querySaved[part] = part.CanQuery
-				end
-				part.CanQuery = false
-			end
-		end
-	end
-
-	local function restoreEntityQuery(char)
-		if char then
-			for _, part in char:GetDescendants() do
-				local orig = querySaved[part]
-				if orig ~= nil then
-					if part.Parent then part.CanQuery = orig end
-					querySaved[part] = nil
+				if enable then
+					if entitySaved[part] == nil then
+						entitySaved[part] = part.CollisionGroup
+					end
+					pcall(function() part.CollisionGroup = NC_CHARS end)
+				else
+					local orig = entitySaved[part]
+					if orig ~= nil then
+						pcall(function() part.CollisionGroup = orig end)
+						entitySaved[part] = nil
+					end
 				end
 			end
-		else
-			for part, orig in querySaved do
-				if part and part.Parent then
-					part.CanQuery = orig
-				end
-			end
-			table.clear(querySaved)
 		end
 	end
 
@@ -19891,44 +19895,42 @@ run(function()
 		Name = 'NoCollision',
 		Function = function(callback)
 			if callback then
+				if not ensureGroups() then
+					vape:CreateNotification('NoCollision', 'Could not register collision groups', 5, 'warning')
+					return
+				end
+
 				lastWeaponState = hasValidWeapon()
 				if not lastWeaponState then
-					disableLocalCollide()
+					applyLocal(true)
 				end
 				for _, entity in entitylib.List do
-					disableEntityQuery(entity.Character)
+					applyEntity(entity.Character, true)
 				end
 
 				table.insert(connections, runService.Heartbeat:Connect(function()
 					local weapon = hasValidWeapon()
 					if weapon ~= lastWeaponState then
 						lastWeaponState = weapon
-						if weapon then
-							restoreLocalCollide()
-						else
-							disableLocalCollide()
-						end
-					elseif not weapon then
-						-- re-apply each frame since game may restore CanCollide
-						disableLocalCollide()
+						applyLocal(not weapon)
 					end
 				end))
 
 				table.insert(connections, entitylib.Events.EntityAdded:Connect(function(entity)
 					if entity.Character then
 						task.wait(0.05)
-						disableEntityQuery(entity.Character)
+						applyEntity(entity.Character, true)
 					end
 				end))
 
 				table.insert(connections, entitylib.Events.EntityRemoved:Connect(function(entity)
-					restoreEntityQuery(entity.Character)
+					applyEntity(entity.Character, false)
 				end))
 
 				table.insert(connections, entitylib.Events.LocalAdded:Connect(function()
 					table.clear(localSaved)
 					if not hasValidWeapon() then
-						disableLocalCollide()
+						applyLocal(true)
 					end
 				end))
 
@@ -19940,8 +19942,12 @@ run(function()
 					conn:Disconnect()
 				end
 				table.clear(connections)
-				restoreLocalCollide()
-				restoreEntityQuery(nil)
+				applyLocal(false)
+				for _, entity in entitylib.List do
+					applyEntity(entity.Character, false)
+				end
+				table.clear(localSaved)
+				table.clear(entitySaved)
 				lastWeaponState = nil
 			end
 		end,
