@@ -230,6 +230,8 @@ end
 
 _G.AetherCoreSetLoadingStatus('Checking version...', 0.62)
 downloadFile('aethercorev2/version.txt')
+_G.AetherCoreSetLoadingStatus('Preparing loading artwork...', 0.70)
+pcall(downloadFile, 'aethercorev2/assets/new/loading.png')
 
 _G.AetherCoreSetLoadingStatus('Loading main script...', 0.82)
 return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)

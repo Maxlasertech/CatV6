@@ -242,6 +242,16 @@ local function downloadFile(path, func)
 	return (func or readfile)(path)
 end
 
+local function downloadOptionalFile(path)
+	if isfile(path) then return true end
+	local suc, res = pcall(function()
+		return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
+	end)
+	if not suc or res == '404: Not Found' then return false end
+	writefile(path, res)
+	return true
+end
+
 
 local loadingWarnings = {}
 
@@ -356,6 +366,8 @@ if not isfile('aethercorev2/profiles/commit.txt') then
 end
 
 getgenv().used_init = true
+setLoadingStatus('Preparing loading artwork...', 0.82)
+downloadOptionalFile('aethercorev2/assets/new/loading.png')
 setLoadingStatus('Loading interface...', 0.84)
 vape = runLoadingChunk(downloadFile('aethercorev2/guis/'..gui..'.lua'), 'gui', license)
 _G.vape = vape
