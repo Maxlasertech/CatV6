@@ -11546,6 +11546,164 @@ run(function()
 end)
 
 run(function()
+    local NoCollision
+    local trackedParts = {}
+    local motorParts = {}
+    local lastWeaponState = nil
+    local weaponCheckCounter = 0
+
+    local function hasValidWeapon()
+        local toolType = store.hand and store.hand.toolType
+        return toolType == 'sword' or toolType == 'bow'
+    end
+
+    local function removeCollision(character)
+        if not character then return end
+
+        local charParts = trackedParts[character]
+        if not charParts then
+            charParts = {}
+            trackedParts[character] = charParts
+
+            for _, part in character:GetDescendants() do
+                if part:IsA('BasePart') then
+                    table.insert(charParts, {part = part, origCollide = part.CanCollide, origQuery = part.CanQuery})
+                    part.CanCollide = false
+                    part.CanQuery = false
+                end
+            end
+        else
+            for _, entry in charParts do
+                if entry.part and entry.part.Parent then
+                    entry.part.CanCollide = false
+                    entry.part.CanQuery = false
+                end
+            end
+        end
+    end
+
+    local function restoreCollision(character)
+        if not character then return end
+
+        local charParts = trackedParts[character]
+        if charParts then
+            for _, entry in charParts do
+                if entry.part and entry.part.Parent then
+                    entry.part.CanCollide = entry.origCollide
+                    entry.part.CanQuery = entry.origQuery
+                end
+            end
+        end
+    end
+
+    local function updateAllCollisions(forceUpdate)
+        weaponCheckCounter += 1
+        local shouldCheck = forceUpdate or (weaponCheckCounter % 3 == 0)
+        if not shouldCheck then return end
+
+        local isWeaponEquipped = hasValidWeapon()
+        if not forceUpdate and lastWeaponState == isWeaponEquipped then
+            return
+        end
+        lastWeaponState = isWeaponEquipped
+
+        for _, entity in entitylib.List do
+            if entity.Character and entity.Character.Parent then
+                if isWeaponEquipped then
+                    restoreCollision(entity.Character)
+                else
+                    removeCollision(entity.Character)
+                end
+            end
+        end
+    end
+
+    local function updateMotorParts()
+        for _, entity in entitylib.List do
+            if entity.Character then
+                local charMotors = motorParts[entity.Character]
+                if not charMotors then
+                    charMotors = {}
+                    motorParts[entity.Character] = charMotors
+                    for _, part in entity.Character:GetChildren() do
+                        if part:IsA('BasePart') and part.Name == 'Part' and part:FindFirstChildOfClass('Motor6D') then
+                            table.insert(charMotors, part)
+                        end
+                    end
+                end
+                for _, part in charMotors do
+                    if part and part.Parent then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end
+
+    NoCollision = vape.Categories.World:CreateModule({
+        Name = 'NoCollision',
+        Function = function(callback)
+            if callback then
+                local frameCounter = 0
+                NoCollision:Clean(runService.Heartbeat:Connect(function()
+                    frameCounter += 1
+                    if frameCounter % 6 == 0 then
+                        updateAllCollisions(false)
+                    end
+                    if frameCounter % 15 == 0 then
+                        updateMotorParts()
+                    end
+                end))
+
+                lastWeaponState = hasValidWeapon()
+                if not lastWeaponState then
+                    for _, entity in entitylib.List do
+                        if entity.Character and entity.Character.Parent then
+                            removeCollision(entity.Character)
+                        end
+                    end
+                end
+
+                NoCollision:Clean(entitylib.Events.EntityAdded:Connect(function(entity)
+                    if entity.Character then
+                        task.wait(0.05)
+                        if NoCollision.Enabled and not hasValidWeapon() then
+                            removeCollision(entity.Character)
+                        end
+                    end
+                end))
+
+                NoCollision:Clean(entitylib.Events.EntityRemoving:Connect(function(entity)
+                    if entity.Character then
+                        trackedParts[entity.Character] = nil
+                        motorParts[entity.Character] = nil
+                    end
+                end))
+
+                NoCollision:Clean(vapeEvents.InventoryChanged.Event:Connect(function()
+                    if NoCollision.Enabled then
+                        updateAllCollisions(true)
+                    end
+                end))
+
+                updateAllCollisions(true)
+            else
+                for _, entity in entitylib.List do
+                    if entity.Character then
+                        restoreCollision(entity.Character)
+                    end
+                end
+                table.clear(trackedParts)
+                table.clear(motorParts)
+                lastWeaponState = nil
+                weaponCheckCounter = 0
+            end
+        end,
+        Tooltip = 'Mine/build through players and NPCs'
+    })
+end)
+
+run(function()
     local AutoBank
     local UIToggle
     local UI
