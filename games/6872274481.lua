@@ -3833,6 +3833,19 @@ run(function()
     local orig_raycast
     local launchHook
 
+    -- Find headhunter controller's fire function
+    local headhunterFireHook
+    pcall(function()
+        local hhPath = lplr.PlayerScripts.TS.controllers.game.items.headhunter
+        local hhMod = require(hhPath['headhunter-controller'])
+        warn('[HeadHit] headhunter module type:', type(hhMod))
+        if type(hhMod) == 'table' then
+            for k, v in hhMod do
+                warn('[HeadHit] key:', k, type(v))
+            end
+        end
+    end)
+
     HeadHit = vape.Categories.Blatant:CreateModule({
         Name = 'Head Hit',
         Function = function(callback)
