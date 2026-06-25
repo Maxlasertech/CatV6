@@ -3824,7 +3824,7 @@ run(function()
                     local fromPos = shootpos or (entitylib.isAlive and entitylib.character.RootPart.Position)
                     if not fromPos then return nextLaunch(...) end
                     local ent = entitylib.EntityMouse({
-                        Part = 'Head',
+                        Part = 'RootPart',
                         Range = 2000,
                         Players = true,
                         NPCs = true,
