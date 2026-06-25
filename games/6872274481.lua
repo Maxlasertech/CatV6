@@ -3816,7 +3816,19 @@ run(function()
                     return result
                 end
 
+                do
+                    local origLPWV = bedwars.ProjectileController.launchProjectileWithValues
+                    bedwars.ProjectileController.launchProjectileWithValues = function(self, ...)
+                        warn('[HeadHit] launchProjectileWithValues called, toolType:', store.hand.toolType)
+                        return origLPWV(self, ...)
+                    end
+                    HeadHit:Clean(function()
+                        bedwars.ProjectileController.launchProjectileWithValues = origLPWV
+                    end)
+                end
+
                 launchHook = bedwars.ProjectileLaunchHook:Add('HeadHit', 50, function(nextLaunch, ...)
+                    warn('[HeadHit] calculateImportantLaunchValues called')
                     local ok, result = pcall(function()
                         local self, projmeta, worldmeta, origin, shootpos = ...
                         if not projmeta then warn('[HeadHit] no projmeta') return end
