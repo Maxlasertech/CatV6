@@ -8617,6 +8617,26 @@ run(function()
     })
 end)
 
+run(function()
+    local LegacyAnimation
+
+    local function setLegacyAnimation(enabled)
+        workspace:SetAttribute("RbxLegacyAnimationBlending", enabled)
+    end
+
+    LegacyAnimation = vape.Categories.Render:CreateModule({
+        Name = 'LegacyAnimation',
+        Function = function(callback)
+            if callback then
+                setLegacyAnimation(true)
+            else
+                setLegacyAnimation(false)
+            end
+        end,
+        Tooltip = 'turns on roblox legacy animation blending'
+    })
+end)
+
 --[[
     Utility
 ]]
