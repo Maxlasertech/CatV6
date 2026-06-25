@@ -15,150 +15,35 @@ end
 
 local function createLoadingScreen()
 	local parent = gethui and gethui() or cloneref(game:GetService('CoreGui'))
-	local existing = parent:FindFirstChild('AetherCoreLoading')
-	if existing and _G.AetherCoreSetLoadingStatus then return existing end
-
-	local screen = existing or Instance.new('ScreenGui')
+	local screen = parent:FindFirstChild('AetherCoreLoading') or Instance.new('ScreenGui')
 	screen.Name = 'AetherCoreLoading'
-	screen.IgnoreGuiInset = true
 	screen.ResetOnSpawn = false
-	screen.DisplayOrder = 2147483647
 	screen.Parent = parent
 	screen:ClearAllChildren()
 
-	local background = Instance.new('Frame')
-	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = Color3.fromRGB(8, 9, 14)
-	background.BackgroundTransparency = 0.18
-	background.BorderSizePixel = 0
-	background.Parent = screen
+	local downloader = Instance.new('TextLabel')
+	downloader.Name = 'Status'
+	downloader.Size = UDim2.new(1, 0, 0, 40)
+	downloader.BackgroundTransparency = 1
+	downloader.TextStrokeTransparency = 0
+	downloader.TextSize = 20
+	downloader.TextColor3 = Color3.new(1, 1, 1)
+	downloader.Font = Enum.Font.Arial
+	downloader.Text = ''
+	downloader.Parent = screen
 
-	local gradient = Instance.new('UIGradient')
-	gradient.Rotation = 25
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 10, 18)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(16, 22, 34)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 9, 14))
-	})
-	gradient.Parent = background
-
-	local card = Instance.new('Frame')
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(540, 330)
-	card.BackgroundColor3 = Color3.fromRGB(12, 15, 24)
-	card.BackgroundTransparency = 0.08
-	card.BorderSizePixel = 0
-	card.Parent = background
-	local cardCorner = Instance.new('UICorner')
-	cardCorner.CornerRadius = UDim.new(0, 18)
-	cardCorner.Parent = card
-	local stroke = Instance.new('UIStroke')
-	stroke.Color = Color3.fromRGB(90, 230, 210)
-	stroke.Transparency = 0.74
-	stroke.Thickness = 1
-	stroke.Parent = card
-
-	local glow = Instance.new('Frame')
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.fromScale(0.5, 0.5)
-	glow.Size = UDim2.fromOffset(430, 3)
-	glow.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
-	glow.BackgroundTransparency = 0.68
-	glow.BorderSizePixel = 0
-	glow.Parent = card
-	local glowCorner = Instance.new('UICorner')
-	glowCorner.CornerRadius = UDim.new(1, 0)
-	glowCorner.Parent = glow
-
-	local logo = Instance.new('ImageLabel')
-	logo.Name = 'Logo'
-	logo.AnchorPoint = Vector2.new(0.5, 0)
-	logo.Position = UDim2.new(0.5, 0, 0, 28)
-	logo.Size = UDim2.fromOffset(250, 108)
-	logo.BackgroundTransparency = 1
-	logo.ImageTransparency = 0.02
-	logo.ScaleType = Enum.ScaleType.Fit
-	logo.Image = isfile('aethercorev2/assets/new/loading.png') and (getcustomasset and getcustomasset('aethercorev2/assets/new/loading.png') or 'aethercorev2/assets/new/loading.png') or ''
-	logo.Parent = card
-
-	local version = Instance.new('TextLabel')
-	version.Name = 'Version'
-	version.AnchorPoint = Vector2.new(0.5, 0)
-	version.Position = UDim2.new(0.5, 0, 0, 142)
-	version.Size = UDim2.fromOffset(260, 22)
-	version.BackgroundTransparency = 1
-	version.Font = Enum.Font.GothamMedium
-	version.TextSize = 14
-	version.TextColor3 = Color3.fromRGB(190, 196, 220)
-	version.Text = isfile('aethercorev2/version.txt') and ('Version '..readfile('aethercorev2/version.txt')) or 'Version loading...'
-	version.Parent = card
-
-	local status = Instance.new('TextLabel')
-	status.Name = 'Status'
-	status.Position = UDim2.fromOffset(54, 202)
-	status.Size = UDim2.fromOffset(432, 22)
-	status.BackgroundTransparency = 1
-	status.Font = Enum.Font.Gotham
-	status.TextSize = 14
-	status.TextXAlignment = Enum.TextXAlignment.Left
-	status.TextColor3 = Color3.fromRGB(235, 238, 255)
-	status.Text = 'Starting AetherCore...'
-	status.Parent = card
-
-	local track = Instance.new('Frame')
-	track.Name = 'ProgressTrack'
-	track.Position = UDim2.fromOffset(54, 238)
-	track.Size = UDim2.fromOffset(432, 10)
-	track.BackgroundColor3 = Color3.fromRGB(28, 34, 50)
-	track.BackgroundTransparency = 0.18
-	track.BorderSizePixel = 0
-	track.Parent = card
-	local trackCorner = Instance.new('UICorner')
-	trackCorner.CornerRadius = UDim.new(1, 0)
-	trackCorner.Parent = track
-
-	local fill = Instance.new('Frame')
-	fill.Name = 'ProgressFill'
-	fill.Size = UDim2.fromScale(0.06, 1)
-	fill.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
-	fill.BorderSizePixel = 0
-	fill.Parent = track
-	local fillCorner = Instance.new('UICorner')
-	fillCorner.CornerRadius = UDim.new(1, 0)
-	fillCorner.Parent = fill
-
-	local detail = Instance.new('TextLabel')
-	detail.Name = 'Detail'
-	detail.Position = UDim2.fromOffset(54, 260)
-	detail.Size = UDim2.fromOffset(432, 20)
-	detail.BackgroundTransparency = 1
-	detail.Font = Enum.Font.Gotham
-	detail.TextSize = 12
-	detail.TextXAlignment = Enum.TextXAlignment.Left
-	detail.TextColor3 = Color3.fromRGB(130, 142, 170)
-	detail.Text = 'Preparing files and assets.'
-	detail.Parent = card
-
-	local lastProgress = 0.06
-	local function closeScreen()
-		if screen and screen.Parent then
+	_G.AetherCoreLoadingScreen = screen
+	_G.AetherCoreCloseLoadingScreen = function()
+		if screen.Parent then
 			screen:Destroy()
 		end
 	end
-	_G.AetherCoreLoadingScreen = screen
-	_G.AetherCoreCloseLoadingScreen = closeScreen
-	_G.AetherCoreSetLoadingStatus = function(text, progress)
-		if not screen.Parent then return end
-		lastProgress = math.clamp(progress or lastProgress, lastProgress, 1)
-		if status.Parent then status.Text = text end
-		if detail.Parent then detail.Text = math.floor(lastProgress * 100)..'% complete' end
-		if fill.Parent then fill.Size = UDim2.fromScale(lastProgress, 1) end
-		if version.Parent and isfile('aethercorev2/version.txt') then version.Text = 'Version '..readfile('aethercorev2/version.txt') end
-		if logo.Parent and logo.Image == '' and isfile('aethercorev2/assets/new/loading.png') then
-			logo.Image = getcustomasset and getcustomasset('aethercorev2/assets/new/loading.png') or 'aethercorev2/assets/new/loading.png'
+	_G.AetherCoreSetLoadingStatus = function(text)
+		if downloader.Parent then
+			downloader.Text = text or ''
 		end
 	end
+
 	return screen
 end
 
@@ -173,7 +58,6 @@ local function downloadFile(path, func)
 			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
-			if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
 			error(res)
 		end
 		if path:find('.lua') then
@@ -231,21 +115,6 @@ end
 
 _G.AetherCoreSetLoadingStatus('Checking version...', 0.62)
 downloadFile('aethercorev2/version.txt')
-_G.AetherCoreSetLoadingStatus('Preparing loading artwork...', 0.70)
-downloadFile('aethercorev2/assets/new/loading.png')
 
 _G.AetherCoreSetLoadingStatus('Loading main script...', 0.82)
-local mainSource = downloadFile('aethercorev2/main.lua')
-local mainChunk, compileError = loadstring(mainSource, 'main')
-if not mainChunk then
-	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
-	error(compileError)
-end
-local ok, result = xpcall(function()
-	return mainChunk(license)
-end, debug.traceback)
-if not ok then
-	if _G.AetherCoreCloseLoadingScreen then _G.AetherCoreCloseLoadingScreen() end
-	error(result)
-end
-return result
+return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)
