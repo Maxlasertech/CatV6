@@ -4248,7 +4248,12 @@ run(function()
                                                 local item, ammo, projectile, itemMeta = unpack(projectiles[projectileIndex])
                                                 if tick() > (FireRates[item.itemType] or 0) then
                                                     local projmeta = bedwars.ProjectileMeta[projectile]
-                                                    local projSpeed, gravity = projmeta.launchVelocity, projmeta.gravitationalAcceleration or 196.2
+                                                    local maxChargeSec = itemMeta.maxStrengthChargeSec or 1
+                                                    local drawDuration = math.min(FireRate.Value, maxChargeSec)
+                                                    local chargeRatio = drawDuration / maxChargeSec
+                                                    local minScalar = itemMeta.minStrengthScalar or 0.5
+                                                    local projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
+                                                    local gravity = projmeta.gravitationalAcceleration or 196.2
                                                     local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                                     local hotbar = getHotbar(item.tool)
                                                     if hotbar then
@@ -4257,13 +4262,13 @@ run(function()
                                                             hotbarSwitch(hotbar)
                                                         end
                                                     end
-                                                    
+
                                                     local calc = prediction.SolveTrajectory(selfpos, projSpeed, gravity, v.RootPart.Position, v.RootPart.Velocity, workspace.Gravity, v.HipHeight, v.Jumping and 42.6 or nil, nil, nil, lplr:GetNetworkPing())
                                                     if calc then
                                                         local sdir, id = CFrame.lookAt(selfpos, calc).LookVector, httpService:GenerateGUID(true)
                                                         local shootPosition = (CFrame.new(selfpos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
-                                                    
-                                                        bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 1})
+
+                                                        bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = drawDuration})
                                                         local res = projectileRemote:InvokeServer(
                                                             item.tool,
                                                             ammo,
@@ -4272,9 +4277,9 @@ run(function()
                                                             pos,
                                                             sdir * projSpeed,
                                                             id,
-                                                            { 
-                                                                drawDurationSeconds = 1, 
-                                                                shotId = httpService:GenerateGUID(false) 
+                                                            {
+                                                                drawDurationSeconds = drawDuration,
+                                                                shotId = httpService:GenerateGUID(false)
                                                             },
                                                             workspace:GetServerTimeNow() - 0.045
                                                         )
