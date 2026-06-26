@@ -6730,29 +6730,37 @@ run(function()
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
 
+    -- world-space labels keyed by dodo model
     local Reference = {}
 
-    local function Added(dodo)
+    local DODO_NAMES = {DodoBird = true, DodoBirdNPC = true, dodo_bird = true, DodoBirdMob = true}
+    local DODO_TAGS  = {'DodoBird', 'dodoBird', 'dodo', 'dodo_bird'}
+
+    local function isDodo(v)
+        return v:IsA('Model') and (DODO_NAMES[v.Name] or v:GetAttribute('IsDodoBird'))
+    end
+
+    local function trackDodo(v)
+        if Reference[v] then return end
         local nametag = Instance.new('TextLabel')
         nametag.TextSize = 12
         nametag.Font = Enum.Font.Arial
         nametag.Text = 'Dodo'
-        nametag.Size = UDim2.fromOffset(60, 20)
+        nametag.Size = UDim2.fromOffset(70, 20)
         nametag.AnchorPoint = Vector2.new(0.5, 1)
         nametag.BackgroundColor3 = Color3.new()
         nametag.BackgroundTransparency = Transparency and Transparency.Value or 0.5
         nametag.BorderSizePixel = 0
         nametag.Visible = false
         nametag.TextColor3 = Color and Color3.fromHSV(Color.Hue, Color.Sat, Color.Value) or Color3.new(1, 1, 1)
-        nametag.RichText = true
         nametag.Parent = Folder
-        Reference[dodo] = nametag
+        Reference[v] = nametag
     end
 
-    local function Removing(dodo)
-        if Reference[dodo] then
-            Reference[dodo]:Destroy()
-            Reference[dodo] = nil
+    local function untrackDodo(v)
+        if Reference[v] then
+            Reference[v]:Destroy()
+            Reference[v] = nil
         end
     end
 
@@ -6760,43 +6768,55 @@ run(function()
         Name = 'Dodo ESP',
         Function = function(call)
             if call then
-                -- small corner UI
+                -- seed from CollectionService tags
+                for _, tag in DODO_TAGS do
+                    for _, v in collectionService:GetTagged(tag) do
+                        trackDodo(v)
+                    end
+                    DodoESP:Clean(collectionService:GetInstanceAddedSignal(tag):Connect(trackDodo))
+                    DodoESP:Clean(collectionService:GetInstanceRemovedSignal(tag):Connect(untrackDodo))
+                end
+                -- workspace scan fallback for untagged models
+                for _, v in workspace:GetDescendants() do
+                    if isDodo(v) then trackDodo(v) end
+                end
+                DodoESP:Clean(workspace.DescendantAdded:Connect(function(v)
+                    if isDodo(v) then trackDodo(v) end
+                end))
+                DodoESP:Clean(workspace.DescendantRemoving:Connect(untrackDodo))
+
+                -- small panel — bottom-right, above the hotbar
                 local panel = Instance.new('Frame')
-                panel.Size = UDim2.fromOffset(110, 14)
-                panel.Position = UDim2.new(1, -118, 0.5, 60)
-                panel.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+                panel.Size = UDim2.fromOffset(100, 16)
+                panel.Position = UDim2.new(1, -106, 1, -110)
+                panel.AnchorPoint = Vector2.new(0, 1)
+                panel.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
                 panel.BackgroundTransparency = 0.3
                 panel.BorderSizePixel = 0
                 panel.Parent = vape.gui
                 Instance.new('UICorner', panel).CornerRadius = UDim.new(0, 4)
 
-                local list = Instance.new('UIListLayout', panel)
-                list.SortOrder = Enum.SortOrder.LayoutOrder
-                list.Padding = UDim.new(0, 1)
+                local uiList = Instance.new('UIListLayout', panel)
+                uiList.SortOrder = Enum.SortOrder.LayoutOrder
+                uiList.Padding = UDim.new(0, 1)
 
-                local function makeRow(text, order)
+                local function makeRow(text, order, color)
                     local row = Instance.new('TextLabel')
-                    row.Size = UDim2.new(1, 0, 0, 13)
+                    row.Size = UDim2.new(1, 0, 0, 12)
                     row.BackgroundTransparency = 1
-                    row.TextColor3 = Color3.new(1, 1, 1)
+                    row.TextColor3 = color or Color3.new(1, 1, 1)
                     row.TextSize = 10
                     row.Font = Enum.Font.GothamBold
                     row.Text = text
                     row.TextXAlignment = Enum.TextXAlignment.Left
-                    row.LayoutOrder = order or 0
+                    row.LayoutOrder = order
                     Instance.new('UIPadding', row).PaddingLeft = UDim.new(0, 4)
                     row.Parent = panel
                     return row
                 end
 
-                local header = makeRow('🐦 Dodos', 0)
-                header.TextColor3 = Color3.fromRGB(255, 220, 100)
+                local header = makeRow('🐦 Dodos', 0, Color3.fromRGB(255, 215, 80))
 
-                for _, v in collectionService:GetTagged('DodoBird') do
-                    Added(v)
-                end
-                DodoESP:Clean(collectionService:GetInstanceAddedSignal('DodoBird'):Connect(Added))
-                DodoESP:Clean(collectionService:GetInstanceRemovedSignal('DodoBird'):Connect(Removing))
                 DodoESP:Clean(runService.PreRender:Connect(function()
                     local localPos = entitylib.isAlive and entitylib.character.RootPart.Position or Vector3.zero
                     local occupied = {}
@@ -6806,75 +6826,60 @@ run(function()
                         end
                     end)
 
-                    -- clear old rows (keep header)
+                    -- rebuild UI rows each frame (cheap: usually 0-3 dodos)
                     for _, child in panel:GetChildren() do
-                        if child:IsA('TextLabel') and child ~= header then
-                            child:Destroy()
-                        end
+                        if child ~= header and child ~= uiList then child:Destroy() end
                     end
 
-                    local rows = {}
+                    local free = {}
                     for dodo, nametag in Reference do
                         if occupied[dodo] or not dodo.PrimaryPart then
                             nametag.Visible = false
                             continue
                         end
                         local dist = math.round((localPos - dodo.PrimaryPart.Position).Magnitude)
-                        table.insert(rows, {dodo = dodo, dist = dist, nametag = nametag})
+                        table.insert(free, {dodo = dodo, dist = dist, nametag = nametag})
                     end
-                    table.sort(rows, function(a, b) return a.dist < b.dist end)
+                    table.sort(free, function(a, b) return a.dist < b.dist end)
 
-                    local rowH = 13 * #rows
-                    panel.Size = UDim2.fromOffset(110, 14 + rowH + (#rows > 0 and #rows - 1 or 0))
+                    local rowCount = #free
+                    panel.Size = UDim2.fromOffset(100, 16 + rowCount * 13)
 
-                    for i, row in rows do
-                        local r = makeRow('  • ' .. row.dist .. 'm', i)
-                        r.TextColor3 = Color3.fromRGB(200, 255, 200)
+                    for i, entry in free do
+                        makeRow('  • ' .. entry.dist .. 'm', i, Color3.fromRGB(180, 255, 180))
 
-                        local pos = row.dodo.PrimaryPart.Position + Vector3.new(0, 3, 0)
-                        local screenPos, visible = gameCamera:WorldToViewportPoint(pos)
-                        row.nametag.Visible = visible
-                        if visible then
-                            local text = 'Dodo | ' .. row.dist .. 'm'
-                            row.nametag.Text = text
-                            row.nametag.TextSize = 12 * Scale.Value
-                            row.nametag.TextColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-                            row.nametag.BackgroundTransparency = Transparency.Value
-                            local size = getfontsize(text, row.nametag.TextSize, row.nametag.FontFace, Vector2.new(100000, 100000))
-                            row.nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 6)
-                            row.nametag.Position = UDim2.fromOffset(screenPos.X, screenPos.Y)
+                        local pos = entry.dodo.PrimaryPart.Position + Vector3.new(0, 3, 0)
+                        local screenPos, vis = gameCamera:WorldToViewportPoint(pos)
+                        entry.nametag.Visible = vis
+                        if vis then
+                            local text = 'Dodo  ' .. entry.dist .. 'm'
+                            entry.nametag.Text = text
+                            entry.nametag.TextSize = 12 * Scale.Value
+                            entry.nametag.TextColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+                            entry.nametag.BackgroundTransparency = Transparency.Value
+                            local sz = getfontsize(text, entry.nametag.TextSize, entry.nametag.FontFace, Vector2.new(100000, 100000))
+                            entry.nametag.Size = UDim2.fromOffset(sz.X + 8, sz.Y + 6)
+                            entry.nametag.Position = UDim2.fromOffset(screenPos.X, screenPos.Y)
                         end
                     end
                 end))
 
-                DodoESP:Clean(function()
-                    panel:Destroy()
-                end)
+                DodoESP:Clean(function() panel:Destroy() end)
             else
-                for i in Reference do
-                    Removing(i)
-                end
+                for i in Reference do untrackDodo(i) end
             end
         end,
-        Tooltip = 'Shows free dodo birds on the map and in a small UI'
+        Tooltip = 'Shows free dodo birds on the map and in a corner list'
     })
 
-    Color = DodoESP:CreateColorSlider({
-        Name = 'Text Color',
-    })
+    Color = DodoESP:CreateColorSlider({ Name = 'Text Color' })
     Transparency = DodoESP:CreateSlider({
         Name = 'Transparency',
-        Default = 0.5,
-        Min = 0,
-        Max = 1,
-        Decimal = 100,
+        Default = 0.5, Min = 0, Max = 1, Decimal = 100,
     })
     Scale = DodoESP:CreateSlider({
         Name = 'Scale',
-        Default = 1,
-        Min = 0.1,
-        Max = 1.5,
-        Decimal = 10,
+        Default = 1, Min = 0.1, Max = 1.5, Decimal = 10,
     })
 end)
 
