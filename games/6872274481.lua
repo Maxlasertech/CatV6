@@ -20147,3 +20147,58 @@ run(function()
     })
 end)
 
+run(function()
+    local AutoDodo
+    local Range
+
+    AutoDodo = vape.Categories.Kits:CreateModule({
+        Name = 'Auto Dodo',
+        Function = function(callback)
+            if callback then
+                repeat
+                    pcall(function()
+                        if entitylib.isAlive then
+                            local controller = bedwars.DodoBirdController
+                            if controller.playerToDodoBird[lplr] then return end
+
+                            local localPosition = entitylib.character.RootPart.Position
+
+                            local occupied = {}
+                            for _, dodo in controller.playerToDodoBird do
+                                occupied[dodo] = true
+                            end
+
+                            local closest, closestMag = nil, math.huge
+                            for _, dodo in collectionService:GetTagged('DodoBird') do
+                                if dodo.PrimaryPart and not occupied[dodo] then
+                                    local mag = (localPosition - dodo.PrimaryPart.Position).Magnitude
+                                    if mag <= Range.Value and mag < closestMag then
+                                        closest = dodo
+                                        closestMag = mag
+                                    end
+                                end
+                            end
+
+                            if closest then
+                                controller.requestMountDodoBirdRemote:CallServer(closest)
+                            end
+                        end
+                    end)
+                    task.wait(0.5)
+                until not AutoDodo.Enabled
+            end
+        end,
+        Tooltip = 'Automatically mounts a nearby dodo bird'
+    })
+
+    Range = AutoDodo:CreateSlider({
+        Name = 'Range',
+        Min = 5,
+        Max = 50,
+        Default = 30,
+        Suffix = function(val)
+            return val <= 1 and 'stud' or 'studs'
+        end
+    })
+end)
+
