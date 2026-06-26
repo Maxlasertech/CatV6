@@ -4248,12 +4248,21 @@ run(function()
                                                 local item, ammo, projectile, itemMeta = unpack(projectiles[projectileIndex])
                                                 if tick() > (FireRates[item.itemType] or 0) then
                                                     local projmeta = bedwars.ProjectileMeta[projectile]
+                                                    local isBow = itemMeta.maxStrengthChargeSec ~= nil
                                                     local maxChargeSec = itemMeta.maxStrengthChargeSec or 1
-                                                    local drawDuration = math.min(FireRate.Value, maxChargeSec)
-                                                    local chargeRatio = drawDuration / maxChargeSec
-                                                    local minScalar = itemMeta.minStrengthScalar or 0.5
-                                                    local projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
+                                                    local minScalar = itemMeta.minStrengthScalar or 1
+                                                    local drawDuration, chargeRatio, projSpeed
+                                                    if isBow then
+                                                        drawDuration = math.min(FireRate.Value, maxChargeSec)
+                                                        chargeRatio = drawDuration / maxChargeSec
+                                                        projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
+                                                    else
+                                                        drawDuration = 1
+                                                        chargeRatio = 1
+                                                        projSpeed = projmeta.launchVelocity
+                                                    end
                                                     local gravity = projmeta.gravitationalAcceleration or 196.2
+                                                    warn(string.format('[FastHits] item=%s isBow=%s maxCharge=%.2f drawDur=%.3f chargeRatio=%.2f speed=%.1f/%.1f', item.itemType, tostring(isBow), maxChargeSec, drawDuration, chargeRatio, projSpeed, projmeta.launchVelocity))
                                                     local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                                     local hotbar = getHotbar(item.tool)
                                                     if hotbar then
@@ -4283,6 +4292,7 @@ run(function()
                                                             },
                                                             workspace:GetServerTimeNow() - 0.045
                                                         )
+                                                        warn(string.format('[FastHits] server res=%s', tostring(res ~= nil)))
                                                         if res then
                                                             pcall(function()
                                                                 res.Parent = replicatedStorage
