@@ -16,10 +16,10 @@ local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
 			return game:HttpGet(
-				'https://raw.githubusercontent.com/MaxlaserTech/CatV6/'
-					.. readfile('catrewrite/profiles/commit.txt')
+				'https://raw.githubusercontent.com/5rmsn4tt2c-ux/fart_/'
+					.. readfile('fart/profiles/commit.txt')
 					.. '/'
-					.. select(1, path:gsub('catrewrite/', '')),
+					.. select(1, path:gsub('fart/', '')),
 				true
 			)
 		end)
@@ -57,7 +57,7 @@ local prediction = vape.Libraries.prediction
 local targetinfo = vape.Libraries.targetinfo
 local sessioninfo = vape.Libraries.sessioninfo
 local getcustomasset = vape.Libraries.getcustomasset
-local drawingactor = loadstring(downloadFile('catrewrite/libraries/drawing.lua'), 'drawing')(...)
+local drawingactor = loadstring(downloadFile('fart/libraries/drawing.lua'), 'drawing')(...)
 local function notif(...)
 	return vape:CreateNotification(...)
 end
@@ -75,7 +75,7 @@ if not select(1, ...) and game.PlaceId == 5938036553 then
 			repeat
 				task.wait()
 			until not shared.vape
-			local executionString = "loadfile('catrewrite/main.lua')(" .. drawingactor .. ')'
+			local executionString = "loadfile('fart/main.lua')(" .. drawingactor .. ')'
 			for i, v in shared do
 				if type(v) == 'string' then
 					executionString = string.format("shared.%s = '%s'", i, v) .. '\n' .. executionString
@@ -112,7 +112,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getcustomasset('catrewrite/assets/new/blur.png')
+	blur.Image = getcustomasset('fart/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
