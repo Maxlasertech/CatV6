@@ -8736,7 +8736,172 @@ run(function()
     stash.Name = 'KingAutoStash'
     stash.Parent = vape.gui
 
-    local function applyPart(part)
+    local C = Color3.fromRGB
+    local blockColors = {
+        -- Wool
+        wool_white = C(184,184,184), wool_red    = C(140, 47, 47),
+        wool_blue  = C( 47, 79,140), wool_green  = C( 47,107, 58),
+        wool_yellow = C(140,122, 47), wool_cyan  = C( 47,140,140),
+        wool_pink  = C(140, 58,107), wool_orange = C(140, 74, 47),
+        wool_purple = C( 90, 47,140), wool_brown = C(107, 74, 47),
+        wool_builder = C(184,184,184),
+        -- Stone / rock
+        stone        = C( 74, 74, 74), stone_brick  = C( 63, 63, 63),
+        cobblestone  = C( 58, 58, 58), stone_slab   = C( 63, 63, 63),
+        stone_tiles  = C( 58, 58, 58), stone_pillar = C( 74, 74, 74),
+        stone_player_block = C( 74, 74, 74), stone_brick_builder = C( 63, 63, 63),
+        granite          = C( 90, 74, 69), granite_polished  = C(106, 90, 85),
+        diorite          = C(106,106,106), diorite_polished  = C(122,122,122),
+        andesite         = C( 80, 80, 80), andesite_polished = C( 90, 90, 90),
+        marble       = C(106,106,106), marble_pillar = C(106,106,106),
+        limestone    = C(138,126,106),
+        slate_brick  = C( 47, 47, 47), slate_tiles  = C( 47, 47, 47),
+        galactite    = C( 47, 42, 74), galactite_brick = C( 47, 42, 74),
+        kobblak      = C( 58, 58, 74), void_grass   = C( 42, 42, 42),
+        altar_block_one = C( 74, 74, 74), altar_block_two   = C( 74, 74, 74),
+        altar_block_three = C( 74, 74, 74), broken_altar_block = C( 74, 74, 74),
+        -- Wood
+        oak_log          = C(107, 74, 47), spruce_log      = C( 74, 53, 38),
+        birch_log        = C(122,106, 74), hickory_log     = C( 74, 53, 38),
+        wood_plank_oak   = C(107, 74, 47), wood_plank_oak_builder = C(107, 74, 47),
+        wood_plank_birch = C(122,106, 74), wood_plank_spruce = C( 74, 53, 38),
+        wood_plank_maple = C(107, 74, 47), bookshelf       = C( 90, 58, 42),
+        -- Earth / terrain
+        dirt         = C( 75, 58, 42), grass         = C( 47, 90, 47),
+        sand         = C(122,111, 74), red_sand      = C(122, 74, 58),
+        sandstone    = C(111,102, 80), sandstone_smooth    = C(122,114, 90),
+        sandstone_polished = C(111,102, 80),
+        red_sandstone = C(111, 74, 63), red_sandstone_smooth = C(122, 90, 79),
+        red_sandstone_polished = C(111, 74, 63),
+        moss_block   = C( 47, 95, 58), clay          = C(107, 90, 90),
+        haybale      = C(140,122, 47),
+        -- Clay variants
+        clay_black  = C( 42, 42, 42), clay_white  = C(184,184,184),
+        clay_red    = C(140, 47, 47), clay_blue   = C( 47, 79,140),
+        clay_green  = C( 47,107, 58), clay_yellow = C(140,122, 47),
+        clay_cyan   = C( 47,140,140), clay_pink   = C(140, 58,107),
+        clay_orange = C(140, 74, 47), clay_purple = C( 90, 47,140),
+        clay_dark_brown = C( 74, 53, 38), clay_dark_green = C( 47, 90, 47),
+        clay_light_brown = C(107, 74, 47), clay_light_green = C( 47,140, 90),
+        clay_gray   = C( 80, 80, 80), clay_tan    = C(122,111, 74),
+        -- Glass / ice / misc terrain
+        brick        = C(106, 47, 47),
+        glass        = C(154,167,176), magic_glass   = C(154,167,176),
+        ice          = C( 79,111,140), snow          = C(176,184,192),
+        snow_pile    = C(176,184,192),
+        glowstone    = C(140,122, 47), magma_block   = C(140, 58, 31),
+        concrete_green = C( 47,107, 58), blue_tile   = C( 47, 79,140),
+        -- Defense
+        obsidian     = C( 26, 15, 46), bedrock       = C( 42, 42, 42),
+        ceramic      = C( 90, 90,106), barrier       = C( 15, 15, 15),
+        -- Metal / ore blocks
+        iron_block   = C(138,138,138), iron_ore         = C(138,138,138),
+        iron_ore_mesh_block = C(138,138,138),
+        gold_block   = C(140,122, 47), diamond_block    = C( 47,111,140),
+        emerald_block = C( 47,140, 90), copper_block    = C(140, 90, 58),
+        steel_block  = C( 74, 79, 90), guilded_iron     = C(122,106, 74),
+        diamond_ore  = C( 47,111,140), emerald_ore      = C( 47,140, 90),
+        diamond_capture_block = C( 47,111,140),
+        -- Beds / team
+        bed          = C(140, 47, 58), og_bed        = C(140, 47, 58),
+        royale_bed   = C(140, 47, 58), fake_bed      = C( 90, 31, 37),
+        team_door    = C( 58, 58, 58),
+        -- Utility
+        enchant_table         = C( 47, 42, 74),
+        enchant_table_glitched = C( 47, 42, 74),
+        broken_enchant_table  = C( 47, 42, 74),
+        forge        = C( 74, 58, 47), chest         = C( 90, 63, 42),
+        personal_chest = C( 74, 51, 37), og_personal_chest = C( 74, 51, 37),
+        brewing_cauldron = C( 47, 74, 74), barrel    = C(107, 74, 47),
+        drawbridge   = C( 58, 74, 90), christmas_drawbridge = C( 58, 74, 90),
+        scaffold     = C( 90, 74, 53), christmas_scaffold   = C( 90, 74, 53),
+        zipline_base = C( 47, 90, 90), jump_pad      = C( 74, 90, 47),
+        gumdrop_bounce_pad = C( 74, 90, 47),
+        camera_turret = C( 58, 58, 74), lasso_hook   = C( 90, 74, 53),
+        ladder       = C(107, 74, 47), vine_ladder   = C( 47,106, 58),
+        survival_crate = C( 90, 63, 42), team_crate  = C( 90, 63, 42),
+        juggernaut_crate = C(138,138,138),
+        solar_panel  = C( 74, 79, 90), satellite_dish = C(138,138,138),
+        healing_fountain = C( 47,140, 90), healing_turret = C( 47,140, 90),
+        -- Combat / traps
+        tnt          = C(140, 58, 47), siege_tnt     = C(106, 42, 31),
+        snap_trap    = C( 74, 31, 47), invisible_landmine = C( 10, 10, 10),
+        tesla_trap   = C( 47, 47,106), void_turret   = C( 26, 10, 42),
+        spike_trap   = C( 58, 26, 26), grave_trap    = C( 58, 26, 26),
+        grave_trap_block = C( 58, 26, 26),
+        volatile_stone   = C(140, 58, 47),
+        exploding_tank_block = C(140, 58, 47),
+        lightning_coil   = C( 47, 47,106),
+        -- Cannons / machines
+        cannon       = C( 74, 74, 90), auto_cannon    = C( 74, 74, 90),
+        manual_cannon = C( 74, 74, 90), ballista      = C( 74, 74, 90),
+        classic_auto_turret = C( 74, 74, 90), spread_cannon = C( 74, 74, 90),
+        classic_shock_wave_turret = C( 74, 74, 90), squad_launcher = C( 74, 74, 90),
+        party_cannon = C( 90, 42, 42), firework_crate = C( 90, 42, 42),
+        vending_machine = C( 58, 58, 74), snow_cone_machine = C( 74,106,122),
+        broken_snow_cone_machine = C( 74,106,122),
+        target_dummy_block_tier_1 = C(138,138,138),
+        target_dummy_block_tier_2 = C( 47,111,140),
+        target_dummy_block_tier_3 = C( 47,140, 90),
+        target_dummy_block_tier_4 = C(122,106, 74),
+        -- Lucky blocks
+        lucky_block  = C(140,122, 47), cosmic_lucky_block   = C( 90, 47,140),
+        flying_lucky_block = C( 47,111,140), food_lucky_block = C(140, 90, 47),
+        huge_lucky_block = C(122,106, 47), lucky_block_trap  = C(106, 31, 47),
+        forge_lucky_block = C( 74, 58, 47),
+        lucky_block_item_smelter = C( 74, 58, 47),
+        halloween_lucky_block = C(106, 31, 47),
+        growing_halloween_lucky_block = C(106, 31, 47),
+        purple_lucky_block = C( 90, 47,140),
+        rainbow_lucky_block = C(140,122, 47),
+        new_years_lucky_block = C( 47,140,106),
+        new_years_lucky_block_2024 = C( 47,140,106),
+        magical_hero_lucky_block = C( 90, 47,140),
+        glitched_lucky_block = C( 15, 15, 15),
+        -- Special / Kit
+        beehive      = C(140,122, 47), chicken_egg_block = C(176,160,122),
+        egg_block    = C(176,160,122), fisherman_coral   = C( 47,140,122),
+        pinata       = C(140, 58,107), smoke_block       = C( 58, 58, 58),
+        damage_banner = C(140, 47, 47), heal_banner      = C( 47,140, 58),
+        defense_banner = C( 47, 74,140),
+        aquamarine_lantern = C( 47,140,140), lantern_block = C(140,122, 47),
+        nest         = C( 74, 58, 47), nest_deposit_block = C( 74, 58, 47),
+        pirate_gunpowder_barrel = C(140, 58, 47),
+        sacrophagus  = C(111,102, 80), desert_pot        = C(122,111, 74),
+        scarab_portal = C(122,111, 74),
+        cake_one     = C(176,160,122), cake_three    = C(176,160,122),
+        -- Nature / decoration
+        large_bush   = C( 47,106, 58), small_bush    = C( 47,106, 58),
+        flower_purple = C(106, 58,106), pumpkin      = C(140, 74, 47),
+        pumpkin_block = C(140, 74, 47), melon        = C( 47,106, 58),
+        carrot       = C(140, 74, 47),
+        crystalheart_flower = C( 47,140,122),
+        soulvine_flower = C( 90, 47,140), tearbloom_flower = C( 47,140,122),
+        radioactive_plant = C( 47,140, 90),
+        slime_block  = C( 47,106, 58), spider_web    = C( 90, 90, 90),
+        spider_queen_web = C( 90, 90, 90),
+        -- Void / dark
+        void_block   = C( 10, 10, 10), void_bait     = C( 10, 10, 10),
+        invisible_block = C( 10, 10, 10),
+        void_portal  = C(  5,  5,  5), void_teleport_portal = C( 26, 26, 42),
+        teleport_block = C( 26, 26, 42),
+        styx_entrance_portal = C( 26, 10, 42), styx_exit_portal = C( 26, 10, 42),
+        void_dirt    = C( 42, 26, 10), void_growth   = C( 26, 10, 42),
+        -- Misc / special
+        gum_block    = C(106, 90,122), dragon_egg    = C( 47, 47, 74),
+        fire_sheep_statue = C( 74, 31, 31),
+        excalibur    = C(138,138,138),
+        spawn_gadget = C(138,138,138),
+        global_generator_gadget = C(140,122, 47),
+        team_generator_gadget   = C(140,122, 47),
+        merchant_region_block   = C(140,122, 47),
+        black_market_shop       = C( 42, 42, 42),
+        defense_scanner_block_snapping = C( 47, 74,140),
+        jellyfish_block_snapping = C( 47,140,140),
+        pirate_flag  = C( 42, 42, 42),
+    }
+
+    local function applyPart(part, colorOverride)
         if saved[part] or part.Material == Enum.Material.Neon or part.Material == Enum.Material.ForceField then return end
         local stashed = {}
         for _, child in part:GetChildren() do
@@ -8745,9 +8910,11 @@ run(function()
                 table.insert(stashed, child)
             end
         end
-        local origMat = part.Material
-        part.Material = Enum.Material.SmoothPlastic
-        saved[part] = { Material = origMat, stashed = stashed }
+        local origMat   = part.Material
+        local origColor = part.Color
+        part.Material   = Enum.Material.SmoothPlastic
+        if colorOverride then part.Color = colorOverride end
+        saved[part] = { Material = origMat, Color = origColor, stashed = stashed }
     end
 
     local function restorePart(part)
@@ -8755,6 +8922,7 @@ run(function()
         if not entry then return end
         pcall(function()
             part.Material = entry.Material
+            part.Color    = entry.Color
             for _, child in entry.stashed do
                 child.Parent = part
             end
@@ -8762,14 +8930,10 @@ run(function()
         saved[part] = nil
     end
 
-    local function scanModel(model)
-        if model:IsA('BasePart') then
-            pcall(applyPart, model)
-        end
+    local function scanBlock(model, col)
+        if model:IsA('BasePart') then pcall(applyPart, model, col) end
         for _, v in model:GetDescendants() do
-            if v:IsA('BasePart') then
-                pcall(applyPart, v)
-            end
+            if v:IsA('BasePart') then pcall(applyPart, v, col) end
         end
     end
 
@@ -8781,12 +8945,24 @@ run(function()
                 repeat task.wait() until store.map or not KingAuto.Enabled
                 if not KingAuto.Enabled then return end
 
-                pcall(scanModel, store.map)
+                -- Apply color map to placed blocks first (saves them so general scan skips)
+                local blocks = store.map:FindFirstChild('Blocks')
+                if blocks then
+                    for _, blockModel in blocks:GetChildren() do
+                        pcall(scanBlock, blockModel, blockColors[blockModel.Name])
+                    end
+                end
 
+                -- Strip textures + SmoothPlastic across the whole map
+                for _, v in store.map:GetDescendants() do
+                    if v:IsA('BasePart') then pcall(applyPart, v, nil) end
+                end
+
+                -- Watch for newly placed blocks
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     task.defer(function()
                         if not KingAuto.Enabled then return end
-                        pcall(scanModel, v)
+                        pcall(scanBlock, v, blockColors[v.Name])
                     end)
                 end))
             else
