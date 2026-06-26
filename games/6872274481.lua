@@ -8524,6 +8524,7 @@ run(function()
     end
 
     function RealLifeBedWars.ApplyLighting()
+        if not RealLifeBedWars.Config.Enabled then return end
         if not Settings.CinematicLighting.Enabled then return end
         local season, preset = getSeason(), getPreset()
         local weatherName, intensity = getWeatherName(), Settings.WeatherIntensity.Value / 100
@@ -8564,6 +8565,7 @@ run(function()
     end
 
     function RealLifeBedWars.ApplyMaterials()
+        if not RealLifeBedWars.Config.Enabled then return end
         RealLifeBedWars.RestoreMaterials()
         if not Settings.MaterialOverhaul.Enabled then return end
         local season = getSeason()
@@ -8600,6 +8602,7 @@ run(function()
     end
 
     function RealLifeBedWars.ApplySeasonDetails()
+        if not RealLifeBedWars.Config.Enabled then return end
         if not Settings.DecorativeDetails.Enabled then return end
         if decorFolder then decorFolder:Destroy() end
         decorFolder = Instance.new('Folder'); decorFolder.Name = 'AetherIRLDecorations'; decorFolder.Parent = workspace
@@ -8621,6 +8624,7 @@ run(function()
     end
 
     function RealLifeBedWars.ApplyParticles()
+        if not RealLifeBedWars.Config.Enabled then return end
         if weatherConnection then weatherConnection:Disconnect(); weatherConnection = nil end
         if particleFolder then particleFolder:Destroy() end
         if not Settings.Particles.Enabled then return end
@@ -8657,6 +8661,7 @@ run(function()
     function RealLifeBedWars.RefreshMap() if not RealLifeBedWars.Config.Enabled then return end RealLifeBedWars.ApplyLighting(); RealLifeBedWars.ApplyMaterials(); RealLifeBedWars.ApplySeasonDetails(); RealLifeBedWars.ApplyParticles(); RealLifeBedWars.ApplyAmbience() end
 
     function RealLifeBedWars.ApplyAmbience()
+        if not RealLifeBedWars.Config.Enabled then return end
         if ambienceFolder then ambienceFolder:Destroy() end
         if not Settings.AmbientSounds.Enabled then return end
         ambienceFolder = Instance.new('Folder'); ambienceFolder.Name = 'AetherIRLAmbience'; ambienceFolder.Parent = soundService
