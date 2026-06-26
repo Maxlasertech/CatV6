@@ -4250,19 +4250,12 @@ run(function()
                                                     local projmeta = bedwars.ProjectileMeta[projectile]
                                                     local isBow = itemMeta.maxStrengthChargeSec ~= nil
                                                     local maxChargeSec = itemMeta.maxStrengthChargeSec or 1
-                                                    local minScalar = itemMeta.minStrengthScalar or 1
-                                                    local drawDuration, chargeRatio, projSpeed
-                                                    if isBow then
-                                                        drawDuration = math.min(FireRate.Value, maxChargeSec)
-                                                        chargeRatio = drawDuration / maxChargeSec
-                                                        projSpeed = projmeta.launchVelocity * (minScalar + (1 - minScalar) * chargeRatio)
-                                                    else
-                                                        drawDuration = 1
-                                                        chargeRatio = 1
-                                                        projSpeed = projmeta.launchVelocity
-                                                    end
+                                                    local drawDuration = isBow and math.min(FireRate.Value, maxChargeSec) or 1
+                                                    local chargeRatio = drawDuration / maxChargeSec
+                                                    -- always use full launch velocity so the server accepts the shot
+                                                    local projSpeed = projmeta.launchVelocity
                                                     local gravity = projmeta.gravitationalAcceleration or 196.2
-                                                    warn(string.format('[FastHits] item=%s isBow=%s maxCharge=%.2f drawDur=%.3f chargeRatio=%.2f speed=%.1f/%.1f', item.itemType, tostring(isBow), maxChargeSec, drawDuration, chargeRatio, projSpeed, projmeta.launchVelocity))
+                                                    warn(string.format('[FastHits] item=%s isBow=%s maxCharge=%.2f drawDur=%.3f chargeRatio=%.2f speed=%.1f', item.itemType, tostring(isBow), maxChargeSec, drawDuration, chargeRatio, projSpeed))
                                                     local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                                     local hotbar = getHotbar(item.tool)
                                                     if hotbar then
