@@ -4269,7 +4269,7 @@ run(function()
                                                             ammo,
                                                             projectile,
                                                             shootPosition,
-                                                            pos,
+                                                            selfpos,
                                                             sdir * projSpeed,
                                                             id,
                                                             {
