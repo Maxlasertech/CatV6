@@ -9445,3 +9445,182 @@ run(function()
     	end,
     })
 end)
+run(function()
+    local MannyReaper
+    local Color
+    local Size
+    local Thickness
+    local Gap
+    local Dot
+    local Outline
+    local oldShowCrosshair
+
+    local lines = {}
+
+    local function createCrosshair()
+        for _, v in lines do
+            pcall(function() v:Remove() end)
+        end
+        table.clear(lines)
+
+        for i = 1, 10 do
+            local line = Drawing.new('Line')
+            line.Visible = false
+            line.ZIndex = 5
+            table.insert(lines, line)
+        end
+    end
+
+    local function updateCrosshair()
+        if not MannyReaper.Enabled then return end
+        local center = gameCamera.ViewportSize / 2
+        local size = Size.Value
+        local gap = Gap.Value
+        local thickness = Thickness.Value
+        local color = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+        local outlinecolor = Color3.new(0, 0, 0)
+
+        lines[1].From = Vector2.new(center.X, center.Y - gap)
+        lines[1].To = Vector2.new(center.X, center.Y - gap - size)
+        lines[1].Color = color
+        lines[1].Thickness = thickness
+        lines[1].Visible = true
+
+        lines[2].From = Vector2.new(center.X, center.Y + gap)
+        lines[2].To = Vector2.new(center.X, center.Y + gap + size)
+        lines[2].Color = color
+        lines[2].Thickness = thickness
+        lines[2].Visible = true
+
+        lines[3].From = Vector2.new(center.X - gap, center.Y)
+        lines[3].To = Vector2.new(center.X - gap - size, center.Y)
+        lines[3].Color = color
+        lines[3].Thickness = thickness
+        lines[3].Visible = true
+
+        lines[4].From = Vector2.new(center.X + gap, center.Y)
+        lines[4].To = Vector2.new(center.X + gap + size, center.Y)
+        lines[4].Color = color
+        lines[4].Thickness = thickness
+        lines[4].Visible = true
+
+        if Outline.Enabled then
+            lines[5].From = Vector2.new(center.X, center.Y - gap)
+            lines[5].To = Vector2.new(center.X, center.Y - gap - size)
+            lines[5].Color = outlinecolor
+            lines[5].Thickness = thickness + 2
+            lines[5].Visible = true
+
+            lines[6].From = Vector2.new(center.X, center.Y + gap)
+            lines[6].To = Vector2.new(center.X, center.Y + gap + size)
+            lines[6].Color = outlinecolor
+            lines[6].Thickness = thickness + 2
+            lines[6].Visible = true
+
+            lines[7].From = Vector2.new(center.X - gap, center.Y)
+            lines[7].To = Vector2.new(center.X - gap - size, center.Y)
+            lines[7].Color = outlinecolor
+            lines[7].Thickness = thickness + 2
+            lines[7].Visible = true
+
+            lines[8].From = Vector2.new(center.X + gap, center.Y)
+            lines[8].To = Vector2.new(center.X + gap + size, center.Y)
+            lines[8].Color = outlinecolor
+            lines[8].Thickness = thickness + 2
+            lines[8].Visible = true
+        else
+            for i = 5, 8 do
+                lines[i].Visible = false
+            end
+        end
+
+        if Dot.Enabled then
+            lines[9].From = Vector2.new(center.X - 1, center.Y)
+            lines[9].To = Vector2.new(center.X + 1, center.Y)
+            lines[9].Color = color
+            lines[9].Thickness = thickness
+            lines[9].Visible = true
+        else
+            lines[9].Visible = false
+        end
+    end
+
+    MannyReaper = vape.Categories.Render:CreateModule({
+        Name = 'Manny Reaper',
+        Function = function(callback)
+            if callback then
+                createCrosshair()
+                pcall(function()
+                    oldShowCrosshair = bedwars.ViewmodelController.showCrosshair
+                    bedwars.ViewmodelController.showCrosshair = function() end
+                    bedwars.ViewmodelController:hideCrosshair()
+                end)
+                MannyReaper:Clean(runService.RenderStepped:Connect(updateCrosshair))
+            else
+                for _, v in lines do
+                    pcall(function() v:Remove() end)
+                end
+                table.clear(lines)
+                pcall(function()
+                    if oldShowCrosshair then
+                        bedwars.ViewmodelController.showCrosshair = oldShowCrosshair
+                        oldShowCrosshair = nil
+                        bedwars.ViewmodelController:showCrosshair()
+                    end
+                end)
+            end
+        end,
+        Tooltip = 'Custom crosshair',
+    })
+
+    Color = MannyReaper:CreateColorSlider({
+        Name = 'Color',
+        DefaultHue = 0.52,
+        DefaultSat = 0.8,
+        DefaultValue = 1,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+    Size = MannyReaper:CreateSlider({
+        Name = 'Size',
+        Min = 1,
+        Max = 30,
+        Default = 6,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+    Thickness = MannyReaper:CreateSlider({
+        Name = 'Thickness',
+        Min = 1,
+        Max = 10,
+        Default = 1,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+    Gap = MannyReaper:CreateSlider({
+        Name = 'Gap',
+        Min = 0,
+        Max = 20,
+        Default = 3,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+    Dot = MannyReaper:CreateToggle({
+        Name = 'Center Dot',
+        Default = false,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+    Outline = MannyReaper:CreateToggle({
+        Name = 'Outline',
+        Default = true,
+        Function = function()
+            updateCrosshair()
+        end,
+    })
+end)
