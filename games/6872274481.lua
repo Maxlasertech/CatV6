@@ -4024,9 +4024,10 @@ run(function()
     local FastHits
     local Legit
     local FireRate
+    local BowCharge
     local Whitelist
     local FireRates = {}
-    
+
     local function getAmmo(check)
     	for _, item in store.inventory.inventory.items do
     		if check.ammoItemTypes and table.find(check.ammoItemTypes, item.itemType) then
@@ -4250,12 +4251,12 @@ run(function()
                                                     local projmeta = bedwars.ProjectileMeta[projectile]
                                                     local isBow = itemMeta.maxStrengthChargeSec ~= nil
                                                     local maxChargeSec = itemMeta.maxStrengthChargeSec or 1
-                                                    local drawDuration = isBow and math.min(FireRate.Value, maxChargeSec) or 1
-                                                    local chargeRatio = drawDuration / maxChargeSec
-                                                    -- always use full launch velocity so the server accepts the shot
-                                                    local projSpeed = projmeta.launchVelocity
+                                                    local minScalar = itemMeta.minStrengthScalar or 0
+                                                    local chargeRatio = isBow and math.clamp(BowCharge.Value / 100, 0, 1) or 1
+                                                    local drawDuration = chargeRatio * maxChargeSec
+                                                    local projSpeed = projmeta.launchVelocity * (isBow and (minScalar + (1 - minScalar) * chargeRatio) or 1)
                                                     local gravity = projmeta.gravitationalAcceleration or 196.2
-                                                    warn(string.format('[FastHits] item=%s isBow=%s maxCharge=%.2f drawDur=%.3f chargeRatio=%.2f speed=%.1f', item.itemType, tostring(isBow), maxChargeSec, drawDuration, chargeRatio, projSpeed))
+                                                    warn(string.format('[FastHits] item=%s isBow=%s charge=%.0f%% speed=%.1f/%.1f drawDur=%.3f', item.itemType, tostring(isBow), chargeRatio*100, projSpeed, projmeta.launchVelocity, drawDuration))
                                                     local oldhotbar, oldtool = store.inventory.hotbarSlot, store.hand.tool
                                                     local hotbar = getHotbar(item.tool)
                                                     if hotbar then
@@ -4473,6 +4474,7 @@ run(function()
             pcall(function()
                 Legit.Object.Visible = callback
                 FireRate.Object.Visible = callback
+                BowCharge.Object.Visible = callback
                 Whitelist.Object.Visible = callback
             end)
     	end
@@ -4498,6 +4500,16 @@ run(function()
     	Darker = true,
     	Visible = false,
     	Default = 0.05
+    })
+    BowCharge = Killaura:CreateSlider({
+        Name = 'Bow charge',
+        Suffix = '%',
+        Min = 0,
+        Max = 100,
+        Default = 75,
+        Darker = true,
+        Visible = false,
+        Tooltip = 'Bow charge % for Fast Hits (lower = less damage)'
     })
     MaxTargets = Killaura:CreateSlider({
         Name = 'Max targets',
