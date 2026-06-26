@@ -17806,6 +17806,7 @@ run(function()
     local HephaestusKit
     local AutoRepair
     local Threshold
+    local AntiAttackBlock
 
     local COOLDOWN = 6
     local ABILITY_NAMES = {'hephaestus_self_repair', 'tinker_self_repair'}
@@ -17833,9 +17834,22 @@ run(function()
         return false
     end
 
+    local oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
+
     HephaestusKit = vape.Categories.Kits:CreateModule({
         Name = 'Hephaestus Kit',
         Function = function(callback)
+            if callback then
+                bedwars.SwordController.isClickingTooFast = function(self, ...)
+                    if AntiAttackBlock and AntiAttackBlock.Enabled then
+                        self.lastSwing = os.clock()
+                        return false
+                    end
+                    return oldIsClickingTooFast(self, ...)
+                end
+            else
+                bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
+            end
             if callback then
                 local maxShield = 0
                 local lastFired = 0
@@ -17937,6 +17951,12 @@ run(function()
         Suffix = function(val)
             return val .. '%'
         end
+    })
+
+    AntiAttackBlock = HephaestusKit:CreateToggle({
+        Name = 'Anti Attack Block',
+        Default = true,
+        Tooltip = 'Allow attacking while Hephaestus repair is active'
     })
 end)
 
