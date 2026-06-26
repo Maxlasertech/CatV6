@@ -8976,6 +8976,30 @@ run(function()
     })
 end)
 
+run(function()
+    local DarkSky
+    local effect
+
+    DarkSky = vape.Categories.Render:CreateModule({
+        Name = 'Dark Sky',
+        Tooltip = 'Slightly darkens the sky and ambient lighting',
+        Function = function(callback)
+            if callback then
+                effect = Instance.new('ColorCorrectionEffect')
+                effect.Brightness = -0.35
+                effect.Contrast   = 0.1
+                effect.Saturation = -0.1
+                effect.Parent     = lightingService
+            else
+                if effect then
+                    effect:Destroy()
+                    effect = nil
+                end
+            end
+        end,
+    })
+end)
+
 --[[
     Utility
 ]]
