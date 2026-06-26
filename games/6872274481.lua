@@ -8543,50 +8543,38 @@ end)
 
 run(function()
     local PotESP
-    local Background
-    local Color
 
     local Reference = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
 
+    local function getPos(v)
+        if v:IsA('Model') then
+            local p = v.PrimaryPart or v:FindFirstChildWhichIsA('BasePart')
+            return p and p.Position
+        end
+        return v:IsA('BasePart') and v.Position
+    end
+
     local function Added(v)
         if Reference[v] then return end
-        local adornee = v:IsA('Model') and (v.PrimaryPart or v:FindFirstChildWhichIsA('BasePart')) or v
-        if not adornee then return end
-
-        local billboard = Instance.new('BillboardGui')
-        billboard.Parent = Folder
-        billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-        billboard.Size = UDim2.fromOffset(36, 36)
-        billboard.AlwaysOnTop = true
-        billboard.ClipsDescendants = false
-        billboard.Adornee = adornee
-        local blur = addBlur(billboard)
-        blur.Visible = Background.Enabled
-        local frame = Instance.new('Frame')
-        frame.Size = UDim2.fromScale(1, 1)
-        frame.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-        frame.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
-        frame.Parent = billboard
-        local image = Instance.new('ImageLabel')
-        image.Size = UDim2.fromOffset(32, 32)
-        image.BackgroundTransparency = 1
-        image.Image = bedwars.getIcon({ itemType = 'desert_pot' }, true)
-        image.Parent = frame
-        local layout = Instance.new('UIListLayout')
-        layout.FillDirection = Enum.FillDirection.Horizontal
-        layout.Padding = UDim.new(0, 4)
-        layout.VerticalAlignment = Enum.VerticalAlignment.Center
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-            billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 4, 36), 36)
-        end)
-        layout.Parent = frame
+        local label = Instance.new('TextLabel')
+        label.Size = UDim2.fromOffset(60, 18)
+        label.AnchorPoint = Vector2.new(0.5, 1)
+        label.BackgroundColor3 = Color3.new(0, 0, 0)
+        label.BackgroundTransparency = 0.4
+        label.BorderSizePixel = 0
+        label.TextSize = 12
+        label.Font = Enum.Font.GothamBold
+        label.TextColor3 = Color3.fromRGB(255, 210, 100)
+        label.Text = 'Pot'
+        label.Visible = false
+        label.RichText = true
         local corner = Instance.new('UICorner')
         corner.CornerRadius = UDim.new(0, 4)
-        corner.Parent = frame
-        Reference[v] = billboard
+        corner.Parent = label
+        label.Parent = Folder
+        Reference[v] = label
     end
 
     local function Removing(v)
@@ -8606,6 +8594,23 @@ run(function()
                     end
                 end))
                 PotESP:Clean(workspace.DescendantRemoving:Connect(Removing))
+                PotESP:Clean(runService.PreRender:Connect(function()
+                    local char = lplr.Character
+                    local root = char and char:FindFirstChild('HumanoidRootPart')
+                    for pot, label in Reference do
+                        local pos = getPos(pot)
+                        if not pos then label.Visible = false continue end
+                        local screen, vis = gameCamera:WorldToViewportPoint(pos + Vector3.new(0, 2, 0))
+                        label.Visible = vis
+                        if vis then
+                            local dist = root and math.round((root.Position - pos).Magnitude) or 0
+                            label.Text = string.format('Pot <font color="#aaaaaa">• %dm</font>', dist)
+                            local size = getfontsize(removeTags(label.Text), label.TextSize, label.FontFace, Vector2.new(100000, 100000))
+                            label.Size = UDim2.fromOffset(size.X + 10, size.Y + 6)
+                            label.Position = UDim2.fromOffset(screen.X, screen.Y)
+                        end
+                    end
+                end))
                 for _, v in workspace:GetDescendants() do
                     if v.Name == 'desert_pot' then
                         task.spawn(Added, v)
@@ -8616,33 +8621,7 @@ run(function()
                 Folder:ClearAllChildren()
             end
         end,
-        Tooltip = 'Shows desert pots on the map'
-    })
-
-    Background = PotESP:CreateToggle({
-        Name = 'Background',
-        Function = function(callback)
-            if Color and Color.Object then
-                Color.Object.Visible = callback
-            end
-            for _, v in Reference do
-                v.Frame.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
-                v.Blur.Visible = callback
-            end
-        end,
-        Default = true
-    })
-    Color = PotESP:CreateColorSlider({
-        Name = 'Background Color',
-        DefaultValue = 0,
-        DefaultOpacity = 0.5,
-        Function = function(hue, sat, val, opacity)
-            for _, v in Reference do
-                v.Frame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-                v.Frame.BackgroundTransparency = 1 - opacity
-            end
-        end,
-        Darker = true
+        Tooltip = 'Shows desert pots with distance'
     })
 end)
 
