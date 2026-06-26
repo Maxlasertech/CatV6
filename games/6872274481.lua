@@ -3995,11 +3995,7 @@ run(function()
     local LegitAura
     local Particles, Boxes, Rings = {}, {}, {}
     local anims, AnimDelay, AnimTween, armC0 = vape.Libraries.auraanims, tick()
-    local AttackRemote = {FireServer = function(self, ...) end}
     local projectileRemote = {InvokeServer = function(self, ...) end}
-    task.spawn(function()
-        AttackRemote = bedwars.Client:Get(remotes.AttackEntity).instance
-    end)
     task.spawn(function()
     	projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
     end)
@@ -4206,7 +4202,7 @@ run(function()
                                         store.attackReachUpdate = tick() + 1
                                         swingCooldown = tick()
                                         
-                                        AttackRemote:FireServer({
+                                        bedwars.Client:Get(remotes.AttackEntity):SendToServer({
                                             weapon = sword.tool,
                                             chargedAttack = {chargeRatio = 0},
                                             entityInstance = v.Character,
@@ -18398,32 +18394,51 @@ run(function()
     local MessageText
     local oldkillfeed
 
-    local function spoofKillfeedValue(value, depth)
+    local function formatKillfeedText(value)
+        return value
+            :gsub('{killer}', KillerName.Value)
+            :gsub('{victim}', VictimName.Value)
+            :gsub('{weapon}', WeaponName.Value)
+    end
+
+    local function spoofKillfeedValue(value, key, depth, seen)
         if type(value) == 'string' then
             if value:find('{killer}') or value:find('{victim}') or value:find('{weapon}') then
-                return value
-                    :gsub('{killer}', KillerName.Value)
-                    :gsub('{victim}', VictimName.Value)
-                    :gsub('{weapon}', WeaponName.Value)
+                return formatKillfeedText(value)
             end
-            return MessageText.Value ~= '' and MessageText.Value or value
+
+            local keyText = key and tostring(key):lower() or ''
+            if keyText:find('killer') then
+                return KillerName.Value
+            end
+            if keyText:find('victim') then
+                return VictimName.Value
+            end
+            if keyText:find('weapon') then
+                return WeaponName.Value
+            end
+            if depth == 0 or keyText == 'message' or keyText == 'text' or (keyText:find('kill') and keyText:find('text')) then
+                return formatKillfeedText(MessageText.Value)
+            end
+
+            return value
         end
+
         if type(value) ~= 'table' or depth > 4 then
             return value
         end
 
-        local copy = {}
-        for i, v in value do
-            copy[i] = spoofKillfeedValue(v, depth + 1)
+        seen = seen or {}
+        if seen[value] then
+            return seen[value]
         end
-        copy.killerName = KillerName.Value
-        copy.killer = KillerName.Value
-        copy.victimName = VictimName.Value
-        copy.victim = VictimName.Value
-        copy.weaponName = WeaponName.Value
-        copy.weapon = WeaponName.Value
-        copy.message = MessageText.Value
-        copy.text = MessageText.Value
+
+        local copy = {}
+        seen[value] = copy
+        for i, v in value do
+            copy[i] = spoofKillfeedValue(v, i, depth + 1, seen)
+        end
+
         return copy
     end
 
@@ -18435,7 +18450,7 @@ run(function()
                 bedwars.KillFeedController.addToKillFeed = function(self, ...)
                     local args = {...}
                     for i, v in args do
-                        args[i] = spoofKillfeedValue(v, 0)
+                        args[i] = spoofKillfeedValue(v, i, 0)
                     end
                     return oldkillfeed(self, table.unpack(args))
                 end
@@ -18444,7 +18459,7 @@ run(function()
                 oldkillfeed = nil
             end
         end,
-        Tooltip = 'Edit killfeed messages into client-sided, custom ones.'
+        Tooltip = 'Edits killfeed messages client-sided.'
     })
     KillerName = KillfeedSpoofer:CreateTextBox({
         Name = 'Killer',
