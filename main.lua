@@ -30,8 +30,29 @@ end
 local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
 
+local function isLoadingScreenDisabled()
+	return isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true'
+end
+
+local function getLoadingScreenParent()
+	local parent
+	if gethui then
+		local ok, result = pcall(gethui)
+		if ok and result then parent = result end
+	end
+	if not parent then
+		local ok, result = pcall(function()
+			return cloneref(game:GetService('CoreGui'))
+		end)
+		if ok then parent = result end
+	end
+	return parent
+end
+
 local function createInlineLoadingScreen()
-	local parent = gethui and gethui() or cloneref(game:GetService('CoreGui'))
+	if isLoadingScreenDisabled() then return nil end
+	local parent = getLoadingScreenParent()
+	if not parent then return nil end
 	local existing = parent:FindFirstChild('AetherCoreLoading')
 	if existing and _G.AetherCoreSetLoadingStatus then return existing end
 
@@ -179,14 +200,20 @@ local function createInlineLoadingScreen()
 	return screen
 end
 
+local closeLoadingScreen
+
 local function setLoadingStatus(text, progress)
+	if isLoadingScreenDisabled() then
+		closeLoadingScreen()
+		return
+	end
 	createInlineLoadingScreen()
 	if _G.AetherCoreSetLoadingStatus then
 		pcall(_G.AetherCoreSetLoadingStatus, text, progress)
 	end
 end
 
-local function closeLoadingScreen()
+closeLoadingScreen = function()
 	local screen = _G.AetherCoreLoadingScreen
 	if screen and screen.Parent then
 		screen:Destroy()
@@ -292,7 +319,13 @@ end
 local function finishLoading()
 	setLoadingStatus('Finalizing...', 0.94)
 	vape.Init = nil
-	vape:Load()
+	local loaded, loadError = xpcall(function()
+		vape:Load()
+	end, debug.traceback)
+	if not loaded then
+		closeLoadingScreen()
+		error(loadError)
+	end
 	task.spawn(function()
 		repeat
 			vape:Save()
@@ -363,6 +396,9 @@ if not isfolder('aethercorev2/assets/'..gui) then
 end
 if not isfile('aethercorev2/profiles/commit.txt') then
 	writefile('aethercorev2/profiles/commit.txt', 'main')
+end
+if not isfile('aethercorev2/profiles/disableloading.txt') then
+	writefile('aethercorev2/profiles/disableloading.txt', 'false')
 end
 
 getgenv().used_init = true

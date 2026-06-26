@@ -13,8 +13,29 @@ local delfile = delfile or function(file)
 	writefile(file, '')
 end
 
+local function isLoadingScreenDisabled()
+	return isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true'
+end
+
+local function getLoadingScreenParent()
+	local parent
+	if gethui then
+		local ok, result = pcall(gethui)
+		if ok and result then parent = result end
+	end
+	if not parent then
+		local ok, result = pcall(function()
+			return cloneref(game:GetService('CoreGui'))
+		end)
+		if ok then parent = result end
+	end
+	return parent
+end
+
 local function createLoadingScreen()
-	local parent = gethui and gethui() or cloneref(game:GetService('CoreGui'))
+	if isLoadingScreenDisabled() then return nil end
+	local parent = getLoadingScreenParent()
+	if not parent then return nil end
 	local existing = parent:FindFirstChild('AetherCoreLoading')
 	if existing and _G.AetherCoreSetLoadingStatus then return existing end
 
@@ -163,6 +184,9 @@ local function createLoadingScreen()
 end
 
 local loadingScreen = createLoadingScreen()
+if not _G.AetherCoreSetLoadingStatus then
+	_G.AetherCoreSetLoadingStatus = function() end
+end
 
 local function downloadFile(path, func)
 	if not isfile(path) then
@@ -226,6 +250,10 @@ if not shared.VapeDeveloper then
 		wipeFolder('aethercorev2/libraries')
 	end
 	writefile('aethercorev2/profiles/commit.txt', commit)
+end
+
+if not isfile('aethercorev2/profiles/disableloading.txt') then
+	writefile('aethercorev2/profiles/disableloading.txt', 'false')
 end
 
 _G.AetherCoreSetLoadingStatus('Checking version...', 0.62)

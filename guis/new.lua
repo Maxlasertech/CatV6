@@ -7544,6 +7544,20 @@ mainapi.MultiKeybind = general:CreateToggle({
 	Name = 'Enable Multi-Keybinding',
 	Tooltip = 'Allows multiple keys to be bound to a module (eg. G + H)'
 })
+general:CreateToggle({
+	Name = 'Disable Loading Screen',
+	Function = function(callback)
+		if not isfolder('aethercorev2/profiles') then
+			makefolder('aethercorev2/profiles')
+		end
+		writefile('aethercorev2/profiles/disableloading.txt', callback and 'true' or 'false')
+		if callback and _G.AetherCoreCloseLoadingScreen then
+			pcall(_G.AetherCoreCloseLoadingScreen)
+		end
+	end,
+	Default = isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true',
+	Tooltip = 'Prevents AetherCore from showing its startup loading screen.'
+})
 general:CreateButton({
 	Name = 'Reset current profile',
 	Function = function()

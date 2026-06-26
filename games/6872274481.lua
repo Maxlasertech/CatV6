@@ -10561,26 +10561,49 @@ run(function()
 end)
 
 run(function()
-    local old
+    local oldUpdateMomentum
+    local momentumRemote
+    local targetMomentum = 9e9
+
+    local function setKrystalMomentum(controller)
+        controller = controller or bedwars.GlacialSkaterController
+        if not controller then return end
+        controller.momentum = targetMomentum
+        controller.lastMomentumReport = targetMomentum
+        if momentumRemote then
+            pcall(function()
+                momentumRemote:SendToServer({ momentumValue = targetMomentum })
+            end)
+        end
+    end
     
     vape.Categories.Kits:CreateModule({
         Name = 'Krystal Disabler',
         Function = function(callback)
-            if callback then
-                bedwars.GlacialSkaterController:updateMomentum(9e9)
-                old = bedwars.GlacialSkaterController.updateMomentum
-                bedwars.GlacialSkaterController.updateMomentum = function(self)
-                    self.momentum = 9e9
-                    self.lastMomentumReport = 9e9
-                    bedwars.Client:Get('MomentumUpdate'):SendToServer({
-                        momentumValue = 9e9
-                    })
-                end
-                bedwars.GlacialSkaterController:updateMomentum()
-            else
-                bedwars.GlacialSkaterController.updateMomentum = old
+            local controller = bedwars.GlacialSkaterController
+            if not controller or type(controller.updateMomentum) ~= 'function' then
+                notif('Krystal Disabler', 'Krystal controller is unavailable.', 5, 'warning')
+                return
             end
-        end
+
+            if callback then
+                if oldUpdateMomentum then return end
+                momentumRemote = bedwars.Client and bedwars.Client:Get('MomentumUpdate')
+                oldUpdateMomentum = controller.updateMomentum
+                controller.updateMomentum = function(self, ...)
+                    local result = oldUpdateMomentum(self, ...)
+                    setKrystalMomentum(self)
+                    return result
+                end
+                setKrystalMomentum(controller)
+                pcall(controller.updateMomentum, controller)
+            elseif oldUpdateMomentum then
+                controller.updateMomentum = oldUpdateMomentum
+                oldUpdateMomentum = nil
+                momentumRemote = nil
+            end
+        end,
+        Tooltip = 'Keeps Krystal momentum active while safely restoring the original controller when disabled.'
     })
 end)
 
