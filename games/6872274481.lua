@@ -4263,8 +4263,8 @@ run(function()
                                                         local sdir, id = CFrame.lookAt(selfpos, calc).LookVector, httpService:GenerateGUID(true)
                                                         local shootPosition = (CFrame.new(selfpos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
 
-                                                        bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 0})
-                                                        local res = projectileRemote:InvokeServer(
+                                                        bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 1})
+                                                        local _, res = pcall(function() return projectileRemote:InvokeServer(
                                                             item.tool,
                                                             ammo,
                                                             projectile,
@@ -4273,11 +4273,11 @@ run(function()
                                                             sdir * projSpeed,
                                                             id,
                                                             {
-                                                                drawDurationSeconds = 0,
+                                                                drawDurationSeconds = 1,
                                                                 shotId = httpService:GenerateGUID(false)
                                                             },
                                                             workspace:GetServerTimeNow() - 0.045
-                                                        )
+                                                        ) end)
                                                         if res then
                                                             pcall(function()
                                                                 res.Parent = replicatedStorage
