@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 2
+local VERSION = 3
 local run = function(func)
 	func()
 end
@@ -18541,6 +18541,215 @@ run(function()
         Name = 'Anti Attack Block',
         Default = true,
         Tooltip = 'Allow attacking while Hephaestus repair is active'
+    })
+end)
+
+run(function()
+    local PlayerTracker
+    local TrackedUsers
+    local RefreshInterval
+
+    local BEDWARS_ROOT = game.PlaceId
+    local HttpService = game:GetService('HttpService')
+    local userIdCache = {}
+    local lastStatuses = {}
+
+    local function httpReq(url, method, body)
+        local fn = (request ~= nil and request) or (syn and syn.request) or (http_request ~= nil and http_request) or nil
+        if fn then
+            local cookie = ''
+            pcall(function() cookie = getcookies()['.ROBLOSECURITY'] end)
+            local opts = {
+                Url = url,
+                Method = method or 'GET',
+                Headers = { ['Content-Type'] = 'application/json' },
+            }
+            if cookie ~= '' then opts.Headers['Cookie'] = '.ROBLOSECURITY=' .. cookie end
+            if body then opts.Body = body end
+            local ok, r = pcall(fn, opts)
+            return ok and r or nil
+        end
+        if (not method or method == 'GET') then
+            local ok, r = pcall(function() return game:HttpGet(url, true) end)
+            return ok and { StatusCode = 200, Body = r } or nil
+        end
+        return nil
+    end
+
+    local function jsonDecode(s)
+        local ok, r = pcall(function() return HttpService:JSONDecode(s) end)
+        return ok and r or nil
+    end
+
+    local function getUserId(name)
+        if userIdCache[name] then return userIdCache[name] end
+        local r = httpReq(
+            'https://users.roblox.com/v1/usernames/users', 'POST',
+            HttpService:JSONEncode({ usernames = { name }, excludeBannedUsers = false })
+        )
+        if not r or r.StatusCode ~= 200 then return nil end
+        local d = jsonDecode(r.Body)
+        if not d or not d.data or #d.data == 0 then return nil end
+        userIdCache[name] = d.data[1].id
+        return d.data[1].id
+    end
+
+    local STATUS_COLORS = {
+        ['Offline']    = Color3.fromRGB(80,  80,  80),
+        ['Online']     = Color3.fromRGB(100, 200, 255),
+        ['Lobby']      = Color3.fromRGB(255, 200, 60),
+        ['In Game']    = Color3.fromRGB(80,  220, 80),
+        ['Other Game'] = Color3.fromRGB(200, 100, 255),
+        ['Error']      = Color3.fromRGB(150, 150, 150),
+    }
+
+    local function getStatus(name)
+        local id = getUserId(name)
+        if not id then return 'Error' end
+        local r = httpReq(
+            'https://presence.roblox.com/v1/presence/users', 'POST',
+            HttpService:JSONEncode({ userIds = { id } })
+        )
+        if not r or r.StatusCode ~= 200 then return 'Error' end
+        local d = jsonDecode(r.Body)
+        if not d or not d.userPresences or #d.userPresences == 0 then return 'Error' end
+        local p = d.userPresences[1]
+        local pt = p.userPresenceType
+        if pt == 0 then return 'Offline' end
+        if pt == 1 then return 'Online' end
+        if pt == 2 then
+            if p.rootPlaceId == BEDWARS_ROOT then
+                return p.placeId == BEDWARS_ROOT and 'Lobby' or 'In Game'
+            end
+            return 'Other Game'
+        end
+        return 'Error'
+    end
+
+    PlayerTracker = vape.Categories.Kits:CreateModule({
+        Name = 'Player Tracker',
+        Function = function(callback)
+            if not callback then return end
+
+            -- Outer panel
+            local panel = Instance.new('Frame')
+            panel.Size = UDim2.fromOffset(180, 0)
+            panel.Position = UDim2.new(0, 8, 0.5, -60)
+            panel.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+            panel.BackgroundTransparency = 0.15
+            panel.BorderSizePixel = 0
+            panel.AutomaticSize = Enum.AutomaticSize.Y
+            panel.Parent = vape.gui
+            Instance.new('UICorner', panel).CornerRadius = UDim.new(0, 6)
+            Instance.new('UIStroke', panel).Color = Color3.fromRGB(100, 100, 100)
+            local layout = Instance.new('UIListLayout', panel)
+            layout.Padding = UDim.new(0, 1)
+            layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+            local header = Instance.new('TextLabel')
+            header.Size = UDim2.new(1, 0, 0, 18)
+            header.BackgroundTransparency = 1
+            header.Text = 'Player Tracker'
+            header.TextColor3 = Color3.fromRGB(180, 180, 180)
+            header.TextSize = 10
+            header.Font = Enum.Font.GothamBold
+            header.LayoutOrder = 0
+            header.Parent = panel
+
+            local rowPool = {}
+
+            local function getRow(i)
+                if not rowPool[i] then
+                    local row = Instance.new('Frame')
+                    row.Size = UDim2.new(1, 0, 0, 18)
+                    row.BackgroundTransparency = 1
+                    row.LayoutOrder = i
+                    row.Parent = panel
+
+                    local dot = Instance.new('Frame')
+                    dot.Size = UDim2.fromOffset(6, 6)
+                    dot.Position = UDim2.new(0, 7, 0.5, -3)
+                    dot.BorderSizePixel = 0
+                    dot.Parent = row
+                    Instance.new('UICorner', dot).CornerRadius = UDim.new(1, 0)
+
+                    local lbl = Instance.new('TextLabel')
+                    lbl.Size = UDim2.new(1, -18, 1, 0)
+                    lbl.Position = UDim2.fromOffset(18, 0)
+                    lbl.BackgroundTransparency = 1
+                    lbl.TextColor3 = Color3.new(1, 1, 1)
+                    lbl.TextSize = 10
+                    lbl.Font = Enum.Font.Gotham
+                    lbl.TextXAlignment = Enum.TextXAlignment.Left
+                    lbl.TextTruncate = Enum.TextTruncate.AtEnd
+                    lbl.Parent = row
+
+                    rowPool[i] = { row = row, dot = dot, lbl = lbl }
+                end
+                return rowPool[i]
+            end
+
+            local function hideRows(from)
+                for i = from, #rowPool do
+                    if rowPool[i] then rowPool[i].row.Visible = false end
+                end
+            end
+
+            repeat
+                local names = TrackedUsers and TrackedUsers.ListEnabled or {}
+                if #names == 0 then
+                    hideRows(1)
+                    header.Text = 'Player Tracker – add names'
+                else
+                    header.Text = 'Player Tracker'
+                    for i, name in ipairs(names) do
+                        local r = getRow(i)
+                        r.row.Visible = true
+                        r.lbl.Text = name .. '  …'
+                        r.dot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+                    end
+                    hideRows(#names + 1)
+
+                    for i, name in ipairs(names) do
+                        local status = getStatus(name)
+                        local color = STATUS_COLORS[status] or STATUS_COLORS['Error']
+                        local r = getRow(i)
+                        r.lbl.Text = name .. '  ' .. status
+                        r.dot.BackgroundColor3 = color
+
+                        local prev = lastStatuses[name]
+                        if prev and prev ~= status then
+                            if status == 'In Game' then
+                                notif('Player Tracker', name .. ' joined a game!', 6, 'info')
+                            elseif status == 'Lobby' and prev == 'In Game' then
+                                notif('Player Tracker', name .. ' is back in lobby', 6, 'info')
+                            elseif status == 'Offline' and prev ~= 'Offline' then
+                                notif('Player Tracker', name .. ' went offline', 4, 'info')
+                            end
+                        end
+                        lastStatuses[name] = status
+                    end
+                end
+
+                task.wait(RefreshInterval and RefreshInterval.Value or 30)
+            until not PlayerTracker.Enabled
+
+            panel:Destroy()
+            lastStatuses = {}
+        end,
+        Tooltip = 'Track whether players are in Bedwars lobby or in a game'
+    })
+
+    TrackedUsers = PlayerTracker:CreateTextList({
+        Name = 'Players',
+        Placeholder = 'username'
+    })
+
+    RefreshInterval = PlayerTracker:CreateSlider({
+        Name = 'Refresh (s)',
+        Min = 10,
+        Max = 120,
+        Default = 30
     })
 end)
 
