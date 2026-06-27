@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 3
+local VERSION = 4
 local run = function(func)
 	func()
 end
@@ -18626,7 +18626,7 @@ run(function()
         return 'Error'
     end
 
-    PlayerTracker = vape.Categories.Kits:CreateModule({
+    PlayerTracker = vape.Categories.Utility:CreateModule({
         Name = 'Player Tracker',
         Function = function(callback)
             if not callback then return end
