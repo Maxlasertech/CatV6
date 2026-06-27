@@ -8913,45 +8913,18 @@ run(function()
         pirate_flag  = C( 42, 42, 42),
     }
 
-    -- Clear texture maps in-place rather than reparenting (works on server instances)
-    local function hideTexture(child)
-        if child:IsA('SurfaceAppearance') then
-            local maps = { AlbedoMap = child.AlbedoMap, NormalMap = child.NormalMap,
-                           MetalnessMap = child.MetalnessMap, RoughnessMap = child.RoughnessMap }
-            pcall(function()
-                child.AlbedoMap = '' child.NormalMap = '' child.MetalnessMap = '' child.RoughnessMap = ''
-            end)
-            return { inst = child, maps = maps }
-        elseif child:IsA('Decal') or child:IsA('Texture') then
-            local t = child.Transparency
-            pcall(function() child.Transparency = 1 end)
-            return { inst = child, transparency = t }
-        end
-    end
-
-    local function showTexture(item)
-        if item.maps then
-            pcall(function()
-                item.inst.AlbedoMap = item.maps.AlbedoMap item.inst.NormalMap = item.maps.NormalMap
-                item.inst.MetalnessMap = item.maps.MetalnessMap item.inst.RoughnessMap = item.maps.RoughnessMap
-            end)
-        else
-            pcall(function() item.inst.Transparency = item.transparency end)
-        end
-    end
-
     local function applyPart(part, colorOverride)
         if saved[part] or part.Material == Enum.Material.Neon or part.Material == Enum.Material.ForceField then return end
-        local stashed = {}
         for _, child in part:GetChildren() do
-            local item = hideTexture(child)
-            if item then table.insert(stashed, item) end
+            if child:IsA('SurfaceAppearance') or child:IsA('Decal') or child:IsA('Texture') then
+                pcall(function() child:Destroy() end)
+            end
         end
         local origMat   = part.Material
         local origColor = part.Color
         pcall(function() part.Material = Enum.Material.SmoothPlastic end)
         if colorOverride then pcall(function() part.Color = colorOverride end) end
-        saved[part] = { Material = origMat, Color = origColor, stashed = stashed }
+        saved[part] = { Material = origMat, Color = origColor }
     end
 
     local function restorePart(part)
@@ -8959,7 +8932,6 @@ run(function()
         if not entry then return end
         pcall(function() part.Material = entry.Material end)
         pcall(function() part.Color    = entry.Color end)
-        for _, item in entry.stashed do showTexture(item) end
         saved[part] = nil
     end
 
@@ -9010,28 +8982,32 @@ run(function()
                         if d:IsA('BasePart') then
                             flattenPart(d, col)
                         elseif d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
-                            local par = d.Parent
-                            if par and saved[par] then
-                                local item = hideTexture(d)
-                                if item then table.insert(saved[par].stashed, item) end
-                            elseif par and par:IsA('BasePart') then
-                                flattenPart(par, col)
-                            end
+                            pcall(function() d:Destroy() end)
                         end
                     end))
                 end))
-                -- Flatten all character descendants (covers held block regardless of structure)
+                local function getToolBlockColor(inst, char)
+                    local p = inst.Parent
+                    while p and p ~= char do
+                        if blockColors[p.Name] then return blockColors[p.Name] end
+                        p = p.Parent
+                    end
+                    return blockColors[inst.Name]
+                end
                 local function watchChar(char)
                     for _, v in char:GetDescendants() do
-                        if v:IsA('BasePart') then pcall(applyPart, v, nil) end
+                        if v:IsA('BasePart') then
+                            local col = getToolBlockColor(v, char)
+                            if col then pcall(applyPart, v, col) end
+                        end
                     end
                     KingAuto:Clean(char.DescendantAdded:Connect(function(v)
                         if not KingAuto.Enabled then return end
                         if v:IsA('BasePart') then
-                            flattenPart(v, nil)
-                        elseif (v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture')) and v.Parent and saved[v.Parent] then
-                            local item = hideTexture(v)
-                            if item then table.insert(saved[v.Parent].stashed, item) end
+                            local col = getToolBlockColor(v, char)
+                            if col then flattenPart(v, col) end
+                        elseif v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
+                            pcall(function() v:Destroy() end)
                         end
                     end))
                 end
