@@ -198,11 +198,6 @@ run(function()
         Tooltip = 'Automatically claims all rewards ingame.'
     })
 end)
-
---[[
-    Utility
-]]
-
 run(function()
     local pl  = cloneref(game:GetService('Players'))
     local hs  = cloneref(game:GetService('HttpService'))
