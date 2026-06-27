@@ -417,17 +417,28 @@ if shared.mainAether then
 end
 
 if not shared.VapeIndependent then
-	setLoadingStatus('Loading universal modules...', 0.88)
-	runLoadingChunk(downloadFile('aethercorev2/games/universal.lua'), 'universal', license)
-	if isfile('aethercorev2/games/'..game.PlaceId..'.lua') then
-		runOptionalLoadingChunk(readfile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId), license)
+	local placeId = game.PlaceId
+	local phantomOnlyPlaces = {
+		[71480482338212] = true,
+		[7534782259] = true
+	}
+
+	if phantomOnlyPlaces[placeId] then
+		setLoadingStatus('Loading Phantom modules...', 0.88)
+	else
+		setLoadingStatus('Loading universal modules...', 0.88)
+		runLoadingChunk(downloadFile('aethercorev2/games/universal.lua'), 'universal', license)
+	end
+
+	if isfile('aethercorev2/games/'..placeId..'.lua') then
+		runOptionalLoadingChunk(readfile('aethercorev2/games/'..placeId..'.lua'), tostring(placeId), license)
 	else
 		if not shared.VapeDeveloper then
 			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
+				return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/games/'..placeId..'.lua', true)
 			end)
 			if suc and res ~= '404: Not Found' then
-				runOptionalLoadingChunk(downloadFile('aethercorev2/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId), license)
+				runOptionalLoadingChunk(downloadFile('aethercorev2/games/'..placeId..'.lua'), tostring(placeId), license)
 			end
 		end
 	end
