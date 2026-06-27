@@ -1,5 +1,3 @@
-local license = ... or {}
-license.Key = script_key or license.Key or nil
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
@@ -24,45 +22,38 @@ end
 local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
 
-local redirect = function()
-	local body = httpService:JSONEncode({
-		nonce = httpService:GenerateGUID(false),
-		args = {
-			invite = {code = 'catvape'},
-			code = 'catvape'
-		},
-		cmd = 'INVITE_BROWSER'
-	})
-
-	for i = 1, 2 do
-		task.spawn(function()
-			request({
-				Method = 'POST',
-				Url = 'http://127.0.0.1:6463/rpc?v=1',
-				Headers = {
-					['Content-Type'] = 'application/json',
-					Origin = 'https://discord.com'
-				},
-				Body = body
-			})
-		end)
-	end
+if not isfolder('fart') then
+	makefolder('fart')
+end
+if not isfolder('fart/profiles') then
+	makefolder('fart/profiles')
+end
+if not isfile('fart/profiles/commit.txt') then
+	writefile('fart/profiles/commit.txt', 'main')
 end
 
 local function downloadFile(path, func)
 	if not isfile(path) then
-		warn(path)
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/5rmsn4tt2c-ux/fart_/'..readfile('fart/profiles/commit.txt')..'/'..select(1, path:gsub('fart/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
-			task.spawn(error, res)
+			error(res)
 		end
-		if suc then
-			if path:find('.lua') then
+		if path:find('.lua') then
+			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
+		end
+		writefile(path, res)
+	else
+		local content = readfile(path)
+		if not content:find('--This watermark') then
+			local suc, res = pcall(function()
+				return game:HttpGet('https://raw.githubusercontent.com/5rmsn4tt2c-ux/fart_/'..readfile('fart/profiles/commit.txt')..'/'..select(1, path:gsub('fart/', '')), true)
+			end)
+			if suc and res ~= '404: Not Found' then
 				res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
+				writefile(path, res)
 			end
-			writefile(path, res)
 		end
 	end
 	return (func or readfile)(path)
@@ -84,16 +75,15 @@ local function finishLoading()
 			teleportedServers = true
 			local teleportScript = [[
 				if shared.VapeDeveloper then
-					loadstring(readfile('catrewrite/main.lua'), 'main')(_scriptconfig)
+					loadstring(readfile('fart/main.lua'), 'main')(_scriptconfig)
 				else
-					loadstring(game:HttpGet('https://api.catvape.dev/script?key=_key'), 'init')(_scriptconfig)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/5rmsn4tt2c-ux/fart_/main/main.lua'), 'init')(_scriptconfig)
 				end
 			]]
-			local teleportConfig = httpService:JSONEncode(license)
+			local teleportConfig = httpService:JSONEncode({})
 			teleportConfig = teleportConfig:gsub('":true', "=true"):gsub('{"', '{')
 			teleportConfig = teleportConfig:gsub(',"', ','):gsub('":', '=')
 			teleportConfig = teleportConfig:gsub('%[', '{'):gsub('%]', '}')
-			teleportScript = teleportScript:gsub('_key', tostring(license.Key or '_key'))
 			teleportScript = teleportScript:gsub('_scriptconfig', teleportConfig)
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
@@ -108,62 +98,31 @@ local function finishLoading()
 	if not shared.vapereload then
 		if not vape.Categories then return end
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			if getgenv().catrole == 'HWID MISMATCH' then
-				vape:CreateNotification('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
-				getgenv().catrole = ''
-				task.wait(0.1)
-			end
-			if vape.Place ~= 6872274481 then
-				--task.spawn(redirect)
-			end
-			vape:CreateNotification('Finished Loading', (getgenv().catname and `Authenticated as {getgenv().catname} with {getgenv().catrole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
-			task.delay(1, function()
-				if shared.updated then
-					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catrewrite/profiles/commit.txt')}`, 10, 'info')
-				end
-			end)
+			vape:CreateNotification('Finished Loading', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
 		end
 	end
 end
 
-if not isfile('catrewrite/profiles/gui.txt') then
-	writefile('catrewrite/profiles/gui.txt', 'new')
+if not isfile('fart/profiles/gui.txt') then
+	writefile('fart/profiles/gui.txt', 'new')
 end
-local gui = 'new'--readfile('catrewrite/profiles/gui.txt')
+local gui = 'new'
 
-if not isfolder('catrewrite/assets/'..gui) then
-	makefolder('catrewrite/assets/'..gui)
+if not isfolder('fart/assets/'..gui) then
+	makefolder('fart/assets/'..gui)
 end
-if not isfile('catrewrite/profiles/commit.txt') then
-	writefile('catrewrite/profiles/commit.txt', 'main')
-end
-
-getgenv().used_init = true
-vape = loadstring(downloadFile('catrewrite/guis/'..gui..'.lua'), 'gui')(license)
-_G.vape = vape
+vape = loadstring(downloadFile('fart/guis/'..gui..'.lua'), 'gui')()
 shared.vape = vape
 
-if shared.maincat then
-	redirect()
-	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
-	return
-end
-
 if not shared.VapeIndependent then
-	loadstring(downloadFile('catrewrite/games/universal.lua'), 'universal')(license)
-	if isfile('catrewrite/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('catrewrite/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
-	else
-		if not shared.VapeDeveloper then
-			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/games/'..game.PlaceId..'.lua', true)
-			end)
-			if suc and res ~= '404: Not Found' then
-				loadstring(downloadFile('catrewrite/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
-			end
-		end
-	end
-	loadstring(downloadFile('catrewrite/libraries/premium.lua'), 'premium')(license)
+	loadstring(downloadFile('fart/games/universal.lua'), 'universal')()
+	local suc, err = pcall(function()
+    loadstring(downloadFile('fart/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))()
+end)
+if not suc then
+    vape:CreateNotification('Fart', 'Game file failed: '..tostring(err), 10, 'warning')
+end
+	loadstring(downloadFile('fart/libraries/premium.lua'), 'premium')()
 	finishLoading()
 else
 	vape.Init = finishLoading
