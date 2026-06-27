@@ -1,7 +1,7 @@
 --[[
     --------------------------------------------------------------
     -------------------------------------------------------------
-    https://www.roblox.com/games/71480482338212/bedfight
+    https://www.roblox.com/games/7534782259/BedFight (backup alias)
     -------------------------------------------------------------
     -------------------------------------------------------------
 --]]
@@ -9,6 +9,7 @@
 
 repeat task.wait() until game:IsLoaded()
 
+local cloneref = cloneref or function(obj) return obj end
 local hidden = get_hidden_gui or gethui
 local _sti = setthreadidentity or (getfenv and getfenv().setthreadidentity) or nil
 
@@ -60,8 +61,10 @@ local data = {
     }
 }
 
-for _, v in ipairs({"Antideath", "Gravity", "ESP", "AntiFall", "TriggerBot", "AimAssist", "BreadCrumbs", "Speed", "Fly", "AntiAFK", "AntiFall", "Antideath", "AutoClicker", "ServerHop", "NoClip"}) do
-    UI.kit:deregister(v .. "Module")
+for _, v in ipairs({"Antideath", "Gravity", "ESP", "AntiFall", "TriggerBot", "AimAssist", "BreadCrumbs", "Speed", "Fly", "AntiAFK", "AutoClicker", "ServerHop", "NoClip"}) do
+    if UI and UI.kit and UI.kit.deregister then
+        pcall(UI.kit.deregister, UI.kit, v .. "Module")
+    end
 end
 
 local bedfight = {
