@@ -8911,14 +8911,39 @@ run(function()
         pirate_flag  = C( 42, 42, 42),
     }
 
+    -- Clear texture maps in-place rather than reparenting (works on server instances)
+    local function hideTexture(child)
+        if child:IsA('SurfaceAppearance') then
+            local maps = { AlbedoMap = child.AlbedoMap, NormalMap = child.NormalMap,
+                           MetalnessMap = child.MetalnessMap, RoughnessMap = child.RoughnessMap }
+            pcall(function()
+                child.AlbedoMap = '' child.NormalMap = '' child.MetalnessMap = '' child.RoughnessMap = ''
+            end)
+            return { inst = child, maps = maps }
+        elseif child:IsA('Decal') or child:IsA('Texture') then
+            local t = child.Transparency
+            pcall(function() child.Transparency = 1 end)
+            return { inst = child, transparency = t }
+        end
+    end
+
+    local function showTexture(item)
+        if item.maps then
+            pcall(function()
+                item.inst.AlbedoMap = item.maps.AlbedoMap item.inst.NormalMap = item.maps.NormalMap
+                item.inst.MetalnessMap = item.maps.MetalnessMap item.inst.RoughnessMap = item.maps.RoughnessMap
+            end)
+        else
+            pcall(function() item.inst.Transparency = item.transparency end)
+        end
+    end
+
     local function applyPart(part, colorOverride)
         if saved[part] or part.Material == Enum.Material.Neon or part.Material == Enum.Material.ForceField then return end
         local stashed = {}
         for _, child in part:GetChildren() do
-            if child:IsA('SurfaceAppearance') or child:IsA('Decal') or child:IsA('Texture') then
-                pcall(function() child.Parent = stash end)
-                table.insert(stashed, child)
-            end
+            local item = hideTexture(child)
+            if item then table.insert(stashed, item) end
         end
         local origMat   = part.Material
         local origColor = part.Color
@@ -8930,13 +8955,9 @@ run(function()
     local function restorePart(part)
         local entry = saved[part]
         if not entry then return end
-        pcall(function()
-            part.Material = entry.Material
-            part.Color    = entry.Color
-            for _, child in entry.stashed do
-                child.Parent = part
-            end
-        end)
+        pcall(function() part.Material = entry.Material end)
+        pcall(function() part.Color    = entry.Color end)
+        for _, item in entry.stashed do showTexture(item) end
         saved[part] = nil
     end
 
@@ -8989,8 +9010,8 @@ run(function()
                         elseif d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
                             local par = d.Parent
                             if par and saved[par] then
-                                pcall(function() d.Parent = stash end)
-                                table.insert(saved[par].stashed, d)
+                                local item = hideTexture(d)
+                                if item then table.insert(saved[par].stashed, item) end
                             elseif par and par:IsA('BasePart') then
                                 flattenPart(par, col)
                             end
@@ -9007,8 +9028,8 @@ run(function()
                         if v:IsA('BasePart') then
                             flattenPart(v, nil)
                         elseif (v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture')) and v.Parent and saved[v.Parent] then
-                            pcall(function() v.Parent = stash end)
-                            table.insert(saved[v.Parent].stashed, v)
+                            local item = hideTexture(v)
+                            if item then table.insert(saved[v.Parent].stashed, item) end
                         end
                     end))
                 end
@@ -9083,7 +9104,6 @@ run(function()
                 -- Restore blocks
                 for part in saved do restorePart(part) end
                 table.clear(saved)
-                stash:ClearAllChildren()
                 -- Restore lighting
                 for _, v in addedLighting do v:Destroy() end
                 table.clear(addedLighting)
