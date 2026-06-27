@@ -78,18 +78,22 @@ local function getStatus(name)
     if pt == 0 then return STATUS.OFFLINE end
     if pt == 1 then return STATUS.ONLINE  end
     if pt == 2 then
-        local root = p.rootPlaceId
+        local root  = p.rootPlaceId
+        local place = p.placeId
+        local loc   = (p.lastLocation or ''):match('^%s*(.-)%s*$')
+
         if root == BEDWARS_LOBBY or root == BEDWARS_GAME then
-            if p.placeId == BEDWARS_LOBBY then return STATUS.LOBBY end
-            -- In a Bedwars game — use lastLocation for exact mode (Ranked, Squads, etc.)
-            local loc = (p.lastLocation or ''):match('^%s*(.-)%s*$')
+            if place == BEDWARS_LOBBY then return STATUS.LOBBY end
             if loc ~= '' and loc:lower() ~= 'bedwars' then
                 return { text = loc, color = STATUS.INGAME.color }
             end
             return STATUS.INGAME
         end
-        -- Show raw rootPlaceId so we can identify the correct Bedwars place IDs
-        return { text = 'root:' .. tostring(root), color = STATUS.OTHER.color }
+
+        -- IDs don't match — show lastLocation so we can see what Roblox reports,
+        -- plus the rootPlaceId so we can fix the constants above.
+        local display = loc ~= '' and (loc .. ' [' .. tostring(root) .. ']') or ('root:' .. tostring(root))
+        return { text = display, color = STATUS.OTHER.color }
     end
     return STATUS.ERROR
 end
