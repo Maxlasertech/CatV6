@@ -8731,6 +8731,7 @@ end)
 
 run(function()
     local KingAuto
+    local BrightnessSlider
     -- Block overhaul
     local saved = {}
     local stash = Instance.new('Folder')
@@ -8992,7 +8993,7 @@ run(function()
                 end
                 lightingService.Ambient              = Color3.fromRGB(120, 120, 120)
                 lightingService.OutdoorAmbient       = Color3.fromRGB(100, 100, 100)
-                lightingService.Brightness           = 2
+                lightingService.Brightness           = BrightnessSlider.Value
                 lightingService.ExposureCompensation = -0.3
                 lightingService.GlobalShadows        = false
                 lightingService.FogColor             = Color3.fromRGB(140, 140, 140)
@@ -9024,7 +9025,7 @@ run(function()
                         lightChanged = true
                         lightingService.Ambient              = Color3.fromRGB(120, 120, 120)
                         lightingService.OutdoorAmbient       = Color3.fromRGB(100, 100, 100)
-                        lightingService.Brightness           = 2
+                        lightingService.Brightness           = BrightnessSlider.Value
                         lightingService.ExposureCompensation = -0.3
                         lightingService.GlobalShadows        = false
                         lightingService.FogColor             = Color3.fromRGB(140, 140, 140)
@@ -9059,6 +9060,13 @@ run(function()
                 end
             end
         end,
+    })
+    BrightnessSlider = KingAuto:CreateSlider({
+        Name = 'Brightness',
+        Min = 0,
+        Max = 10,
+        Default = 2,
+        Tooltip = 'Controls how bright the grey sky looks',
     })
 end)
 
