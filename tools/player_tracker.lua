@@ -1,7 +1,8 @@
 -- Player Tracker — standalone, works in any game / Bedwars lobby
 -- Inject this with your executor. Add usernames, toggle on, watch status update.
 
-local BEDWARS_ROOT_PLACE = 6872274481  -- Bedwars main/lobby place id
+local BEDWARS_LOBBY = 6872265039  -- lobby place id (root/entry of the universe)
+local BEDWARS_GAME  = 6872274481  -- in-game place id
 
 local Players    = game:GetService('Players')
 local HttpSvc    = game:GetService('HttpService')
@@ -77,8 +78,12 @@ local function getStatus(name)
     if pt == 0 then return STATUS.OFFLINE end
     if pt == 1 then return STATUS.ONLINE  end
     if pt == 2 then
-        if p.rootPlaceId == BEDWARS_ROOT_PLACE then
-            return p.placeId == BEDWARS_ROOT_PLACE and STATUS.LOBBY or STATUS.INGAME
+        local root = p.rootPlaceId
+        if root == BEDWARS_LOBBY or root == BEDWARS_GAME then
+            local place = p.placeId
+            if place == BEDWARS_LOBBY then return STATUS.LOBBY end
+            if place == BEDWARS_GAME  then return STATUS.INGAME end
+            return STATUS.INGAME  -- any other place in the same universe = in a game
         end
         return STATUS.OTHER
     end

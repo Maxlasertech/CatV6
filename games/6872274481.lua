@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 5
+local VERSION = 6
 local run = function(func)
 	func()
 end
@@ -18549,7 +18549,8 @@ run(function()
     local TrackedUsers
     local RefreshInterval
 
-    local BEDWARS_ROOT = game.PlaceId
+    local BEDWARS_LOBBY = 6872265039
+    local BEDWARS_GAME  = 6872274481
     local HttpService = game:GetService('HttpService')
     local userIdCache = {}
     local lastStatuses = {}
@@ -18618,8 +18619,9 @@ run(function()
         if pt == 0 then return 'Offline' end
         if pt == 1 then return 'Online' end
         if pt == 2 then
-            if p.rootPlaceId == BEDWARS_ROOT then
-                return p.placeId == BEDWARS_ROOT and 'Lobby' or 'In Game'
+            local root = p.rootPlaceId
+            if root == BEDWARS_LOBBY or root == BEDWARS_GAME then
+                return (p.placeId == BEDWARS_LOBBY) and 'Lobby' or 'In Game'
             end
             return 'Other Game'
         end
