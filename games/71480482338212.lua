@@ -10,6 +10,157 @@
 repeat task.wait() until game:IsLoaded()
 
 local cloneref = cloneref or function(obj) return obj end
+
+if not phantom then
+    local vape = shared and shared.vape or _G and _G.vape
+    assert(vape, "AetherCore UI is required before loading BedFight modules")
+
+    local RunService = cloneref(game:GetService("RunService"))
+    local loopConnections = {}
+    local exitCallbacks = {}
+
+    local function disconnectLoop(name)
+        local connection = loopConnections[name]
+        if connection then
+            connection:Disconnect()
+            loopConnections[name] = nil
+        end
+    end
+
+    local RunLoops = {}
+    function RunLoops:BindToHeartbeat(name, callback)
+        disconnectLoop(name)
+        loopConnections[name] = RunService.Heartbeat:Connect(callback)
+    end
+    function RunLoops:UnbindFromHeartbeat(name)
+        disconnectLoop(name)
+    end
+    function RunLoops:BindToRenderStep(name, priority, callback)
+        self:UnbindFromRenderStep(name)
+        RunService:BindToRenderStep(name, priority or Enum.RenderPriority.Last.Value, callback)
+        loopConnections["RenderStep_" .. name] = { Disconnect = function() RunService:UnbindFromRenderStep(name) end }
+    end
+    function RunLoops:UnbindFromRenderStep(name)
+        disconnectLoop("RenderStep_" .. name)
+    end
+
+    local runtime = { RunLoops = RunLoops }
+    function runtime.run(callback)
+        return callback()
+    end
+
+    local ops = { runtime = runtime }
+    function ops:onExit(name, callback)
+        self:offExit(name)
+        exitCallbacks[name] = callback
+    end
+    function ops:offExit(name)
+        local callback = exitCallbacks[name]
+        if callback then
+            exitCallbacks[name] = nil
+            pcall(callback)
+        end
+    end
+
+    local function normalizeOption(option)
+        if not option then return option end
+        option.Enabled = option.Enabled or false
+        if option.Default ~= nil and option.Value == nil then
+            option.Value = option.Default
+        end
+        if option.Value == nil and option.List and option.List[1] ~= nil then
+            option.Value = option.List[1]
+        end
+        if option.Toggle and not option.SetValue then
+            option.SetValue = function(self, value)
+                if self.Enabled ~= value then self:Toggle() end
+            end
+        end
+        option.ShowWhen = option.ShowWhen or function() return option end
+        option.AddDependent = option.AddDependent or function() return option end
+        return option
+    end
+
+    local function normalizeModule(module)
+        if not module then return module end
+        local rawToggle = module.Toggle
+        local rawCreateSlider = module.CreateSlider
+        local rawCreateToggle = module.CreateToggle
+        local rawCreateDropdown = module.CreateDropdown
+        local rawCreateTextBox = module.CreateTextBox or module.CreateTextbox
+
+        module.Toggle = function()
+            return rawToggle(module)
+        end
+        module.CreateSlider = function(settings)
+            return normalizeOption(rawCreateSlider(module, settings))
+        end
+        module.CreateToggle = function(settings)
+            return normalizeOption(rawCreateToggle(module, settings))
+        end
+        module.CreateDropdown = function(settings)
+            return normalizeOption(rawCreateDropdown(module, settings))
+        end
+        module.CreateTextbox = function(settings)
+            return normalizeOption(rawCreateTextBox(module, settings))
+        end
+        return module
+    end
+
+    local function panel(categoryName)
+        return {
+            API = {
+                CreateOptionsButton = function(settings)
+                    local category = vape.Categories and vape.Categories[categoryName]
+                    assert(category, "Missing AetherCore category: " .. categoryName)
+                    return normalizeModule(category:CreateModule(settings))
+                end
+            }
+        }
+    end
+
+    local UI = {
+        Registry = {
+            combatPanel = panel("Combat"),
+            blatantPanel = panel("Blatant"),
+            renderPanel = panel("Render"),
+            miscPanel = panel("Utility"),
+            utillityPanel = panel("Utility"),
+            utilityPanel = panel("Utility"),
+            worldPanel = panel("World"),
+            inventoryPanel = panel("Inventory")
+        },
+        kit = {
+            deregister = function(_, name)
+                local moduleName = tostring(name):gsub("Module$", "")
+                if vape.Remove then
+                    pcall(vape.Remove, vape, moduleName)
+                end
+            end,
+            activeColor = function()
+                local guiColor = vape.GUIColor or { Hue = 0.46, Sat = 0.96, Value = 0.52 }
+                return Color3.fromHSV(guiColor.Hue or 0.46, guiColor.Sat or 0.96, guiColor.Value or 0.52)
+            end
+        },
+        toast = function(title, text, duration)
+            if vape.CreateNotification then
+                return vape:CreateNotification(title, text, duration or 5, "info")
+            end
+        end
+    }
+
+    phantom = {
+        UI = UI,
+        ops = ops,
+        module = {
+            Load = function()
+                return nil
+            end
+        }
+    }
+end
+
+local cloneref = cloneref or function(obj) return obj end
 local hidden = get_hidden_gui or gethui
 local _sti = setthreadidentity or (getfenv and getfenv().setthreadidentity) or nil
 
