@@ -933,10 +933,13 @@ do
 
     revertitem = function(plr)
         if not switchedTo then return end
-        if previousEquipped then
+
+        local currentName = getClientEquipped()
+        if previousEquipped and (not currentName or namesMatch(currentName, switchedTo)) then
             sendRemote(bedfight.remotes.EquipTool, previousEquipped.name)
-            previousEquipped = nil
         end
+
+        previousEquipped = nil
         switchedTo = nil
     end
 
@@ -1043,6 +1046,7 @@ runcode(function()
     local currentController = nil
     local shieldActive = false
     local shieldConn = nil
+    local lastAttack = 0
 
     local SwordController = bedfight.modules.SwordController
     local origGetHitWithBox = nil
@@ -1061,6 +1065,32 @@ runcode(function()
             currentController:Stop(true)
             currentController = nil
         end
+    end
+
+    local function playSwingAnimation()
+        if not data.swingAnims then return end
+        for _, track in pairs(data.swingAnims) do
+            pcall(function()
+                if track then
+                    track:Play(0.03, 1, 1)
+                end
+            end)
+        end
+    end
+
+    local function getAttackDelay(swordData)
+        local attackSpeed = tonumber(swordData and swordData.attackSpeed) or 1
+        if attackSpeed <= 0 then return 0.35 end
+        return math.max(0.08, 1 / attackSpeed)
+    end
+
+    local function attackTarget(swordName, targetEntry)
+        local hitbox = getEntityHitbox(targetEntry)
+        if not hitbox then return false end
+
+        playSwingAnimation()
+        sendRemote(bedfight.remotes.SwordHit, swordName, hitbox)
+        return true
     end
 
     -- changing this WILL BREAK aura okay?
@@ -1170,16 +1200,28 @@ runcode(function()
 
                     currentTarget = targetEntry
 
+                    local now = tick()
+                    if now - lastAttack < getAttackDelay(swordData) then return end
+                    lastAttack = now
+
+                    local wasJumping = myHum.Jump
                     switchitem(swordtype)
-                    task.wait(0.03)
+
                     local ctrl = hookcont(swordtype)
-                    if not ctrl then return end
-                    ctrl.CanAttack = true
-                    SwordController.GetHitWithBox = function()
-                        return buildSwordHitData(currentTarget)
+                    if ctrl then
+                        ctrl.CanAttack = true
+                        SwordController.GetHitWithBox = function()
+                            return getEntityHitbox(currentTarget) or buildSwordHitData(currentTarget)
+                        end
+                        pcall(function()
+                            ctrl:Activate()
+                        end)
+                        SwordController.GetHitWithBox = origGetHitWithBox
                     end
-                    ctrl:Activate()
-                    SwordController.GetHitWithBox = origGetHitWithBox
+
+                    attackTarget(swordtype, currentTarget)
+                    myHum.Jump = wasJumping and true or false
+                    revertitem()
                     --if projFireAt then task.spawn(projFireAt, root, target) end
                 end)
             else
