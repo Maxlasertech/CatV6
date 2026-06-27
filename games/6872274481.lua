@@ -8731,10 +8731,19 @@ end)
 
 run(function()
     local KingAuto
+    -- Block overhaul
     local saved = {}
     local stash = Instance.new('Folder')
     stash.Name = 'KingAutoStash'
     stash.Parent = vape.gui
+    -- Lighting / sky
+    local lightStash = Instance.new('Folder')
+    lightStash.Name = 'KingAutoLightStash'
+    lightStash.Parent = vape.gui
+    local addedLighting = {}
+    local origLighting = {}
+    local origCloudEnabled = nil
+    local savedLightProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart','GlobalShadows'}
 
     local C = Color3.fromRGB
     local blockColors = {
@@ -8939,68 +8948,51 @@ run(function()
 
     KingAuto = vape.Categories.Render:CreateModule({
         Name = 'King Auto',
-        Tooltip = 'Flat color no-texture block overhaul for competitive clarity',
+        Tooltip = 'Flat blocks + grey sky + full bright + no clouds',
         Function = function(callback)
             if callback then
                 repeat task.wait() until store.map or not KingAuto.Enabled
                 if not KingAuto.Enabled then return end
 
-                -- Apply color map to placed blocks first (saves them so general scan skips)
+                -- === Block overhaul ===
                 local blocks = store.map:FindFirstChild('Blocks')
                 if blocks then
                     for _, blockModel in blocks:GetChildren() do
                         pcall(scanBlock, blockModel, blockColors[blockModel.Name])
                     end
                 end
-
-                -- Strip textures + SmoothPlastic across the whole map
                 for _, v in store.map:GetDescendants() do
                     if v:IsA('BasePart') then pcall(applyPart, v, nil) end
                 end
-
-                -- Watch for newly placed blocks
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     task.defer(function()
                         if not KingAuto.Enabled then return end
                         pcall(scanBlock, v, blockColors[v.Name])
                     end)
                 end))
-            else
-                for part in saved do
-                    restorePart(part)
-                end
-                table.clear(saved)
-                stash:ClearAllChildren()
-            end
-        end,
-    })
-end)
 
-run(function()
-    local DarkSky
-    local stash = Instance.new('Folder')
-    stash.Parent = vape.gui
-    local origSettings = {}
-    local added = {}
-    local savedProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart'}
-
-    DarkSky = vape.Categories.Render:CreateModule({
-        Name = 'Dark Sky',
-        Tooltip = 'Dark overcast sky — removes skybox and dims ambient',
-        Function = function(callback)
-            if callback then
-                for _, p in savedProps do
-                    origSettings[p] = lightingService[p]
+                -- === Grey sky + full bright + no clouds ===
+                for _, p in savedLightProps do
+                    origLighting[p] = lightingService[p]
                 end
                 for _, child in lightingService:GetChildren() do
                     if child:IsA('Sky') or child:IsA('Atmosphere') or child:IsA('BloomEffect') or child:IsA('SunRaysEffect') then
-                        child.Parent = stash
+                        child.Parent = lightStash
                     end
                 end
-                lightingService.Ambient              = Color3.fromRGB(130, 130, 130)
-                lightingService.OutdoorAmbient       = Color3.fromRGB(120, 120, 120)
-                lightingService.Brightness           = 2
-                lightingService.ExposureCompensation = -0.4
+                local terrain = workspace:FindFirstChildOfClass('Terrain')
+                if terrain then
+                    local clouds = terrain:FindFirstChildOfClass('Clouds')
+                    if clouds then
+                        origCloudEnabled = clouds.Enabled
+                        clouds.Enabled = false
+                    end
+                end
+                lightingService.Ambient              = Color3.fromRGB(180, 180, 180)
+                lightingService.OutdoorAmbient       = Color3.fromRGB(160, 160, 160)
+                lightingService.Brightness           = 5
+                lightingService.ExposureCompensation = 0
+                lightingService.GlobalShadows        = false
                 lightingService.FogColor             = Color3.fromRGB(140, 140, 140)
                 lightingService.FogEnd               = 1200
                 lightingService.FogStart             = 600
@@ -9011,24 +9003,31 @@ run(function()
                 atmo.Glare   = 0
                 atmo.Haze    = 0
                 atmo.Parent  = lightingService
-                table.insert(added, atmo)
-                -- Subtle screen dim only
-                local cc = Instance.new('ColorCorrectionEffect')
-                cc.Brightness = -0.08
-                cc.Contrast   = 0.05
-                cc.Saturation = -0.05
-                cc.Parent     = lightingService
-                table.insert(added, cc)
+                table.insert(addedLighting, atmo)
             else
-                for _, v in added do v:Destroy() end
-                table.clear(added)
-                for _, child in stash:GetChildren() do
+                -- Restore blocks
+                for part in saved do restorePart(part) end
+                table.clear(saved)
+                stash:ClearAllChildren()
+                -- Restore lighting
+                for _, v in addedLighting do v:Destroy() end
+                table.clear(addedLighting)
+                for _, child in lightStash:GetChildren() do
                     child.Parent = lightingService
                 end
-                for _, p in savedProps do
-                    lightingService[p] = origSettings[p]
+                for _, p in savedLightProps do
+                    lightingService[p] = origLighting[p]
                 end
-                table.clear(origSettings)
+                table.clear(origLighting)
+                -- Restore clouds
+                local terrain = workspace:FindFirstChildOfClass('Terrain')
+                if terrain then
+                    local clouds = terrain:FindFirstChildOfClass('Clouds')
+                    if clouds and origCloudEnabled ~= nil then
+                        clouds.Enabled = origCloudEnabled
+                        origCloudEnabled = nil
+                    end
+                end
             end
         end,
     })
