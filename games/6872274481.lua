@@ -8978,23 +8978,56 @@ end)
 
 run(function()
     local DarkSky
-    local effect
+    local stash = Instance.new('Folder')
+    stash.Parent = vape.gui
+    local origSettings = {}
+    local added = {}
+    local savedProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart'}
 
     DarkSky = vape.Categories.Render:CreateModule({
         Name = 'Dark Sky',
-        Tooltip = 'Slightly darkens the sky and ambient lighting',
+        Tooltip = 'Dark overcast sky — removes skybox and dims ambient',
         Function = function(callback)
             if callback then
-                effect = Instance.new('ColorCorrectionEffect')
-                effect.Brightness = -0.35
-                effect.Contrast   = 0.1
-                effect.Saturation = -0.1
-                effect.Parent     = lightingService
-            else
-                if effect then
-                    effect:Destroy()
-                    effect = nil
+                for _, p in savedProps do
+                    origSettings[p] = lightingService[p]
                 end
+                for _, child in lightingService:GetChildren() do
+                    if child:IsA('Sky') or child:IsA('Atmosphere') or child:IsA('BloomEffect') or child:IsA('SunRaysEffect') then
+                        child.Parent = stash
+                    end
+                end
+                lightingService.Ambient              = Color3.fromRGB(100, 100, 100)
+                lightingService.OutdoorAmbient       = Color3.fromRGB( 85,  85,  85)
+                lightingService.Brightness           = 0.5
+                lightingService.ExposureCompensation = -1.5
+                lightingService.FogColor             = Color3.fromRGB(105, 105, 105)
+                lightingService.FogEnd               = 800
+                lightingService.FogStart             = 0
+                local atmo = Instance.new('Atmosphere')
+                atmo.Density = 1
+                atmo.Color   = Color3.fromRGB(105, 105, 105)
+                atmo.Decay   = Color3.fromRGB( 90,  90,  90)
+                atmo.Glare   = 0
+                atmo.Haze    = 0
+                atmo.Parent  = lightingService
+                table.insert(added, atmo)
+                local cc = Instance.new('ColorCorrectionEffect')
+                cc.Brightness = -0.2
+                cc.Contrast   = 0.15
+                cc.Saturation = -0.3
+                cc.Parent     = lightingService
+                table.insert(added, cc)
+            else
+                for _, v in added do v:Destroy() end
+                table.clear(added)
+                for _, child in stash:GetChildren() do
+                    child.Parent = lightingService
+                end
+                for _, p in savedProps do
+                    lightingService[p] = origSettings[p]
+                end
+                table.clear(origSettings)
             end
         end,
     })
