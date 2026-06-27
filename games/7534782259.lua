@@ -112,7 +112,7 @@ do -- update checker
         local pv = game.PlaceVersion
         local fp = ""
         for _, s in ipairs({ ReplicatedStorage:FindFirstChild("Modules", true), ReplicatedStorage:WaitForChild("Remotes", 3), bedfight.modules.SwordController }) do
-            if s then pcall(function() local ok, r = pcall(getscripthash, s); if ok then fp ..= r end end) end
+            if s then pcall(function() local ok, r = pcall(getscripthash, s); if ok then fp = fp .. r end end) end
         end
         fp = fp ~= "" and fp or nil
         local ok, t = pcall(function() return HS:JSONDecode(readfile(CFG)) end)
@@ -632,7 +632,7 @@ end
 
 local hookmode = function()
     local gameMode = game:GetService("ReplicatedStorage"):WaitForChild("GameInfo"):WaitForChild("GameMode")
-    
+
     data.gamemode.current = gameMode.Value
 
     local conn = gameMode:GetPropertyChangedSignal("Value"):Connect(function()
@@ -864,7 +864,7 @@ do
     touchConnEnd = UserInputService.TouchEnded:Connect(function()
         touching = false
     end)
-    
+
     funcs:onExit("bodyVelHook", function()
         if touchConnStart then
             touchConnStart:Disconnect()
@@ -909,7 +909,7 @@ runcode(function()
         end
     end
 
-    -- changing this WILL BREAK aura okay? 
+    -- changing this WILL BREAK aura okay?
     local hookcont = function(swordName)
         local char = lplr.Character
         if not char then return nil end
@@ -2278,8 +2278,8 @@ runcode(function()
     })
     Reach.CreateSlider({
         Name = "Range",
-        Min = 5, 
-        Max = 25, 
+        Min = 5,
+        Max = 25,
         Default = 25,
         Round = 1,
         Function = function(callback)
@@ -4956,9 +4956,9 @@ runcode(function()
     })
     BlockRangeSlider = BlockRange.CreateSlider({
         Name = "Range",
-        Min = 18, 
-        Max = 200, 
-        Default = 50, 
+        Min = 18,
+        Max = 200,
+        Default = 50,
         Round = 1,
         Function = function(callback)
             rangeVal.Value = callback
@@ -6047,16 +6047,16 @@ runcode(function()
 
     KBPower = Knockback.CreateSlider({
         Name = "Power",
-        Min = 10, 
-        Max = 300, 
+        Min = 10,
+        Max = 300,
         Default = 80,
         Function = function(callback) KBPower.Value = callback end
     })
 
     KBDuration = Knockback.CreateSlider({
         Name = "Duration",
-        Min = 0.05, 
-        Max = 1, 
+        Min = 0.05,
+        Max = 1,
         Default = 0.15,
         Function = function(callback) KBDuration.Value = callback end
     })
