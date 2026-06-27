@@ -18062,9 +18062,68 @@ run(function()
     local Range
     local Mode
     local Launch
+    local TargetMode
+    local AutoTNT
 
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
+
+    local function getNearestEnemyBed()
+        local myTeam = lplr:GetAttribute('Team') or -1
+        local nearest, nearestDist = nil, math.huge
+        for _, bed in collectionService:GetTagged('bed') do
+            if not bed:GetAttribute('Team' .. myTeam .. 'NoBreak') then
+                local dist = entitylib.isAlive and (entitylib.character.RootPart.Position - bed.Position).Magnitude or math.huge
+                if dist < nearestDist then
+                    nearest = bed
+                    nearestDist = dist
+                end
+            end
+        end
+        return nearest
+    end
+
+    local function aimCannon(targetpos)
+        if not entitylib.isAlive then return end
+        local cannon, dis = nil, Range.Value + 0.1
+        for _, v in collectionService:GetTagged('block') do
+            local mag = (entitylib.character.RootPart.Position - v.Position).Magnitude
+            if v.Name == 'cannon' and mag < dis then
+                cannon = v
+                dis = mag
+                break
+            end
+        end
+        if not cannon then return end
+        local blockpos = bedwars.BlockController:getBlockPosition(cannon.Position)
+        if Mode.Value == 'Legit' then
+            cannon.AimPrompt:InputHoldBegin()
+            task.wait(cannon.AimPrompt.HoldDuration)
+            local wait = tick() + 0.3
+            repeat
+                gameCamera.CFrame = gameCamera.CFrame:Lerp(CFrame.lookAt(gameCamera.CFrame.p, targetpos), 22 * runService.PostSimulation:Wait())
+                bedwars.Client:Get(remotes.CannonAim):SendToServer({
+                    cannonBlockPos = blockpos,
+                    lookVector = gameCamera.CFrame.LookVector,
+                })
+            until tick() > wait
+            cannon.StopAimingPrompt:InputHoldBegin()
+            task.wait(cannon.StopAimingPrompt.HoldDuration + runService.PostSimulation:Wait())
+            if Launch.Enabled then
+                cannon.LaunchSelfPrompt:InputHoldBegin()
+                task.wait(cannon.LaunchSelfPrompt.HoldDuration + runService.PostSimulation:Wait())
+            end
+        else
+            bedwars.Client:Get(remotes.CannonAim):SendToServer({
+                cannonBlockPos = blockpos,
+                lookVector = CFrame.lookAt(cannon.Position, targetpos).LookVector * 200,
+            })
+            task.wait(0.5)
+            if Launch.Enabled then
+                bedwars.CannonHandController:launchSelf(cannon)
+            end
+        end
+    end
 
     DaveyAim = vape.Categories.Kits:CreateModule({
     	Name = 'Davey Aim',
@@ -18072,57 +18131,16 @@ run(function()
     		if call then
     			DaveyAim:Toggle()
     			local targetpos
-    			local ray = cloneref(lplr:GetMouse()).UnitRay
-    			rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
-    			ray = workspace:Raycast(ray.Origin, ray.Direction * 1000000, rayCheck)
-    			if ray then
-    				targetpos = ray.Position
+    			if TargetMode.Value == 'Bed' then
+    				local bed = getNearestEnemyBed()
+    				if bed then targetpos = bed.Position end
+    			else
+    				local ray = cloneref(lplr:GetMouse()).UnitRay
+    				rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    				ray = workspace:Raycast(ray.Origin, ray.Direction * 1000000, rayCheck)
+    				if ray then targetpos = ray.Position end
     			end
-
-    			if targetpos then
-    				local cannon, dis = nil, Range.Value + 0.1
-    				for _, v in collectionService:GetTagged('block') do
-    					local mag = (entitylib.character.RootPart.Position - v.Position).Magnitude
-    					if v.Name == 'cannon' and mag < dis then
-    						cannon = v
-    						dis = mag
-    						break
-    					end
-    				end
-
-    				if cannon then
-    					local lookpos, blockpos = targetpos, bedwars.BlockController:getBlockPosition(cannon.Position)
-    					if lookpos then
-    						if Mode.Value == 'Legit' then
-    							cannon.AimPrompt:InputHoldBegin()
-    							task.wait(cannon.AimPrompt.HoldDuration)
-    							local wait = tick() + 0.3
-    							repeat
-    								gameCamera.CFrame = gameCamera.CFrame:Lerp(CFrame.lookAt(gameCamera.CFrame.p, lookpos), 22 * runService.PostSimulation:Wait())
-    								bedwars.Client:Get(remotes.CannonAim):SendToServer({
-    									cannonBlockPos = blockpos,
-    									lookVector = gameCamera.CFrame.LookVector,
-    								})
-    							until tick() > wait
-    							cannon.StopAimingPrompt:InputHoldBegin()
-    							task.wait(cannon.StopAimingPrompt.HoldDuration + runService.PostSimulation:Wait()) -- the hold duration is zero, but just incase...
-    							if Launch.Enabled then
-    								cannon.LaunchSelfPrompt:InputHoldBegin()
-    								task.wait(cannon.LaunchSelfPrompt.HoldDuration + runService.PostSimulation:Wait())
-    							end
-    						else
-    							bedwars.Client:Get(remotes.CannonAim):SendToServer({
-    								cannonBlockPos = blockpos,
-    								lookVector = CFrame.lookAt(cannon.Position, lookpos).LookVector * 200,
-    							})
-    							task.wait(0.5)
-    							if Launch.Enabled then
-    								bedwars.CannonHandController:launchSelf(cannon)
-    							end
-    						end
-    					end
-    				end
-    			end
+    			if targetpos then aimCannon(targetpos) end
     		end
     	end,
     	Tooltip = 'Automatically aims cannon'
@@ -18138,6 +18156,11 @@ run(function()
     	List = {'Mouse', 'Camera'},
     	Default = 'Mouse'
     })
+    TargetMode = DaveyAim:CreateDropdown({
+    	Name = 'Target',
+    	List = {'Mouse', 'Bed'},
+    	Default = 'Mouse'
+    })
     Range = DaveyAim:CreateSlider({
     	Name = 'Search Range',
     	Min = 1,
@@ -18150,6 +18173,24 @@ run(function()
     Launch = DaveyAim:CreateToggle({
     	Name = 'Launch Cannon',
     	Default = true
+    })
+    AutoTNT = DaveyAim:CreateToggle({
+    	Name = 'Auto TNT',
+    	Tooltip = 'Automatically fires cannon at nearest enemy bed on repeat',
+    	Function = function(call)
+    		if call then
+    			AutoTNT:Clean(task.spawn(function()
+    				while AutoTNT.Enabled do
+    					local bed = getNearestEnemyBed()
+    					if bed then
+    						aimCannon(bed.Position)
+    					else
+    						task.wait(0.5)
+    					end
+    				end
+    			end))
+    		end
+    	end
     })
 end)
 
