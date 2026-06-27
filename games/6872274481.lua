@@ -8966,10 +8966,53 @@ run(function()
                     if v:IsA('BasePart') then pcall(applyPart, v, nil) end
                 end
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
-                    task.defer(function()
+                    if not KingAuto.Enabled then return end
+                    local col = blockColors[v.Name]
+                    pcall(scanBlock, v, col)
+                    -- Catch textures/parts added to the block after ChildAdded fires
+                    KingAuto:Clean(v.DescendantAdded:Connect(function(d)
                         if not KingAuto.Enabled then return end
-                        pcall(scanBlock, v, blockColors[v.Name])
-                    end)
+                        if d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
+                            local par = d.Parent
+                            if par and saved[par] then
+                                d.Parent = stash
+                                table.insert(saved[par].stashed, d)
+                            elseif par and par:IsA('BasePart') then
+                                pcall(applyPart, par, col)
+                            end
+                        elseif d:IsA('BasePart') then
+                            pcall(applyPart, d, col)
+                        end
+                    end))
+                end))
+                -- Remove textures from block tool held in character's hand
+                local function applyToTool(tool)
+                    for _, v in tool:GetDescendants() do
+                        if v:IsA('BasePart') then pcall(applyPart, v, nil) end
+                    end
+                    KingAuto:Clean(tool.DescendantAdded:Connect(function(d)
+                        if not KingAuto.Enabled then return end
+                        if d:IsA('BasePart') then
+                            pcall(applyPart, d, nil)
+                        elseif (d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture')) and d.Parent and saved[d.Parent] then
+                            d.Parent = stash
+                            table.insert(saved[d.Parent].stashed, d)
+                        end
+                    end))
+                end
+                local char = lplr.Character
+                if char then
+                    for _, child in char:GetChildren() do
+                        if child:IsA('Tool') then applyToTool(child) end
+                    end
+                    KingAuto:Clean(char.ChildAdded:Connect(function(child)
+                        if child:IsA('Tool') and KingAuto.Enabled then applyToTool(child) end
+                    end))
+                end
+                KingAuto:Clean(lplr.CharacterAdded:Connect(function(newChar)
+                    KingAuto:Clean(newChar.ChildAdded:Connect(function(child)
+                        if child:IsA('Tool') and KingAuto.Enabled then applyToTool(child) end
+                    end))
                 end))
 
                 -- === Grey sky + full bright + no clouds ===
