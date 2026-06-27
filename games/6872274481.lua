@@ -8963,7 +8963,10 @@ run(function()
                 local function flattenPart(part, col)
                     part.LocalTransparencyModifier = 1
                     pcall(applyPart, part, col)
-                    part.LocalTransparencyModifier = 0
+                    -- defer unhide so any late-arriving SA gets destroyed before part renders
+                    task.defer(function()
+                        if part.Parent then part.LocalTransparencyModifier = 0 end
+                    end)
                 end
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
@@ -8973,9 +8976,14 @@ run(function()
                         if p:IsA('BasePart') then p.LocalTransparencyModifier = 1 end
                     end
                     pcall(scanBlock, v, col)
-                    for _, p in v:GetDescendants() do
-                        if p:IsA('BasePart') then p.LocalTransparencyModifier = 0 end
-                    end
+                    -- defer unhide so SA arriving right after the block model don't flash
+                    task.defer(function()
+                        for _, p in v:GetDescendants() do
+                            if p:IsA('BasePart') and p.Parent then
+                                p.LocalTransparencyModifier = 0
+                            end
+                        end
+                    end)
                     -- Catch parts/textures that arrive after ChildAdded
                     KingAuto:Clean(v.DescendantAdded:Connect(function(d)
                         if not KingAuto.Enabled then return end
@@ -9031,15 +9039,33 @@ run(function()
                     if KingAuto.Enabled then flattenCamDescendant(v) end
                 end))
                 -- Client-side placement preview blocks appear outside store.map.Blocks
+                local function hasBlockAncestor(inst)
+                    local p = inst.Parent
+                    while p and p ~= workspace do
+                        if blockColors[p.Name] then return blockColors[p.Name] end
+                        p = p.Parent
+                    end
+                end
                 KingAuto:Clean(workspace.DescendantAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
                     if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                        local anc = v:FindFirstAncestorWhichIsA('Model')
-                        if anc and blockColors[anc.Name] then
-                            pcall(function() v:Destroy() end)
-                        end
+                        if hasBlockAncestor(v) then pcall(function() v:Destroy() end) end
                     elseif v:IsA('Model') and blockColors[v.Name] then
                         pcall(scanBlock, v, blockColors[v.Name])
+                    elseif v:IsA('BasePart') and not saved[v] then
+                        local col = hasBlockAncestor(v) or blockColors[v.Name]
+                        if col then flattenPart(v, col) end
+                    end
+                end))
+                -- RenderStepped safety net: kill any SA in Blocks that slipped past events
+                KingAuto:Clean(game:GetService('RunService').RenderStepped:Connect(function()
+                    if not KingAuto.Enabled then return end
+                    local blks = store.map:FindFirstChild('Blocks')
+                    if not blks then return end
+                    for _, v in blks:GetDescendants() do
+                        if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
+                            pcall(function() v:Destroy() end)
+                        end
                     end
                 end))
 
