@@ -1,4 +1,5 @@
 local canDebug = true
+local VERSION = 1
 local run = function(func)
 	func()
 end
@@ -398,6 +399,7 @@ local function isTarget(plr)
 end
 
 local function notif(...) return vape:CreateNotification(...) end
+notif('Loaded', 'Update ' .. VERSION, 5, 'info')
 
 local function removeTags(str)
 	str = str:gsub('<br%s*/>', '\n')
