@@ -1,2 +1,1 @@
-getgenv().whitelist = "KEY_HERE"
 loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/main/init.lua', true), 'init.lua')({})
