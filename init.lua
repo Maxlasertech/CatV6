@@ -9,14 +9,47 @@ local ALLOWED_MODULES = {
 	admin = true,
 	premium = true,
 	dev = true,
+	owner = true,
 }
 
 local loaderOptions = ... or {}
 local HttpService = game:GetService('HttpService')
 local Players = game:GetService('Players')
+local StarterGui = game:GetService('StarterGui')
 
 local function log(message)
 	print('[AetherCore] ' .. tostring(message))
+end
+
+local function toTitleCase(value)
+	local text = tostring(value or 'unknown'):lower()
+	return (text:gsub('^%l', string.upper))
+end
+
+local function notify(title, message, duration)
+	local notification = {
+		Title = tostring(title),
+		Text = tostring(message),
+		Duration = duration or 5,
+	}
+
+	for attempt = 1, 5 do
+		local success, err = pcall(function()
+			StarterGui:SetCore('SendNotification', notification)
+		end)
+
+		if success then
+			return true
+		end
+
+		if attempt == 5 then
+			log('Notification failed: ' .. tostring(err))
+		else
+			task.wait(0.5)
+		end
+	end
+
+	return false
 end
 
 local function trimTrailingSlash(value)
@@ -181,7 +214,9 @@ local function main()
 		return false
 	end
 
-	log('Authenticated as role: ' .. tostring(authData.role or 'unknown'))
+	local roleName = toTitleCase(authData.role)
+	log('Authenticated as role: ' .. roleName)
+	notify('AetherCore', 'Whitelisted as ' .. roleName .. '.', 6)
 
 	local modules = getAllowedModules(authData)
 	if #modules == 0 then
