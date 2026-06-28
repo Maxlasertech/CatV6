@@ -9050,7 +9050,8 @@ run(function()
     end
 
     local function fireHarpoonProjectile(pos, spot, item)
-	local meta = bedwars.ProjectileMeta.harpoon or bedwars.ProjectileMeta.triton_harpoon
+	local projectileType = 'harpoon_projectile'
+	local meta = bedwars.ProjectileMeta[projectileType]
 	if not meta then
 		return false
 	end
@@ -9062,14 +9063,14 @@ run(function()
 	local shotId = httpService:GenerateGUID(false)
 
 	pcall(function()
-		bedwars.ProjectileController:createLocalProjectile(meta, 'harpoon', 'harpoon', pos, nil, dir, {drawDurationSeconds = 1})
+		bedwars.ProjectileController:createLocalProjectile(meta, projectileType, projectileType, pos, nil, dir, {drawDurationSeconds = 1})
 	end)
 
-	local success = pcall(function()
-		projectileRemote:InvokeServer(
+	local success, result = pcall(function()
+		return projectileRemote:InvokeServer(
 			item.tool,
-			'harpoon',
-			'harpoon',
+			projectileType,
+			projectileType,
 			pos,
 			pos,
 			dir,
@@ -9082,7 +9083,7 @@ run(function()
 		)
 	end)
 
-	return success
+	return success and result ~= nil
     end
 
     local function useHarpoon(pos, spot, item)
