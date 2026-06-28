@@ -1,4 +1,8 @@
-local canDebug = true
+local license = ... or {}
+if type(license) ~= 'table' then license = {} end
+license.Closet = license.Closet == true
+
+local canDebug = not license.Closet
 local run = function(func)
 	func()
 end 
@@ -24858,7 +24862,7 @@ run(function()
                     if part and (part.Position - localPosition).Magnitude <= range then
                         local success, err = pcall(func, v)
                         if not success then
-                            warn("lucia deposit error:", err)
+                            if not license.Closet then warn("lucia deposit error:", err) end
                         end
                         if DelayToggle.Enabled then
                             task.wait(DelaySlider.Value)

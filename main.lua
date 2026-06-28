@@ -1,10 +1,7 @@
 local license = ... or {}
-license.Whitelist = getgenv().whitelist or license.Whitelist
-local acceptedWhitelistKey = '1234-5678-9012-3456'
+if type(license) ~= 'table' then license = {} end
+license.Closet = license.Closet == true
 
-local function isWhitelisted()
-	return tostring(getgenv().whitelist or license.Whitelist or '') == acceptedWhitelistKey
-end
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
@@ -12,7 +9,7 @@ local vape
 local compile = loadstring
 local loadstring = function(...)
 	local res, err = compile(...)
-	if err and vape then
+	if err and vape and not license.Closet then
 		vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert')
 	end
 	return res
@@ -31,7 +28,7 @@ local playersService = cloneref(game:GetService('Players'))
 local httpService = cloneref(game:GetService('HttpService'))
 
 local function isLoadingScreenDisabled()
-	return isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true'
+	return license.Closet or (isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true')
 end
 
 local function getLoadingScreenParent()
@@ -361,7 +358,6 @@ local function finishLoading()
 		if (not teleportedServers) and (not shared.VapeIndependent) then
 			teleportedServers = true
 			local teleportScript = [[
-				getgenv().whitelist = '_whitelist'
 				if shared.VapeDeveloper then
 					loadstring(readfile('aethercorev2/main.lua'), 'main')(_scriptconfig)
 				else
@@ -372,7 +368,6 @@ local function finishLoading()
 			teleportConfig = teleportConfig:gsub('":true', "=true"):gsub('{"', '{')
 			teleportConfig = teleportConfig:gsub(',"', ','):gsub('":', '=')
 			teleportConfig = teleportConfig:gsub('%[', '{'):gsub('%]', '}')
-			teleportScript = teleportScript:gsub('_whitelist', tostring(getgenv().whitelist or license.Whitelist or 'KEY_HERE'))
 			teleportScript = teleportScript:gsub('_scriptconfig', teleportConfig)
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
@@ -389,17 +384,16 @@ local function finishLoading()
 			if vape.Place ~= 6872274481 then
 				--task.spawn(redirect)
 			end
-			vape:CreateNotification('Finished Loading', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
-			if isWhitelisted() then
-				vape:CreateNotification('AetherCore', 'You are whitelisted.', 5, 'info')
+			if not license.Closet then
+				vape:CreateNotification('Finished Loading', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
 			end
 			task.delay(1, function()
 				if shared.updated then
-					vape:CreateNotification('AetherCore', `Script has updated from {shared.updated} to {readfile('aethercorev2/profiles/commit.txt')}`, 10, 'info')
+					if not license.Closet then vape:CreateNotification('AetherCore', `Script has updated from {shared.updated} to {readfile('aethercorev2/profiles/commit.txt')}`, 10, 'info') end
 				end
 			end)
 		end
-		if #loadingWarnings > 0 then
+		if #loadingWarnings > 0 and not license.Closet then
 			vape:CreateNotification('AetherCore', 'Loaded with non-critical game module warnings. Check the console for details.', 10, 'info')
 			warn(table.concat(loadingWarnings, '\n'))
 		end

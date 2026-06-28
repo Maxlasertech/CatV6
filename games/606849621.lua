@@ -1,7 +1,11 @@
+local license = ... or {}
+if type(license) ~= 'table' then license = {} end
+license.Closet = license.Closet == true
+
 local compile = loadstring
 local loadstring = function(...)
 	local res, err = compile(...)
-	if err and vape then vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert') end
+	if err and vape and not license.Closet then vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert') end
 	return res
 end
 local isfile = isfile or function(file)
@@ -306,8 +310,10 @@ run(function()
 		if rem ~= 'LookAngle' and rem ~= 'AimPosition' then
 			local called = getfenv(3)
 			called = called and called.script
-			if called and (not rem) then print(id, 'called with', called:GetFullName()) end
-			print(id, rem or id, ...)
+			if not license.Closet then
+				if called and (not rem) then print(id, 'called with', called:GetFullName()) end
+				print(id, rem or id, ...)
+			end
 		end
 
 		return hook(self, id, ...)
