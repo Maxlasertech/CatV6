@@ -1,296 +1,219 @@
 --!nocheck
-local license = ... or {}
-license.Whitelist = getgenv().whitelist or license.Whitelist
 
-local cloneref = cloneref or function(ref) return ref end
-local isfile = isfile or function(file)
-	local suc, res = pcall(function()
-		return readfile(file)
+local API_BASE = 'https://aethercore-api.plutoxqq.workers.dev'
+
+local AUTH_ENDPOINT = '/auth'
+local MODULE_ENDPOINT = '/module/'
+local ALLOWED_MODULES = {
+	free = true,
+	admin = true,
+	premium = true,
+	dev = true,
+}
+
+local loaderOptions = ... or {}
+local HttpService = game:GetService('HttpService')
+local Players = game:GetService('Players')
+
+local function log(message)
+	print('[AetherCore] ' .. tostring(message))
+end
+
+local function trimTrailingSlash(value)
+	return tostring(value):gsub('/+$', '')
+end
+
+local function buildUrl(path, query)
+	local url = trimTrailingSlash(API_BASE) .. path
+	if query and query ~= '' then
+		url = url .. '?' .. query
+	end
+	return url
+end
+
+local function urlEncode(value)
+	return HttpService:UrlEncode(tostring(value))
+end
+
+local function safeHttpGet(url)
+	local success, response = pcall(function()
+		return game:HttpGet(url, true)
 	end)
-	return suc and res ~= nil and res ~= ''
-end
-local delfile = delfile or function(file)
-	writefile(file, '')
-end
 
-local function isLoadingScreenDisabled()
-	return isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true'
-end
-
-local function getLoadingScreenParent()
-	local parent
-	if gethui then
-		local ok, result = pcall(gethui)
-		if ok and result then parent = result end
+	if not success then
+		return false, 'Request failed: ' .. tostring(response)
 	end
-	if not parent then
-		local ok, result = pcall(function()
-			return cloneref(game:GetService('CoreGui'))
-		end)
-		if ok and result then parent = result end
+
+	if type(response) ~= 'string' or response == '' then
+		return false, 'Request returned an empty response.'
 	end
-	if not parent then
-		local ok, result = pcall(function()
-			local player = cloneref(game:GetService('Players')).LocalPlayer
-			return player and player:FindFirstChildOfClass('PlayerGui') or nil
-		end)
-		if ok and result then parent = result end
-	end
-	return parent
+
+	return true, response
 end
 
-local function createLoadingScreen()
-	if isLoadingScreenDisabled() then return nil end
-	local parent = getLoadingScreenParent()
-	if not parent then return nil end
-	local existing = parent:FindFirstChild('AetherCoreLoading')
-	if existing and _G.AetherCoreSetLoadingStatus then return existing end
+local function safeJsonDecode(jsonText)
+	local success, decoded = pcall(function()
+		return HttpService:JSONDecode(jsonText)
+	end)
 
-	local screen = existing or Instance.new('ScreenGui')
-	screen.Name = 'AetherCoreLoading'
-	screen.IgnoreGuiInset = true
-	screen.ResetOnSpawn = false
-	screen.DisplayOrder = 2147483647
-	screen.Parent = parent
-	screen:ClearAllChildren()
+	if not success then
+		return false, 'Invalid JSON response: ' .. tostring(decoded)
+	end
 
-	local background = Instance.new('Frame')
-	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = Color3.fromRGB(8, 9, 14)
-	background.BackgroundTransparency = 0.18
-	background.BorderSizePixel = 0
-	background.Parent = screen
+	if type(decoded) ~= 'table' then
+		return false, 'JSON response was not an object.'
+	end
 
-	local gradient = Instance.new('UIGradient')
-	gradient.Rotation = 25
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 10, 18)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(16, 22, 34)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 9, 14))
-	})
-	gradient.Parent = background
+	return true, decoded
+end
 
-	local card = Instance.new('Frame')
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(540, 330)
-	card.BackgroundColor3 = Color3.fromRGB(12, 15, 24)
-	card.BackgroundTransparency = 0.08
-	card.BorderSizePixel = 0
-	card.Parent = background
-	local cardCorner = Instance.new('UICorner')
-	cardCorner.CornerRadius = UDim.new(0, 18)
-	cardCorner.Parent = card
-	local stroke = Instance.new('UIStroke')
-	stroke.Color = Color3.fromRGB(90, 230, 210)
-	stroke.Transparency = 0.74
-	stroke.Thickness = 1
-	stroke.Parent = card
+local function getUserId()
+	local localPlayer = Players.LocalPlayer
+	if not localPlayer then
+		return nil, 'LocalPlayer is not available yet.'
+	end
 
-	local glow = Instance.new('Frame')
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.fromScale(0.5, 0.5)
-	glow.Size = UDim2.fromOffset(430, 3)
-	glow.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
-	glow.BackgroundTransparency = 0.68
-	glow.BorderSizePixel = 0
-	glow.Parent = card
-	local glowCorner = Instance.new('UICorner')
-	glowCorner.CornerRadius = UDim.new(1, 0)
-	glowCorner.Parent = glow
+	local userId = localPlayer.UserId
+	if not userId or userId <= 0 then
+		return nil, 'Unable to read a valid Roblox UserId.'
+	end
 
-	local logo = Instance.new('ImageLabel')
-	logo.Name = 'Logo'
-	logo.AnchorPoint = Vector2.new(0.5, 0)
-	logo.Position = UDim2.new(0.5, 0, 0, 28)
-	logo.Size = UDim2.fromOffset(250, 108)
-	logo.BackgroundTransparency = 1
-	logo.ImageTransparency = 0.02
-	logo.ScaleType = Enum.ScaleType.Fit
-	logo.Image = isfile('aethercorev2/assets/new/loading.png') and (getcustomasset and getcustomasset('aethercorev2/assets/new/loading.png') or 'aethercorev2/assets/new/loading.png') or ''
-	logo.Parent = card
+	return tostring(userId)
+end
 
-	local fallbackLogo = Instance.new('TextLabel')
-	fallbackLogo.Name = 'FallbackLogo'
-	fallbackLogo.AnchorPoint = Vector2.new(0.5, 0)
-	fallbackLogo.Position = UDim2.new(0.5, 0, 0, 54)
-	fallbackLogo.Size = UDim2.fromOffset(300, 46)
-	fallbackLogo.BackgroundTransparency = 1
-	fallbackLogo.Font = Enum.Font.GothamBold
-	fallbackLogo.TextSize = 30
-	fallbackLogo.TextColor3 = Color3.fromRGB(90, 230, 210)
-	fallbackLogo.Text = 'AetherCore'
-	fallbackLogo.Visible = logo.Image == ''
-	fallbackLogo.Parent = card
+local function authenticate(userId)
+	local authUrl = buildUrl(AUTH_ENDPOINT, 'userId=' .. urlEncode(userId))
+	log('Authenticating user ' .. userId .. '...')
 
-	local version = Instance.new('TextLabel')
-	version.Name = 'Version'
-	version.AnchorPoint = Vector2.new(0.5, 0)
-	version.Position = UDim2.new(0.5, 0, 0, 142)
-	version.Size = UDim2.fromOffset(260, 22)
-	version.BackgroundTransparency = 1
-	version.Font = Enum.Font.GothamMedium
-	version.TextSize = 14
-	version.TextColor3 = Color3.fromRGB(190, 196, 220)
-	version.Text = isfile('aethercorev2/version.txt') and ('Version '..readfile('aethercorev2/version.txt')) or 'Version loading...'
-	version.Parent = card
+	local requestSuccess, response = safeHttpGet(authUrl)
+	if not requestSuccess then
+		return nil, response
+	end
 
-	local status = Instance.new('TextLabel')
-	status.Name = 'Status'
-	status.Position = UDim2.fromOffset(54, 202)
-	status.Size = UDim2.fromOffset(432, 22)
-	status.BackgroundTransparency = 1
-	status.Font = Enum.Font.Gotham
-	status.TextSize = 14
-	status.TextXAlignment = Enum.TextXAlignment.Left
-	status.TextColor3 = Color3.fromRGB(235, 238, 255)
-	status.Text = 'Starting AetherCore...'
-	status.Parent = card
+	local decodeSuccess, authData = safeJsonDecode(response)
+	if not decodeSuccess then
+		return nil, authData
+	end
 
-	local track = Instance.new('Frame')
-	track.Name = 'ProgressTrack'
-	track.Position = UDim2.fromOffset(54, 238)
-	track.Size = UDim2.fromOffset(432, 10)
-	track.BackgroundColor3 = Color3.fromRGB(28, 34, 50)
-	track.BackgroundTransparency = 0.18
-	track.BorderSizePixel = 0
-	track.Parent = card
-	local trackCorner = Instance.new('UICorner')
-	trackCorner.CornerRadius = UDim.new(1, 0)
-	trackCorner.Parent = track
+	if tostring(authData.userId or '') ~= userId then
+		return nil, 'Authentication response UserId did not match the current player.'
+	end
 
-	local fill = Instance.new('Frame')
-	fill.Name = 'ProgressFill'
-	fill.Size = UDim2.fromScale(0.06, 1)
-	fill.BackgroundColor3 = Color3.fromRGB(90, 230, 210)
-	fill.BorderSizePixel = 0
-	fill.Parent = track
-	local fillCorner = Instance.new('UICorner')
-	fillCorner.CornerRadius = UDim.new(1, 0)
-	fillCorner.Parent = fill
+	if type(authData.modules) ~= 'table' then
+		return nil, 'Authentication response did not include a valid modules list.'
+	end
 
-	local detail = Instance.new('TextLabel')
-	detail.Name = 'Detail'
-	detail.Position = UDim2.fromOffset(54, 260)
-	detail.Size = UDim2.fromOffset(432, 20)
-	detail.BackgroundTransparency = 1
-	detail.Font = Enum.Font.Gotham
-	detail.TextSize = 12
-	detail.TextXAlignment = Enum.TextXAlignment.Left
-	detail.TextColor3 = Color3.fromRGB(130, 142, 170)
-	detail.Text = 'Preparing files and assets.'
-	detail.Parent = card
+	return authData
+end
 
-	local lastProgress = 0.06
-	local function closeScreen()
-		if screen and screen.Parent then
-			screen:Destroy()
+local function getAllowedModules(authData)
+	local modules = {}
+	local seen = {}
+
+	for _, moduleName in ipairs(authData.modules) do
+		moduleName = tostring(moduleName):lower()
+		if ALLOWED_MODULES[moduleName] and not seen[moduleName] then
+			seen[moduleName] = true
+			table.insert(modules, moduleName)
+		else
+			log('Skipping unknown or duplicate module: ' .. moduleName)
 		end
 	end
-	_G.AetherCoreLoadingScreen = screen
-	_G.AetherCoreCloseLoadingScreen = closeScreen
-	_G.AetherCoreSetLoadingStatus = function(text, progress)
-		if not screen.Parent then return end
-		lastProgress = math.clamp(progress or lastProgress, lastProgress, 1)
-		if status.Parent then status.Text = text end
-		if detail.Parent then detail.Text = math.floor(lastProgress * 100)..'% complete' end
-		if fill.Parent then fill.Size = UDim2.fromScale(lastProgress, 1) end
-		if version.Parent and isfile('aethercorev2/version.txt') then version.Text = 'Version '..readfile('aethercorev2/version.txt') end
-		if logo.Parent and logo.Image == '' and isfile('aethercorev2/assets/new/loading.png') then
-			logo.Image = getcustomasset and getcustomasset('aethercorev2/assets/new/loading.png') or 'aethercorev2/assets/new/loading.png'
-			if fallbackLogo.Parent then fallbackLogo.Visible = false end
-		elseif fallbackLogo.Parent then
-			fallbackLogo.Visible = logo.Image == ''
-		end
-	end
-	return screen
+
+	return modules
 end
 
-local loadingScreen = createLoadingScreen()
-if not _G.AetherCoreSetLoadingStatus then
-	local retrySetStatus
-	retrySetStatus = function(text, progress)
-		loadingScreen = createLoadingScreen()
-		local setter = _G.AetherCoreSetLoadingStatus
-		if setter and setter ~= retrySetStatus then
-			pcall(setter, text, progress)
-		end
+local function downloadModule(moduleName, authData)
+	local moduleUrl = buildUrl(MODULE_ENDPOINT .. urlEncode(moduleName), 'userId=' .. urlEncode(authData.userId))
+	log('Downloading module: ' .. moduleName)
+
+	local requestSuccess, source = safeHttpGet(moduleUrl)
+	if not requestSuccess then
+		return nil, source
 	end
-	_G.AetherCoreSetLoadingStatus = retrySetStatus
+
+	return source
 end
 
-local function downloadFile(path, func)
-	if not isfile(path) then
-		if not license.Closet then
-			_G.AetherCoreSetLoadingStatus('Downloading '..path, 0.35)
-		end
-		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
-		end)
-		if not suc or res == '404: Not Found' then
-			error(res)
-		end
-		if path:find('.lua') then
-			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
-		end
-		writefile(path, res)
-		_G.AetherCoreSetLoadingStatus('Downloaded '..path, 0.55)
+local function executeModule(moduleName, source, authData)
+	log('Executing module: ' .. moduleName)
+
+	local compileSuccess, compiledOrError = pcall(function()
+		return loadstring(source, 'AetherCore/' .. moduleName)
+	end)
+
+	if not compileSuccess then
+		return false, 'Failed to compile module "' .. moduleName .. '": ' .. tostring(compiledOrError)
 	end
-	return (func or readfile)(path)
+
+	if type(compiledOrError) ~= 'function' then
+		return false, 'Module "' .. moduleName .. '" did not compile into a function.'
+	end
+
+	local runSuccess, runError = pcall(function()
+		return compiledOrError({
+			apiBase = API_BASE,
+			auth = authData,
+			loaderOptions = loaderOptions,
+			moduleName = moduleName,
+		})
+	end)
+
+	if not runSuccess then
+		return false, 'Module "' .. moduleName .. '" crashed: ' .. tostring(runError)
+	end
+
+	return true
 end
 
-local function wipeFolder(path)
-	if not isfolder(path) then return end
-	for _, file in listfiles(path) do
-		if file:find('init') then continue end
-		if file:find('profile') then continue end
-		if isfile(file) then
-			delfile(file)
-		elseif isfolder(file) then
-			wipeFolder(file)
+local function main()
+	log('Secure loader started.')
+
+	local userId, userIdError = getUserId()
+	if not userId then
+		log('Authentication stopped: ' .. userIdError)
+		return false
+	end
+
+	local authData, authError = authenticate(userId)
+	if not authData then
+		log('Authentication failed: ' .. tostring(authError))
+		return false
+	end
+
+	log('Authenticated as role: ' .. tostring(authData.role or 'unknown'))
+
+	local modules = getAllowedModules(authData)
+	if #modules == 0 then
+		log('No modules are available for this account.')
+		return false
+	end
+
+	for index, moduleName in ipairs(modules) do
+		log('Loading module ' .. index .. '/' .. #modules .. ': ' .. moduleName)
+
+		local source, downloadError = downloadModule(moduleName, authData)
+		if not source then
+			log('Failed to download module "' .. moduleName .. '": ' .. tostring(downloadError))
+			continue
+		end
+
+		local executed, executeError = executeModule(moduleName, source, authData)
+		if executed then
+			log('Loaded module: ' .. moduleName)
+		else
+			log(tostring(executeError))
 		end
 	end
+
+	log('Secure loader finished.')
+	return true
 end
 
-
-for _, folder in {'aethercorev2', 'aethercorev2/games', 'aethercorev2/profiles', 'aethercorev2/assets', 'aethercorev2/assets/new', 'aethercorev2/libraries', 'aethercorev2/guis', 'aethercorev2/configs'} do
-	if not isfolder(folder) then
-		_G.AetherCoreSetLoadingStatus('Creating '..folder, 0.18)
-		makefolder(folder)
-	end
+local success, result = pcall(main)
+if not success then
+	log('Unexpected loader error: ' .. tostring(result))
+	return false
 end
 
-if not shared.VapeDeveloper then
-	local commit = license.Commit or nil
-	if not commit then
-		local _, subbed = pcall(function()
-			return game:HttpGet('https://github.com/plutoxqqq/AetherCoreV2')
-		end)
-		commit = subbed:find('currentOid')
-		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
-		commit = commit and #commit == 40 and commit or 'main'
-	end
-	local oldCommit = isfile('aethercorev2/profiles/commit.txt') and readfile('aethercorev2/profiles/commit.txt') or ''
-	if oldCommit ~= commit then
-		if commit ~= 'main' and oldCommit ~= '' then
-			shared.updated = oldCommit
-		end
-		wipeFolder('aethercorev2')
-		wipeFolder('aethercorev2/games')
-		wipeFolder('aethercorev2/guis')
-		wipeFolder('aethercorev2/libraries')
-	end
-	writefile('aethercorev2/profiles/commit.txt', commit)
-end
-
-if not isfile('aethercorev2/profiles/disableloading.txt') then
-	writefile('aethercorev2/profiles/disableloading.txt', 'false')
-end
-
-_G.AetherCoreSetLoadingStatus('Checking version...', 0.62)
-downloadFile('aethercorev2/version.txt')
-_G.AetherCoreSetLoadingStatus('Preparing loading artwork...', 0.70)
-pcall(downloadFile, 'aethercorev2/assets/new/loading.png')
-
-_G.AetherCoreSetLoadingStatus('Loading main script...', 0.82)
-return loadstring(downloadFile('aethercorev2/main.lua'), 'main')(license)
+return result
