@@ -3053,7 +3053,7 @@ run(function()
                                                 for _ = 1, 10 do
                                                     local dpos = roundPos(ray.Position + ray.Normal * 1.5) + Vector3.new(0, 3, 0)
                                                     if not getPlacedBlock(dpos) then
-                                                        top = Vector3.new(top.X, pos.Y, top.Z)
+                                                        top = dpos
                                                         break
                                                     end
                                                 end
@@ -9483,6 +9483,8 @@ run(function()
 	local lastSafeVelocity = Vector3.zero
 	local correctionUntil = 0
 	local pullSourcePosition
+	local lassoStartCFrame
+	local lassoStartTime = 0
 	local lastVelocity = Vector3.zero
 
 	local function isLassoObject(obj)
@@ -9501,6 +9503,19 @@ run(function()
 		return false
 	end
 
+	local function beginLassoCorrection(duration, sourcePosition)
+		local root = entitylib.isAlive and entitylib.character.RootPart
+		if not root then return end
+
+		if tick() > correctionUntil then
+			lassoStartCFrame = lastSafeCFrame or root.CFrame
+			lassoStartTime = tick()
+		end
+
+		correctionUntil = math.max(correctionUntil, tick() + duration)
+		pullSourcePosition = sourcePosition or pullSourcePosition
+	end
+
 	local function markLassoPull(obj)
 		if not entitylib.isAlive or not isLassoObject(obj) then return end
 		local character = entitylib.character.Character
@@ -9510,11 +9525,10 @@ run(function()
 			local localAttachment = attachment0 and attachment0:IsDescendantOf(character) and attachment0 or attachment1 and attachment1:IsDescendantOf(character) and attachment1
 			local remoteAttachment = localAttachment == attachment0 and attachment1 or attachment0
 			if localAttachment then
-				correctionUntil = tick() + 0.65
-				pullSourcePosition = remoteAttachment and remoteAttachment.WorldPosition or pullSourcePosition
+				beginLassoCorrection(0.8, remoteAttachment and remoteAttachment.WorldPosition or nil)
 			end
 		elseif obj:IsA('BasePart') and obj:IsDescendantOf(character) then
-			correctionUntil = tick() + 0.35
+			beginLassoCorrection(0.45)
 		end
 	end
 
@@ -9551,12 +9565,17 @@ run(function()
 		end
 
 		root.AssemblyLinearVelocity = horizontalVelocity + Vector3.new(0, math.min(root.AssemblyLinearVelocity.Y, 0), 0)
-		if Mode.Value == 'Strong' and lastSafeCFrame then
-			local offset = (root.Position - lastSafeCFrame.Position) * Vector3.new(1, 0, 1)
-			if offset.Magnitude > 2.5 then
-				root.CFrame = root.CFrame:Lerp(lastSafeCFrame + Vector3.new(0, root.Position.Y - lastSafeCFrame.Position.Y, 0), math.clamp(dt * 18, 0, 0.9))
+		if Mode.Value == 'Strong' and lassoStartCFrame then
+			local startPosition = lassoStartCFrame.Position
+			root.CFrame = CFrame.new(startPosition, startPosition + root.CFrame.LookVector)
+			root.AssemblyLinearVelocity = Vector3.new(0, math.min(root.AssemblyLinearVelocity.Y, 0), 0)
+			root.AssemblyAngularVelocity = Vector3.zero
+			root:ApplyImpulse((-root.AssemblyLinearVelocity * root.AssemblyMass))
+		elseif Mode.Value == 'Passive' and lassoStartCFrame and tick() - lassoStartTime > 0.15 then
+			local offset = (root.Position - lassoStartCFrame.Position) * Vector3.new(1, 0, 1)
+			if offset.Magnitude > 0.25 then
+				root.CFrame = root.CFrame:Lerp(lassoStartCFrame + Vector3.new(0, root.Position.Y - lassoStartCFrame.Position.Y, 0), math.clamp(dt * 12, 0, 0.75))
 			end
-			root:ApplyImpulse((allowedVelocity - (root.AssemblyLinearVelocity * Vector3.new(1, 0, 1))) * root.AssemblyMass)
 		end
 	end
 
@@ -9586,28 +9605,34 @@ run(function()
 					end
 
 					if horizontalAcceleration > 180 and horizontalVelocity.Magnitude > math.max(humanoid.WalkSpeed + 16, 34) and not movingByInput then
-						correctionUntil = tick() + 0.45
+						beginLassoCorrection(0.45)
 					end
 
 					if tick() < correctionUntil then
 						counterPull(root, dt)
+					elseif lassoStartCFrame then
+						if Mode.Value == 'Passive' then
+							root.CFrame = lassoStartCFrame + Vector3.new(0, root.Position.Y - lassoStartCFrame.Position.Y, 0)
+						end
+						lassoStartCFrame = nil
 					elseif tick() - correctionUntil > 1 then
 						pullSourcePosition = nil
 					end
 				end))
 			else
 				lastSafeCFrame = nil
+				lassoStartCFrame = nil
 				pullSourcePosition = nil
 				correctionUntil = 0
 				lastVelocity = Vector3.zero
 			end
 		end,
-		Tooltip = 'Counters Lassy kit pull velocity instead of trying to remove the lasso. Strong resists displacement; Passive only cancels pull velocity.',
+		Tooltip = 'Reduces lasso pull displacement and returns you to the position where the pull started.',
 	})
 	Mode = AntiLasso:CreateDropdown({
 		Name = 'Mode',
 		List = {'Strong', 'Passive'},
-		Tooltip = 'Strong has the highest success chance by countering pull velocity and easing you back to your safe position. Passive only removes velocity toward the pull source.',
+		Tooltip = 'Controls how aggressively AntiLasso resists lasso displacement.',
 	})
 end)
 
