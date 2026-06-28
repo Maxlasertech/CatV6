@@ -4233,6 +4233,41 @@ function mainapi:CreateCategory(categorysettings)
 			modulechildren.Size = UDim2.new(1, 0, 0, windowlist.AbsoluteContentSize.Y / scale.Scale)
 		end)
 
+		function moduleapi:ScrollToModule(pulse)
+			if mainapi.ThreadFix then
+				setthreadidentity(8)
+			end
+			if not categoryapi.Expanded then
+				categoryapi:Expand()
+			end
+			window.Visible = true
+			children.Visible = true
+			local canvasHeight = math.max(children.CanvasSize.Y.Offset, windowlist.AbsoluteContentSize.Y / scale.Scale)
+			local visibleHeight = math.max(children.AbsoluteSize.Y / scale.Scale, 1)
+			local targetY = math.clamp(
+				(modulebutton.AbsolutePosition.Y - children.AbsolutePosition.Y + children.CanvasPosition.Y) / scale.Scale - (visibleHeight / 2) + (modulebutton.AbsoluteSize.Y / scale.Scale / 2),
+				0,
+				math.max(canvasHeight - visibleHeight, 0)
+			)
+			tween:Tween(children, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CanvasPosition = Vector2.new(0, targetY)
+			})
+			if pulse then
+				local pulseFrame = Instance.new('Frame')
+				pulseFrame.Name = 'SearchPulse'
+				pulseFrame.Size = UDim2.fromScale(1, 1)
+				pulseFrame.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+				pulseFrame.BackgroundTransparency = 0.35
+				pulseFrame.BorderSizePixel = 0
+				pulseFrame.ZIndex = modulebutton.ZIndex + 2
+				pulseFrame.Parent = modulebutton
+				tween:Tween(pulseFrame, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 1
+				})
+				task.delay(0.55, pulseFrame.Destroy, pulseFrame)
+			end
+		end
+
 		moduleapi.Object = modulebutton
 		mainapi.Modules[modulesettings.Name] = moduleapi
 
@@ -5089,6 +5124,8 @@ function mainapi:CreateSearch()
 	searchbkg.Position = UDim2.new(xscale, 0, 0, 13)
 	searchbkg.AnchorPoint = Vector2.new(xscale, 0)
 	searchbkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
+	searchbkg.Active = true
+	searchbkg.ZIndex = 20
 	searchbkg.Parent = clickgui
 	local searchicon = Instance.new('ImageLabel')
 	searchicon.Name = 'Icon'
@@ -5135,6 +5172,8 @@ function mainapi:CreateSearch()
 	children.ScrollBarThickness = 2
 	children.ScrollBarImageTransparency = 0.75
 	children.CanvasSize = UDim2.new()
+	children.Active = true
+	children.ZIndex = searchbkg.ZIndex + 1
 	children.Parent = searchbkg
 	local divider = Instance.new('Frame')
 	divider.Name = 'Divider'
@@ -5154,9 +5193,28 @@ function mainapi:CreateSearch()
 		divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
 	end)
 	legiticon.MouseButton1Click:Connect(function()
-		clickgui.Visible = false
-		self.Legit.Window.Visible = true
-		self.Legit.Window.Position = UDim2.new(0.5, -350, 0.5, -194)
+		clickgui.Visible = true
+		for _, category in self.Categories do
+			if category.Button and not category.Button.Enabled then
+				category.Button:Toggle()
+			end
+		end
+	end)
+	local function focusSearchModule(moduleapi)
+		if moduleapi and moduleapi.ScrollToModule then
+			moduleapi:ScrollToModule(true)
+		end
+	end
+
+	search.FocusLost:Connect(function(enter)
+		if not enter or search.Text == '' then return end
+		local query = search.Text:lower():gsub(' ', '')
+		for name, moduleapi in self.Modules do
+			if name:lower():gsub(' ', '') == query then
+				focusSearchModule(moduleapi)
+				break
+			end
+		end
 	end)
 	search:GetPropertyChangedSignal('Text'):Connect(function()
 		for _, v in children:GetChildren() do
@@ -5169,26 +5227,21 @@ function mainapi:CreateSearch()
 		for i, v in self.Modules do
 			if i:lower():find(search.Text:lower()) then
 				local button = v.Object:Clone()
+				button.ZIndex = searchbkg.ZIndex + 3
+				button.Active = true
+				for _, descendant in button:GetDescendants() do
+					if descendant:IsA('GuiObject') then
+						descendant.ZIndex = button.ZIndex + 1
+					end
+				end
 				button.Bind:Destroy()
 				button.MouseButton1Click:Connect(function()
 					v:Toggle()
+					focusSearchModule(v)
 				end)
 
 				button.MouseButton2Click:Connect(function()
-					v.Object.Parent.Parent.Visible = true
-					local frame = v.Object.Parent
-					local highlight = Instance.new('Frame')
-					highlight.Size = UDim2.fromScale(1, 1)
-					highlight.BackgroundColor3 = Color3.new(1, 1, 1)
-					highlight.BackgroundTransparency = 0.6
-					highlight.BorderSizePixel = 0
-					highlight.Parent = v.Object
-					tween:Tween(highlight, TweenInfo.new(0.5), {
-						BackgroundTransparency = 1
-					})
-					task.delay(0.5, highlight.Destroy, highlight)
-
-					frame.CanvasPosition = Vector2.new(0, (v.Object.LayoutOrder * 40) - (math.min(frame.CanvasSize.Y.Offset, 600) / 2))
+					focusSearchModule(v)
 				end)
 
 				button.Parent = children
@@ -6257,11 +6310,7 @@ mainapi:CreateCategory({
 	Icon = getcustomasset('aethercorev2/assets/new/rendertab.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
-mainapi:CreateCategory({
-	Name = 'Legit',
-	Icon = getcustomasset('aethercorev2/assets/new/legit.png'),
-	Size = UDim2.fromOffset(15, 14)
-})
+mainapi.Categories.Legit = mainapi.Categories.Visuals
 mainapi:CreateCategory({
 	Name = 'Utility',
 	Icon = getcustomasset('aethercorev2/assets/new/utilityicon.png'),
@@ -7697,17 +7746,6 @@ guipane:CreateToggle({
 	Default = true,
 	Tooltip = 'Toggles visibility of these'
 })
-guipane:CreateToggle({
-	Name = 'Show legit mode',
-	Function = function(enabled)
-		clickgui.Search.Legit.Visible = enabled
-		clickgui.Search.LegitDivider.Visible = enabled
-		clickgui.Search.TextBox.Size = UDim2.new(1, enabled and -50 or -10, 0, 37)
-		clickgui.Search.TextBox.Position = UDim2.fromOffset(enabled and 50 or 10, 0)
-	end,
-	Default = true,
-	Tooltip = 'Shows the button to change to Legit Mode'
-})
 local scaleslider = {Object = {}, Value = 1}
 mainapi.Scale = guipane:CreateToggle({
 	Name = 'Auto rescale',
@@ -7797,11 +7835,10 @@ guipane:CreateButton({
 			BlatantCategory = 3,
 			RenderCategory = 4,
 			VisualsCategory = 5,
-			LegitCategory = 6,
-			UtilityCategory = 7,
-			WorldCategory = 8,
-			InventoryCategory = 9,
-			MinigamesCategory = 10,
+			UtilityCategory = 6,
+			WorldCategory = 7,
+			InventoryCategory = 8,
+			MinigamesCategory = 9,
 			FriendsCategory = 10,
 			ProfilesCategory = 11
 		}
@@ -7942,6 +7979,54 @@ createInfoOverlay({
 			end
 		end
 		self.Label.Text = 'Enabled  '..enabled..' / '..total..'\nTheme  script accent'
+	end
+})
+
+
+createInfoOverlay({
+	Name = 'Position Monitor',
+	Icon = getcustomasset('aethercorev2/assets/new/radaricon.png'),
+	Size = UDim2.fromOffset(14, 14),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 0.25,
+	LastUpdate = 0,
+	Update = function(self)
+		local player = cloneref(game:GetService('Players')).LocalPlayer
+		local root = player.Character and player.Character:FindFirstChild('HumanoidRootPart')
+		local pos = root and root.Position or Vector3.zero
+		self.Label.Text = 'XYZ  '..math.floor(pos.X)..', '..math.floor(pos.Y)..', '..math.floor(pos.Z)..'\nPlace  '..tostring(mainapi.Place)
+	end
+})
+
+createInfoOverlay({
+	Name = 'Movement Monitor',
+	Icon = getcustomasset('aethercorev2/assets/new/targetinfoicon.png'),
+	Size = UDim2.fromOffset(14, 14),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 0.2,
+	LastUpdate = 0,
+	Update = function(self)
+		local player = cloneref(game:GetService('Players')).LocalPlayer
+		local root = player.Character and player.Character:FindFirstChild('HumanoidRootPart')
+		local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
+		self.Label.Text = 'Speed  '..math.floor(Vector3.new(velocity.X, 0, velocity.Z).Magnitude)..' studs/s\nVertical  '..math.floor(velocity.Y)..' studs/s'
+	end
+})
+
+createInfoOverlay({
+	Name = 'Server Monitor',
+	Icon = getcustomasset('aethercorev2/assets/new/info.png'),
+	Size = UDim2.fromOffset(14, 14),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 1,
+	LastUpdate = 0,
+	Update = function(self)
+		local players = cloneref(game:GetService('Players'))
+		local ping = 0
+		pcall(function()
+			ping = game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue() or 0
+		end)
+		self.Label.Text = 'Players  '..#players:GetPlayers()..' / '..players.MaxPlayers..'\nPing  '..math.floor(ping)..' ms'
 	end
 })
 
