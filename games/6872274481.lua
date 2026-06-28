@@ -1,7 +1,7 @@
 local canDebug = true
 local run = function(func)
 	func()
-end
+end 
 local cloneref = cloneref or function(obj)
 	return obj
 end
