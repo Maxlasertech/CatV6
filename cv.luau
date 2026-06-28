@@ -9008,6 +9008,44 @@ run(function()
 	return name == 'harpoon' or name == 'trident' or name == 'triton_harpoon'
     end
 
+    local function clickHeldHarpoon(target)
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return false
+	end
+
+	local before = #store.selfProjectiles
+	local viewport = camera.ViewportSize
+	local original = camera.CFrame
+	pcall(function()
+		camera.CFrame = CFrame.lookAt(original.Position, target)
+	end)
+	virtualInputManager:SendMouseButtonEvent(viewport.X / 2, viewport.Y / 2, 0, true, game, 0)
+	task.wait()
+	virtualInputManager:SendMouseButtonEvent(viewport.X / 2, viewport.Y / 2, 0, false, game, 0)
+
+	local started = tick()
+	repeat
+		if #store.selfProjectiles > before then
+			return true
+		end
+		task.wait()
+	until tick() - started > 0.25
+	return false
+    end
+
+    local function waitForHarpoonClutch()
+	local started = tick()
+	repeat
+		task.wait()
+		local root = entitylib.isAlive and entitylib.character.RootPart
+		if root and root.Velocity.Y > -10 then
+			return true
+		end
+	until not TritonClutch.Enabled or tick() - started > 3
+	return false
+    end
+
     task.spawn(function()
 	local success, abilityIds = pcall(function()
 		return require(replicatedStorage.TS.ability['ability-id']).AbilityId
@@ -9066,10 +9104,21 @@ run(function()
 	local calc = prediction.SolveTrajectory(pos, launchVelocity, gravity, spot, Vector3.zero, workspace.Gravity, 0, 0) or spot
 	local dir = CFrame.lookAt(pos, calc).LookVector * launchVelocity
 	local shotId = httpService:GenerateGUID(false)
+	local landed = false
+	local projectile
 
 	pcall(function()
-		bedwars.ProjectileController:createLocalProjectile(meta, projectileType, projectileType, pos, nil, dir, {drawDurationSeconds = 1})
+		projectile = bedwars.ProjectileController:createLocalProjectile(meta, projectileType, projectileType, pos, nil, dir, {drawDurationSeconds = 1})
 	end)
+
+	if projectile then
+		task.spawn(function()
+			repeat
+				task.wait()
+			until not projectile or not projectile.Parent
+			landed = true
+		end)
+	end
 
 	local success, result = pcall(function()
 		return projectileRemote:InvokeServer(
@@ -9088,7 +9137,13 @@ run(function()
 		)
 	end)
 
-	return success and result ~= nil
+	return success and result ~= nil, function()
+		local started = tick()
+		repeat
+			task.wait()
+		until landed or not TritonClutch.Enabled or tick() - started > 3
+		return landed
+	end
     end
 
     local function useHarpoon(pos, spot, item)
@@ -9098,12 +9153,23 @@ run(function()
 		hotbarSwitch(hotbar)
 	end
 
-	local used = fireHarpoonProjectile(pos, spot, item) or useAbility(harpoonAbilities, {
-		{target = spot, origin = pos},
-		{targetPosition = spot, position = pos},
-		{position = spot},
-		spot
-	})
+	local used, clutchCheck
+	if clickHeldHarpoon(spot) then
+		clutchCheck = waitForHarpoonClutch
+		used = true
+	else
+		used, clutchCheck = fireHarpoonProjectile(pos, spot, item)
+	end
+
+	if not used then
+		used = useAbility(harpoonAbilities, {
+			{target = spot, origin = pos},
+			{targetPosition = spot, position = pos},
+			{position = spot},
+			spot
+		})
+		clutchCheck = waitForHarpoonClutch
+	end
 	if used and Recall.Enabled then
 		task.spawn(function()
 			task.wait(1.25)
@@ -9113,10 +9179,8 @@ run(function()
 		end)
 	end
 
-	if Back.Enabled and LandCheck.Enabled then
-		repeat
-			task.wait()
-		until entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air or not TritonClutch.Enabled
+	if Back.Enabled and LandCheck.Enabled and clutchCheck then
+		clutchCheck()
 	end
 	if Back.Enabled and old and old.tool then
 		if used and old.tool ~= item.tool then
@@ -9193,11 +9257,11 @@ run(function()
 			LandCheck.Object.Visible = callback
 		end
 	end,
-	Tooltip = 'Switches back to the last slot before harpoon'
+	Tooltip = 'Switches back to the last slot before the harpoon clutch'
     })
     LandCheck = TritonClutch:CreateToggle({
-	Name = 'Only after landed',
-	Tooltip = 'Only switches back after you land',
+	Name = 'Only after clutch',
+	Tooltip = 'Only switches back after the harpoon clutch activates',
 	Darker = true
     })
     BackDelay = TritonClutch:CreateTwoSlider({
