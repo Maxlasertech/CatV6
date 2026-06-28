@@ -9003,6 +9003,11 @@ run(function()
     local harpoonAbilities = {'harpoon', 'HARPOON', 'harpoon_throw', 'HARPOON_THROW', 'triton_harpoon', 'TRITON_HARPOON'}
     local virtualInputManager = cloneref(game:GetService('VirtualInputManager'))
 
+    local function isHarpoonTool(tool)
+	local name = tool and tool.Name and tool.Name:lower()
+	return name == 'harpoon' or name == 'trident' or name == 'triton_harpoon'
+    end
+
     task.spawn(function()
 	local success, abilityIds = pcall(function()
 		return require(replicatedStorage.TS.ability['ability-id']).AbilityId
@@ -9101,7 +9106,7 @@ run(function()
 	})
 	if used and Recall.Enabled then
 		task.spawn(function()
-			task.wait(0.25)
+			task.wait(1.25)
 			virtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
 			task.wait()
 			virtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
@@ -9114,6 +9119,9 @@ run(function()
 		until entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air or not TritonClutch.Enabled
 	end
 	if Back.Enabled and old and old.tool then
+		if used and old.tool ~= item.tool then
+			task.wait(10)
+		end
 		task.wait(BackDelay:GetRandomValue())
 		switchItem(old.tool)
 		if Legit.Enabled and getHotbar(old.tool) then
@@ -9140,7 +9148,7 @@ run(function()
 		if callback then
 			local check, lasty
 			repeat
-				if entitylib.isAlive and (not Limit.Enabled or store.hand.tool and store.hand.tool.Name == 'harpoon') then
+				if entitylib.isAlive and (not Limit.Enabled or isHarpoonTool(store.hand.tool)) then
 					local root = entitylib.character.RootPart
 					local harpoon = getItem('harpoon')
 					rayCheck.FilterDescendantsInstances = {store.map}
@@ -9201,8 +9209,8 @@ run(function()
 	Darker = true
     })
     Limit = TritonClutch:CreateToggle({
-	Name = 'Limit to item',
-	Tooltip = 'Only throws harpoon when holding a harpoon'
+	Name = 'Limit to items',
+	Tooltip = "Only throws Triton's harpoon when holding the harpoon or trident"
     })
     Recall = TritonClutch:CreateToggle({
 	Name = 'Recall',
