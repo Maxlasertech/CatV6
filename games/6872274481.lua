@@ -9910,6 +9910,10 @@ run(function()
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
     rayCheck.FilterType = Enum.RaycastFilterType.Include
+    local projectileRemote = {InvokeServer = function() end}
+    task.spawn(function()
+	projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
+    end)
 
     local harpoonAbilities = {'harpoon', 'HARPOON', 'harpoon_throw', 'HARPOON_THROW', 'triton_harpoon', 'TRITON_HARPOON'}
     local virtualInputManager = cloneref(game:GetService('VirtualInputManager'))
@@ -9928,31 +9932,72 @@ run(function()
 	end
     end)
 
-    local function useAbility(list, data)
+    local function useAbility(list, payloads)
 	for _, ability in list do
-		local success, allowed = pcall(function()
-			return not bedwars.AbilityController.canUseAbility or bedwars.AbilityController:canUseAbility(ability)
+		local allowed = true
+		pcall(function()
+			allowed = not bedwars.AbilityController.canUseAbility or bedwars.AbilityController:canUseAbility(ability)
 		end)
-		if success and allowed then
-			local used = pcall(function()
-				bedwars.AbilityController:useAbility(ability, newproxy(true), data)
-			end)
-			if not used then
-				used = pcall(function()
-					bedwars.AbilityController:useAbility(ability, data)
+
+		if allowed then
+			for _, data in payloads do
+				local success, result = pcall(function()
+					return bedwars.AbilityController:useAbility(ability, newproxy(true), data)
 				end)
-			end
-			if not used then
-				used = pcall(function()
+				if success and result ~= false then
+					return true
+				end
+
+				success, result = pcall(function()
+					return bedwars.AbilityController:useAbility(ability, data)
+				end)
+				if success and result ~= false then
+					return true
+				end
+
+				pcall(function()
 					bedwars.Client:Get(remotes.UseAbility).instance:FireServer(ability, data)
 				end)
-			end
-			if used then
-				return true
 			end
 		end
 	end
 	return false
+    end
+
+    local function fireHarpoonProjectile(pos, spot, item)
+	local meta = bedwars.ProjectileMeta.harpoon or bedwars.ProjectileMeta.triton_harpoon
+	if not meta then
+		return false
+	end
+
+	local launchVelocity = meta.launchVelocity or 160
+	local gravity = meta.gravitationalAcceleration or 0
+	local calc = prediction.SolveTrajectory(pos, launchVelocity, gravity, spot, Vector3.zero, workspace.Gravity, 0, 0) or spot
+	local dir = CFrame.lookAt(pos, calc).LookVector * launchVelocity
+	local shotId = httpService:GenerateGUID(false)
+
+	pcall(function()
+		bedwars.ProjectileController:createLocalProjectile(meta, 'harpoon', 'harpoon', pos, nil, dir, {drawDurationSeconds = 1})
+	end)
+
+	local success = pcall(function()
+		projectileRemote:InvokeServer(
+			item.tool,
+			'harpoon',
+			'harpoon',
+			pos,
+			pos,
+			dir,
+			httpService:GenerateGUID(true),
+			{
+				drawDurationSeconds = 1,
+				shotId = shotId
+			},
+			workspace:GetServerTimeNow() - 0.045
+		)
+	end)
+
+	return success
     end
 
     local function useHarpoon(pos, spot, item)
@@ -9962,7 +10007,12 @@ run(function()
 		hotbarSwitch(hotbar)
 	end
 
-	local used = useAbility(harpoonAbilities, {target = spot, origin = pos})
+	local used = fireHarpoonProjectile(pos, spot, item) or useAbility(harpoonAbilities, {
+		{target = spot, origin = pos},
+		{targetPosition = spot, position = pos},
+		{position = spot},
+		spot
+	})
 	if used and Recall.Enabled then
 		task.spawn(function()
 			task.wait(0.25)
