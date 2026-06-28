@@ -8996,8 +8996,8 @@ run(function()
     rayCheck.RespectCanCollide = true
     rayCheck.FilterType = Enum.RaycastFilterType.Include
 
-    local tridentAbilities = {'trident_throw', 'TRIDENT_THROW', 'triton_trident', 'TRITON_TRIDENT', 'triton_throw', 'TRITON_THROW'}
-    local recallAbilities = {'trident_recall', 'TRIDENT_RECALL', 'triton_recall', 'TRITON_RECALL', 'triton_go_to_base', 'TRITON_GO_TO_BASE', 'go_to_base', 'GO_TO_BASE'}
+    local harpoonAbilities = {'harpoon', 'HARPOON', 'harpoon_throw', 'HARPOON_THROW', 'triton_harpoon', 'TRITON_HARPOON'}
+    local virtualInputManager = cloneref(game:GetService('VirtualInputManager'))
 
     task.spawn(function()
 	local success, abilityIds = pcall(function()
@@ -9006,11 +9006,8 @@ run(function()
 	if success then
 		for _, ability in abilityIds do
 			local lowered = tostring(ability):lower()
-			if lowered:find('trident', 1, true) or lowered:find('triton', 1, true) then
-				table.insert(tridentAbilities, ability)
-			end
-			if lowered:find('recall', 1, true) or lowered:find('go_to_base', 1, true) or lowered:find('base', 1, true) then
-				table.insert(recallAbilities, ability)
+			if lowered:find('harpoon', 1, true) then
+				table.insert(harpoonAbilities, ability)
 			end
 		end
 	end
@@ -9043,23 +9040,20 @@ run(function()
 	return false
     end
 
-    local function useTrident(pos, spot, item)
+    local function useHarpoon(pos, spot, item)
 	local hotbar, old = getHotbar(item.tool), store.hand
 	switchItem(item.tool)
 	if Legit.Enabled and hotbar then
 		hotbarSwitch(hotbar)
 	end
 
-	local used = useAbility(tridentAbilities, {target = spot, origin = pos})
+	local used = useAbility(harpoonAbilities, {target = spot, origin = pos})
 	if used and Recall.Enabled then
 		task.spawn(function()
-			local started = os.clock()
-			repeat
-				task.wait(0.25)
-				if useAbility(recallAbilities, {target = spot}) then
-					break
-				end
-			until os.clock() - started > 3 or not TritonClutch.Enabled
+			task.wait(0.25)
+			virtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+			task.wait()
+			virtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 		end)
 	end
 
@@ -9095,9 +9089,9 @@ run(function()
 		if callback then
 			local check, lasty
 			repeat
-				if entitylib.isAlive and (not Limit.Enabled or store.hand.tool and store.hand.tool.Name == 'trident') then
+				if entitylib.isAlive and (not Limit.Enabled or store.hand.tool and store.hand.tool.Name == 'harpoon') then
 					local root = entitylib.character.RootPart
-					local trident = getItem('trident')
+					local harpoon = getItem('harpoon')
 					rayCheck.FilterDescendantsInstances = {store.map}
 					rayCheck.CollisionGroup = root.CollisionGroup
 
@@ -9105,12 +9099,12 @@ run(function()
 						lasty = root.CFrame
 					end
 
-					if trident and root.Velocity.Y < -100 and not workspace:Raycast(root.Position, Vector3.new(0, -200, 0), rayCheck) then
+					if harpoon and root.Velocity.Y < -100 and not workspace:Raycast(root.Position, Vector3.new(0, -200, 0), rayCheck) then
 						if not check then
 							check = true
 							local ground = findNearGround(root.CFrame + Vector3.new(0, 40, 0)) or findNearGround(lasty and lasty + Vector3.new(0, 5, 0) or root.CFrame)
 							if ground then
-								useTrident(root.Position, ground, trident)
+								useHarpoon(root.Position, ground, harpoon)
 							end
 						end
 					else
@@ -9121,7 +9115,7 @@ run(function()
 			until not TritonClutch.Enabled
 		end
 	end,
-	Tooltip = 'Automatically throws Triton\'s trident onto nearby ground after\nfalling a certain distance.'
+	Tooltip = 'Automatically throws Triton\'s harpoon onto nearby ground after\nfalling a certain distance.'
     })
 
     Legit = TritonClutch:CreateToggle({
@@ -9140,7 +9134,7 @@ run(function()
 			LandCheck.Object.Visible = callback
 		end
 	end,
-	Tooltip = 'Switches back to the last slot before trident'
+	Tooltip = 'Switches back to the last slot before harpoon'
     })
     LandCheck = TritonClutch:CreateToggle({
 	Name = 'Only after landed',
@@ -9157,11 +9151,11 @@ run(function()
     })
     Limit = TritonClutch:CreateToggle({
 	Name = 'Limit to item',
-	Tooltip = 'Only throws trident when holding a trident'
+	Tooltip = 'Only throws harpoon when holding a harpoon'
     })
     Recall = TritonClutch:CreateToggle({
 	Name = 'Recall',
-	Tooltip = 'Activates Triton\'s Recall / Go to base ability after clutching'
+	Tooltip = 'Presses C to activate Recall / Go to base after clutching'
     })
 end)
 
