@@ -9899,6 +9899,188 @@ run(function()
 end)
 
 run(function()
+    local TritonClutch
+    local Legit
+    local Back
+    local LandCheck
+    local BackDelay
+    local Limit
+    local Recall
+
+    local rayCheck = RaycastParams.new()
+    rayCheck.RespectCanCollide = true
+    rayCheck.FilterType = Enum.RaycastFilterType.Include
+
+    local tridentAbilities = {'trident_throw', 'TRIDENT_THROW', 'triton_trident', 'TRITON_TRIDENT', 'triton_throw', 'TRITON_THROW'}
+    local recallAbilities = {'trident_recall', 'TRIDENT_RECALL', 'triton_recall', 'TRITON_RECALL', 'triton_go_to_base', 'TRITON_GO_TO_BASE', 'go_to_base', 'GO_TO_BASE'}
+
+    task.spawn(function()
+	local success, abilityIds = pcall(function()
+		return require(replicatedStorage.TS.ability['ability-id']).AbilityId
+	end)
+	if success then
+		for _, ability in abilityIds do
+			local lowered = tostring(ability):lower()
+			if lowered:find('trident', 1, true) or lowered:find('triton', 1, true) then
+				table.insert(tridentAbilities, ability)
+			end
+			if lowered:find('recall', 1, true) or lowered:find('go_to_base', 1, true) or lowered:find('base', 1, true) then
+				table.insert(recallAbilities, ability)
+			end
+		end
+	end
+    end)
+
+    local function useAbility(list, data)
+	for _, ability in list do
+		local success, allowed = pcall(function()
+			return not bedwars.AbilityController.canUseAbility or bedwars.AbilityController:canUseAbility(ability)
+		end)
+		if success and allowed then
+			local used = pcall(function()
+				bedwars.AbilityController:useAbility(ability, newproxy(true), data)
+			end)
+			if not used then
+				used = pcall(function()
+					bedwars.AbilityController:useAbility(ability, data)
+				end)
+			end
+			if not used then
+				used = pcall(function()
+					bedwars.Client:Get(remotes.UseAbility).instance:FireServer(ability, data)
+				end)
+			end
+			if used then
+				return true
+			end
+		end
+	end
+	return false
+    end
+
+    local function useTrident(pos, spot, item)
+	local hotbar, old = getHotbar(item.tool), store.hand
+	switchItem(item.tool)
+	if Legit.Enabled and hotbar then
+		hotbarSwitch(hotbar)
+	end
+
+	local used = useAbility(tridentAbilities, {target = spot, origin = pos})
+	if used and Recall.Enabled then
+		task.spawn(function()
+			local started = os.clock()
+			repeat
+				task.wait(0.25)
+				if useAbility(recallAbilities, {target = spot}) then
+					break
+				end
+			until os.clock() - started > 3 or not TritonClutch.Enabled
+		end)
+	end
+
+	if Back.Enabled and LandCheck.Enabled then
+		repeat
+			task.wait()
+		until entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air or not TritonClutch.Enabled
+	end
+	if Back.Enabled and old and old.tool then
+		task.wait(BackDelay:GetRandomValue())
+		switchItem(old.tool)
+		if Legit.Enabled and getHotbar(old.tool) then
+			hotbarSwitch(getHotbar(old.tool))
+		end
+	end
+    end
+
+    local function findNearGround(origin)
+	for _, v in {Vector3.new(1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(-1, 0, 0), Vector3.new(0, 0, -1)} do
+		for i = 1, 24 do
+			local ray = workspace:Raycast((origin.Position + (Vector3.yAxis * 3)) + (v * i), Vector3.new(0, -60, 0), rayCheck)
+			if ray then
+				return ray.Position
+			end
+		end
+	end
+	return nil
+    end
+
+    TritonClutch = vape.Categories.Utility:CreateModule({
+	Name = 'TritonClutch',
+	Function = function(callback)
+		if callback then
+			local check, lasty
+			repeat
+				if entitylib.isAlive and (not Limit.Enabled or store.hand.tool and store.hand.tool.Name == 'trident') then
+					local root = entitylib.character.RootPart
+					local trident = getItem('trident')
+					rayCheck.FilterDescendantsInstances = {store.map}
+					rayCheck.CollisionGroup = root.CollisionGroup
+
+					if entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+						lasty = root.CFrame
+					end
+
+					if trident and root.Velocity.Y < -100 and not workspace:Raycast(root.Position, Vector3.new(0, -200, 0), rayCheck) then
+						if not check then
+							check = true
+							local ground = findNearGround(root.CFrame + Vector3.new(0, 40, 0)) or findNearGround(lasty and lasty + Vector3.new(0, 5, 0) or root.CFrame)
+							if ground then
+								useTrident(root.Position, ground, trident)
+							end
+						end
+					else
+						check = false
+					end
+				end
+				task.wait(0.1)
+			until not TritonClutch.Enabled
+		end
+	end,
+	Tooltip = 'Automatically throws Triton\'s trident onto nearby ground after\nfalling a certain distance.'
+    })
+
+    Legit = TritonClutch:CreateToggle({
+	Name = 'Legit Switch',
+	Tooltip = 'Visualizes the switching clientside',
+	Default = true
+    })
+    Back = TritonClutch:CreateToggle({
+	Name = 'Switch back',
+	Default = true,
+	Function = function(callback)
+		if BackDelay then
+			BackDelay.Object.Visible = callback
+		end
+		if LandCheck then
+			LandCheck.Object.Visible = callback
+		end
+	end,
+	Tooltip = 'Switches back to the last slot before trident'
+    })
+    LandCheck = TritonClutch:CreateToggle({
+	Name = 'Only after landed',
+	Tooltip = 'Only switches back after you land',
+	Darker = true
+    })
+    BackDelay = TritonClutch:CreateTwoSlider({
+	Name = 'Switch Back Delay',
+	Min = 0,
+	Max = 2,
+	DefaultMin = 0.1,
+	DefaultMax = 0.2,
+	Darker = true
+    })
+    Limit = TritonClutch:CreateToggle({
+	Name = 'Limit to item',
+	Tooltip = 'Only throws trident when holding a trident'
+    })
+    Recall = TritonClutch:CreateToggle({
+	Name = 'Recall',
+	Tooltip = 'Activates Triton\'s Recall / Go to base ability after clutching'
+    })
+end)
+
+run(function()
     local AutoPlay
     local Random
 
