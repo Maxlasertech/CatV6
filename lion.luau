@@ -4476,18 +4476,17 @@ run(function()
                                     local frameCounter = 0
 
                                     local vapeModules = vape.Modules
-                                    local flyEnabled = vapeModules.Fly
-                                    local infFlyEnabled = vapeModules.InfiniteFly
-                                    local longJumpEnabled = vapeModules.LongJump
+                                    local flyModule = vapeModules.Fly
+                                    local infiniteFlyModule = vapeModules.InfiniteFly
+                                    local longJumpModule = vapeModules.LongJump or vapeModules['Long Jump']
 
                                     local yMask = vector3new(1, 0, 1)
-                                    local yOnly = vector3new(0, 1, 0)
 
                                     connection = runService.PreSimulation:Connect(function()
                                         frameCounter = frameCounter + 1
 
                                         if frameCounter % 5 == 0 then
-                                            if flyEnabled.Enabled or infFlyEnabled.Enabled or longJumpEnabled.Enabled then
+                                            if (flyModule and flyModule.Enabled) or (infiniteFlyModule and infiniteFlyModule.Enabled) or (longJumpModule and longJumpModule.Enabled) then
                                                 connection:Disconnect()
                                                 AntiFallDirection = nil
                                                 return
@@ -4511,7 +4510,7 @@ run(function()
                                                     for i = 1, 5 do
                                                         local dpos = roundPos(ray.Position + ray.Normal * 1.5) + vector3new(0, 3, 0)
                                                         if not getPlacedBlock(dpos) then
-                                                            top = vector3new(top.X, pos.Y, top.Z)
+                                                            top = dpos
                                                             break
                                                         end
                                                     end
