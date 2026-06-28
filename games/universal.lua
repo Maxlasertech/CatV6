@@ -1562,10 +1562,13 @@ end)
 
 run(function()
 	local MovementPrediction
+	local Targets
+	local Range
 	local Duration
 	local Confidence
 	local Transparency
 	local predictionModel
+	local predictedEntity
 	local lastPrediction
 	local samples = {}
 
@@ -1574,6 +1577,7 @@ run(function()
 			predictionModel:Destroy()
 			predictionModel = nil
 		end
+		predictedEntity = nil
 	end
 
 	local function stylePredictionModel(model, confidence)
@@ -1596,26 +1600,40 @@ run(function()
 		end
 	end
 
-	local function rebuildPredictionModel()
-		cleanupPredictionModel()
+	local function getPredictionTarget()
 		if not entitylib.isAlive then return end
-		local character = entitylib.character.Character
-		if not character then return end
-		local oldArchivable = character.Archivable
-		character.Archivable = true
-		local clone = character:Clone()
-		character.Archivable = oldArchivable
+		local root = entitylib.character.RootPart
+		local bestEntity, bestDistance = nil, Range.Value
+		for _, ent in entitylib.List do
+			if ent.Targetable and ent.Character and ent.RootPart and (Targets.Players.Enabled and ent.Player or Targets.NPCs.Enabled and ent.NPC) then
+				local distance = (ent.RootPart.Position - root.Position).Magnitude
+				if distance <= bestDistance then
+					bestEntity, bestDistance = ent, distance
+				end
+			end
+		end
+		return bestEntity
+	end
+
+	local function rebuildPredictionModel(ent)
+		cleanupPredictionModel()
+		if not (ent and ent.Character and ent.RootPart) then return end
+		local oldArchivable = ent.Character.Archivable
+		ent.Character.Archivable = true
+		local clone = ent.Character:Clone()
+		ent.Character.Archivable = oldArchivable
 		if not clone then return end
-		clone.Name = 'AetherCoreMovementPrediction'
+		clone.Name = 'AetherCoreTargetMovementPrediction'
 		stylePredictionModel(clone)
 		clone.Parent = gameCamera
 		predictionModel = clone
+		predictedEntity = ent
 	end
 
-	local function getPredictedCFrame(dt)
-		if not entitylib.isAlive then return end
-		local root = entitylib.character.RootPart
-		local humanoid = entitylib.character.Humanoid
+	local function getPredictedCFrame(ent)
+		if not (ent and ent.RootPart and ent.Humanoid) then return end
+		local root = ent.RootPart
+		local humanoid = ent.Humanoid
 		local now = tick()
 		table.insert(samples, {Time = now, Position = root.Position, Velocity = root.AssemblyLinearVelocity, MoveDirection = humanoid.MoveDirection})
 		while #samples > 12 or (#samples > 0 and now - samples[1].Time > 0.65) do
@@ -1639,7 +1657,7 @@ run(function()
 			predictedPosition += Vector3.new(0, (root.AssemblyLinearVelocity.Y * predictionTime) - (workspace.Gravity * predictionTime * predictionTime * 0.5), 0)
 		else
 			local params = RaycastParams.new()
-			params.FilterDescendantsInstances = {entitylib.character.Character, predictionModel}
+			params.FilterDescendantsInstances = {ent.Character, predictionModel, entitylib.character.Character}
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			local result = workspace:Raycast(predictedPosition + Vector3.new(0, 3, 0), Vector3.new(0, -12, 0), params)
 			if result then
@@ -1659,20 +1677,35 @@ run(function()
 		Name = 'MovementPrediction',
 		Function = function(callback)
 			if callback then
-				rebuildPredictionModel()
-				MovementPrediction:Clean(entitylib.Events.LocalAdded:Connect(function()
-					table.clear(samples)
-					task.defer(rebuildPredictionModel)
+				MovementPrediction:Clean(entitylib.Events.EntityRemoved:Connect(function(ent)
+					if ent == predictedEntity then
+						table.clear(samples)
+						lastPrediction = nil
+						cleanupPredictionModel()
+					end
 				end))
-				MovementPrediction:Clean(runService.RenderStepped:Connect(function(dt)
+				MovementPrediction:Clean(runService.RenderStepped:Connect(function()
 					if not entitylib.isAlive then
+						cleanupPredictionModel()
+						table.clear(samples)
+						lastPrediction = nil
+						return
+					end
+
+					local ent = getPredictionTarget()
+					if ent ~= predictedEntity then
+						table.clear(samples)
+						lastPrediction = nil
+						rebuildPredictionModel(ent)
+					end
+					if not ent then
 						cleanupPredictionModel()
 						return
 					end
 					if not predictionModel or not predictionModel.Parent then
-						rebuildPredictionModel()
+						rebuildPredictionModel(ent)
 					end
-					local predictedCFrame, confidence = getPredictedCFrame(dt)
+					local predictedCFrame, confidence = getPredictedCFrame(ent)
 					if predictionModel and predictedCFrame then
 						predictionModel:PivotTo(predictedCFrame)
 						stylePredictionModel(predictionModel, confidence)
@@ -1684,8 +1717,10 @@ run(function()
 				cleanupPredictionModel()
 			end
 		end,
-		Tooltip = 'Shows a transparent replica where your current movement is predicted to carry you next. Sudden manual direction changes cannot be predicted perfectly, but stable movement targets at least 80% confidence.',
+		Tooltip = 'Shows a transparent replica where the nearest selected opponent or NPC is predicted to move next. Sudden manual direction changes cannot be predicted perfectly, but stable movement targets at least 80% confidence.',
 	})
+	Targets = MovementPrediction:CreateTargets({Players = true, NPCs = true})
+	Range = MovementPrediction:CreateSlider({Name = 'Range', Min = 10, Max = 300, Default = 80, Suffix = ' studs'})
 	Duration = MovementPrediction:CreateSlider({Name = 'Prediction Time', Min = 15, Max = 150, Default = 55, Suffix = 'cs'})
 	Transparency = MovementPrediction:CreateSlider({
 		Name = 'Transparency',
