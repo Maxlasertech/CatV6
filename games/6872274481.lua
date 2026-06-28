@@ -12013,7 +12013,7 @@ run(function()
         return blocks
     end
 
-    -- Original pyramid function (kept for reference, but we no longer use it)
+    -- Generates a pyramid layer of given size (height and width)
     local function getPyramid(size, grid)
         local positions = {}
         for h = size, 0, -1 do
@@ -12027,20 +12027,6 @@ run(function()
         return positions
     end
 
-    -- NEW: generate a flat base layer (only the bottom row of the pyramid)
-    local function getFlatBasePositions(size, grid)
-        local positions = {}
-        -- h = size means we only take the lowest row of the pyramid
-        local h = size
-        for w = h, 0, -1 do
-            table.insert(positions, Vector3.new(w, 0, ((h + 1) - w)) * grid)
-            table.insert(positions, Vector3.new(w * -1, 0, ((h + 1) - w)) * grid)
-            table.insert(positions, Vector3.new(w, 0, (h - w) * -1) * grid)
-            table.insert(positions, Vector3.new(w * -1, 0, (h - w) * -1) * grid)
-        end
-        return positions
-    end
-
     BedProtector = vape.Categories.World:CreateModule({
         Name = 'BedProtector',
         Function = function(callback)
@@ -12050,44 +12036,29 @@ run(function()
                     if bed then
                         for i, block in getBlocks() do
                             local switch, old = Switch.Enabled, store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
-                            local hotbar = nil
-
-                            if switch then
-                                hotbar = getHotbar(block[3])
-                            end
-
-                            -- Generate the flat base positions once (based on the block's "size" index i)
-                            local basePositions = getFlatBasePositions(i, 3)
+                            local hotbar = switch and getHotbar(block[3]) or nil
 
                             for layer = 1, Layers.Value do
+												-- PLEASE WORK BROTHA
+                                local size = i + (layer - 1)
                                 local layerOffset = Vector3.new(0, (layer - 1) * 3, 0)
+                                local positions = getPyramid(size, 3)
 
-                                for _, pos in basePositions do
-                                    if not BedProtector.Enabled then
-                                        break
-                                    end
-                                    pos = (bed.CFrame * CFrame.new(pos + layerOffset)).Position
-                                    if getPlacedBlock(pos) then
-                                        continue
-                                    end
-                                    if (entitylib.character.RootPart.Position - pos).Magnitude > PlaceRange.Value then
-                                        continue
-                                    end
-                                    if hotbar and hotbarSwitch(hotbar) then
-                                        task.wait()
-                                    end
-                                    task.spawn(bedwars.placeBlock, pos, block[1], false)
+                                for _, pos in positions do
+                                    if not BedProtector.Enabled then break end
+                                    local worldPos = (bed.CFrame * CFrame.new(pos + layerOffset)).Position
+                                    if getPlacedBlock(worldPos) then continue end
+                                    if (entitylib.character.RootPart.Position - worldPos).Magnitude > PlaceRange.Value then continue end
+
+                                    if hotbar and hotbarSwitch(hotbar) then task.wait() end
+                                    task.spawn(bedwars.placeBlock, worldPos, block[1], false)
                                     task.wait(0.1)
                                 end
 
-                                if not BedProtector.Enabled then
-                                    break
-                                end
+                                if not BedProtector.Enabled then break end
                             end
 
-                            if switch and old and hotbarSwitch(old) then
-                                task.wait()
-                            end
+                            if switch and old and hotbarSwitch(old) then task.wait() end
                         end
                     else
                         if Mode.Value == 'On Key' then
@@ -12106,15 +12077,12 @@ run(function()
         Tooltip = 'Automatically places strong blocks around the bed.'
     })
 
-    -- Module options (unchanged)
     Mode = BedProtector:CreateDropdown({
         Name = 'Mode',
         List = {'Toggle', 'On Key'},
         Default = 'Toggle',
         Function = function(val)
-            if Smart then
-                Smart.Object.Visible = val == 'Toggle'
-            end
+            if Smart then Smart.Object.Visible = (val == 'Toggle') end
         end,
     })
     Blacklist = BedProtector:CreateTextList({
@@ -12123,18 +12091,12 @@ run(function()
     })
     PlaceRange = BedProtector:CreateSlider({
         Name = 'Place Range',
-        Min = 1,
-        Max = 30,
-        Default = 15,
+        Min = 1, Max = 30, Default = 15,
     })
     Layers = BedProtector:CreateSlider({
         Name = 'Layers',
-        Min = 1,
-        Max = 5,
-        Default = 1,
-        Suffix = function(val)
-            return val <= 1 and 'layer' or 'layers'
-        end,
+        Min = 1, Max = 5, Default = 1,
+        Suffix = function(val) return val <= 1 and 'layer' or 'layers' end,
     })
     Switch = BedProtector:CreateToggle({Name = 'Auto Switch'})
     Smart = BedProtector:CreateToggle({Name = 'Smart', Default = true})
