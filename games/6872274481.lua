@@ -3995,10 +3995,10 @@ run(function()
     local LegitAura
     local Particles, Boxes, Rings = {}, {}, {}
     local anims, AnimDelay, AnimTween, armC0 = vape.Libraries.auraanims, tick()
-    local AttackRemote = {FireServer = function(self, ...) end}
+    local AttackRemote = {SendToServer = function(self, ...) end}
     local projectileRemote = {InvokeServer = function(self, ...) end}
     task.spawn(function()
-        AttackRemote = bedwars.Client:Get(remotes.AttackEntity).instance
+        AttackRemote = bedwars.Client:Get(remotes.AttackEntity)
     end)
     task.spawn(function()
 	projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
@@ -4206,7 +4206,7 @@ run(function()
                                         store.attackReachUpdate = tick() + 1
                                         swingCooldown = tick()
 
-                                        AttackRemote:FireServer({
+                                        AttackRemote:SendToServer({
                                             weapon = sword.tool,
                                             chargedAttack = {chargeRatio = 0},
                                             entityInstance = v.Character,
@@ -4215,7 +4215,7 @@ run(function()
                                                     cameraPosition = {value = pos},
                                                     cursorDirection = {value = dir}
                                                 },
-                                                targetPosition = {value = actualRoot.Position + vape.Libraries.calculatePosition(selfpos, actualRoot)},
+                                                targetPosition = {value = actualRoot.Position},
                                                 selfPosition = {value = pos}
                                             }
                                         })
