@@ -12013,7 +12013,6 @@ run(function()
         return blocks
     end
 
-    -- Generates a pyramid layer of given size (height and width)
     local function getPyramid(size, grid)
         local positions = {}
         for h = size, 0, -1 do
@@ -12039,8 +12038,8 @@ run(function()
                             local hotbar = switch and getHotbar(block[3]) or nil
 
                             for layer = 1, Layers.Value do
-												-- PLEASE WORK BROTHA
-                                local size = i + (layer - 1)
+                                local size = i - (layer - 1)
+                                if size < 1 then size = 1 end
                                 local layerOffset = Vector3.new(0, (layer - 1) * 3, 0)
                                 local positions = getPyramid(size, 3)
 
