@@ -471,6 +471,7 @@ if not shared.VapeIndependent then
 		[7534782259] = true
 	}
 	local supportedGameModules = {
+		[6872265039] = true,
 		[6872274481] = true,
 		[71480482338212] = true,
 		[7534782259] = true
