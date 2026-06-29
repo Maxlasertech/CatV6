@@ -61,69 +61,70 @@ local uipallet = {
 }
 
 local getcustomassets = {
-	['catrewrite/assets/new/add.png'] = 'rbxassetid://14368300605',
-	['catrewrite/assets/new/alert.png'] = 'rbxassetid://14368301329',
-	['catrewrite/assets/new/allowedicon.png'] = 'rbxassetid://14368302000',
-	['catrewrite/assets/new/allowedtab.png'] = 'rbxassetid://14368302875',
-	['catrewrite/assets/new/arrowmodule.png'] = 'rbxassetid://14473354880',
-	['catrewrite/assets/new/back.png'] = 'rbxassetid://14368303894',
-	['catrewrite/assets/new/bind.png'] = 'rbxassetid://14368304734',
-	['catrewrite/assets/new/bindbkg.png'] = 'rbxassetid://14368305655',
-	['catrewrite/assets/new/blatanticon.png'] = 'rbxassetid://14368306745',
-	['catrewrite/assets/new/blockedicon.png'] = 'rbxassetid://14385669108',
-	['catrewrite/assets/new/blockedtab.png'] = 'rbxassetid://14385672881',
-	['catrewrite/assets/new/blur.png'] = 'rbxassetid://14898786664',
-	['catrewrite/assets/new/blurnotif.png'] = 'rbxassetid://16738720137',
-	['catrewrite/assets/new/close.png'] = 'rbxassetid://14368309446',
-	['catrewrite/assets/new/closemini.png'] = 'rbxassetid://14368310467',
-	['catrewrite/assets/new/colorpreview.png'] = 'rbxassetid://14368311578',
-	['catrewrite/assets/new/combaticon.png'] = 'rbxassetid://14368312652',
-	['catrewrite/assets/new/customsettings.png'] = 'rbxassetid://14403726449',
-	['catrewrite/assets/new/discord.png'] = '',
-	['catrewrite/assets/new/dots.png'] = 'rbxassetid://14368314459',
-	['catrewrite/assets/new/edit.png'] = 'rbxassetid://14368315443',
-	['catrewrite/assets/new/expandicon.png'] = 'rbxassetid://14368353032',
-	['catrewrite/assets/new/expandright.png'] = 'rbxassetid://14368316544',
-	['catrewrite/assets/new/expandup.png'] = 'rbxassetid://14368317595',
-	['catrewrite/assets/new/friendstab.png'] = 'rbxassetid://14397462778',
-	['catrewrite/assets/new/guisettings.png'] = 'rbxassetid://14368318994',
-	['catrewrite/assets/new/guislider.png'] = 'rbxassetid://14368320020',
-	['catrewrite/assets/new/guisliderrain.png'] = 'rbxassetid://14368321228',
-	['catrewrite/assets/new/guiv4.png'] = 'rbxassetid://14368322199',
-	['catrewrite/assets/new/guivape.png'] = 'rbxassetid://14657521312',
-	['catrewrite/assets/new/info.png'] = 'rbxassetid://14368324807',
-	['catrewrite/assets/new/inventoryicon.png'] = 'rbxassetid://14928011633',
-	['catrewrite/assets/new/legit.png'] = 'rbxassetid://14425650534',
-	['catrewrite/assets/new/legittab.png'] = 'rbxassetid://14426740825',
-	['catrewrite/assets/new/miniicon.png'] = 'rbxassetid://14368326029',
-	['catrewrite/assets/new/notification.png'] = 'rbxassetid://16738721069',
-	['catrewrite/assets/new/overlaysicon.png'] = 'rbxassetid://14368339581',
-	['catrewrite/assets/new/overlaystab.png'] = 'rbxassetid://14397380433',
-	['catrewrite/assets/new/pin.png'] = 'rbxassetid://14368342301',
-	['catrewrite/assets/new/profilesicon.png'] = 'rbxassetid://14397465323',
-	['catrewrite/assets/new/radaricon.png'] = 'rbxassetid://14368343291',
-	['catrewrite/assets/new/rainbow_1.png'] = 'rbxassetid://14368344374',
-	['catrewrite/assets/new/rainbow_2.png'] = 'rbxassetid://14368345149',
-	['catrewrite/assets/new/rainbow_3.png'] = 'rbxassetid://14368345840',
-	['catrewrite/assets/new/rainbow_4.png'] = 'rbxassetid://14368346696',
-	['catrewrite/assets/new/range.png'] = 'rbxassetid://14368347435',
-	['catrewrite/assets/new/rangearrow.png'] = 'rbxassetid://14368348640',
-	['catrewrite/assets/new/rendericon.png'] = 'rbxassetid://14368350193',
-	['catrewrite/assets/new/rendertab.png'] = 'rbxassetid://14397373458',
-	['catrewrite/assets/new/search.png'] = 'rbxassetid://14425646684',
-	['catrewrite/assets/new/targetinfoicon.png'] = 'rbxassetid://14368354234',
-	['catrewrite/assets/new/targetnpc1.png'] = 'rbxassetid://14497400332',
-	['catrewrite/assets/new/targetnpc2.png'] = 'rbxassetid://14497402744',
-	['catrewrite/assets/new/targetplayers1.png'] = 'rbxassetid://14497396015',
-	['catrewrite/assets/new/targetplayers2.png'] = 'rbxassetid://14497397862',
-	['catrewrite/assets/new/targetstab.png'] = 'rbxassetid://14497393895',
-	['catrewrite/assets/new/textguiicon.png'] = 'rbxassetid://14368355456',
-	['catrewrite/assets/new/textv4.png'] = 'rbxassetid://14368357095',
-	['catrewrite/assets/new/textvape.png'] = 'rbxassetid://14368358200',
-	['catrewrite/assets/new/utilityicon.png'] = 'rbxassetid://14368359107',
-	['catrewrite/assets/new/vape.png'] = 'rbxassetid://14373395239',
-	['catrewrite/assets/new/warning.png'] = 'rbxassetid://14368361552',
-	['catrewrite/assets/new/worldicon.png'] = 'rbxassetid://14368362492'
+	['aethercorev2/assets/new/add.png'] = 'rbxassetid://14368300605',
+	['aethercorev2/assets/new/alert.png'] = 'rbxassetid://14368301329',
+	['aethercorev2/assets/new/allowedicon.png'] = 'rbxassetid://14368302000',
+	['aethercorev2/assets/new/allowedtab.png'] = 'rbxassetid://14368302875',
+	['aethercorev2/assets/new/arrowmodule.png'] = 'rbxassetid://14473354880',
+	['aethercorev2/assets/new/back.png'] = 'rbxassetid://14368303894',
+	['aethercorev2/assets/new/bind.png'] = 'rbxassetid://14368304734',
+	['aethercorev2/assets/new/bindbkg.png'] = 'rbxassetid://14368305655',
+	['aethercorev2/assets/new/blatanticon.png'] = 'rbxassetid://14368306745',
+	['aethercorev2/assets/new/blockedicon.png'] = 'rbxassetid://14385669108',
+	['aethercorev2/assets/new/blockedtab.png'] = 'rbxassetid://14385672881',
+	['aethercorev2/assets/new/blur.png'] = 'rbxassetid://14898786664',
+	['aethercorev2/assets/new/blurnotif.png'] = 'rbxassetid://16738720137',
+	['aethercorev2/assets/new/close.png'] = 'rbxassetid://14368309446',
+	['aethercorev2/assets/new/closemini.png'] = 'rbxassetid://14368310467',
+	['aethercorev2/assets/new/colorpreview.png'] = 'rbxassetid://14368311578',
+	['aethercorev2/assets/new/combaticon.png'] = 'rbxassetid://14368312652',
+	['aethercorev2/assets/new/customsettings.png'] = 'rbxassetid://14403726449',
+	['aethercorev2/assets/new/discord.png'] = '',
+	['aethercorev2/assets/new/dots.png'] = 'rbxassetid://14368314459',
+	['aethercorev2/assets/new/edit.png'] = 'rbxassetid://14368315443',
+	['aethercorev2/assets/new/expandicon.png'] = 'rbxassetid://14368353032',
+	['aethercorev2/assets/new/expandright.png'] = 'rbxassetid://14368316544',
+	['aethercorev2/assets/new/expandup.png'] = 'rbxassetid://14368317595',
+	['aethercorev2/assets/new/friendstab.png'] = 'rbxassetid://14397462778',
+	['aethercorev2/assets/new/guisettings.png'] = 'rbxassetid://14368318994',
+	['aethercorev2/assets/new/guislider.png'] = 'rbxassetid://14368320020',
+	['aethercorev2/assets/new/guisliderrain.png'] = 'rbxassetid://14368321228',
+	['aethercorev2/assets/new/guiv4.png'] = 'rbxassetid://14368322199',
+	['aethercorev2/assets/new/guivape.png'] = 'rbxassetid://14657521312',
+	['aethercorev2/assets/new/info.png'] = 'rbxassetid://14368324807',
+	['aethercorev2/assets/new/inventoryicon.png'] = 'rbxassetid://14928011633',
+	['aethercorev2/assets/new/legit.png'] = 'rbxassetid://14425650534',
+	['aethercorev2/assets/new/legittab.png'] = 'rbxassetid://14426740825',
+	['aethercorev2/assets/new/loading.png'] = '',
+	['aethercorev2/assets/new/miniicon.png'] = 'rbxassetid://14368326029',
+	['aethercorev2/assets/new/notification.png'] = 'rbxassetid://16738721069',
+	['aethercorev2/assets/new/overlaysicon.png'] = 'rbxassetid://14368339581',
+	['aethercorev2/assets/new/overlaystab.png'] = 'rbxassetid://14397380433',
+	['aethercorev2/assets/new/pin.png'] = 'rbxassetid://14368342301',
+	['aethercorev2/assets/new/profilesicon.png'] = 'rbxassetid://14397465323',
+	['aethercorev2/assets/new/radaricon.png'] = 'rbxassetid://14368343291',
+	['aethercorev2/assets/new/rainbow_1.png'] = 'rbxassetid://14368344374',
+	['aethercorev2/assets/new/rainbow_2.png'] = 'rbxassetid://14368345149',
+	['aethercorev2/assets/new/rainbow_3.png'] = 'rbxassetid://14368345840',
+	['aethercorev2/assets/new/rainbow_4.png'] = 'rbxassetid://14368346696',
+	['aethercorev2/assets/new/range.png'] = 'rbxassetid://14368347435',
+	['aethercorev2/assets/new/rangearrow.png'] = 'rbxassetid://14368348640',
+	['aethercorev2/assets/new/rendericon.png'] = 'rbxassetid://14368350193',
+	['aethercorev2/assets/new/rendertab.png'] = 'rbxassetid://14397373458',
+	['aethercorev2/assets/new/search.png'] = 'rbxassetid://14425646684',
+	['aethercorev2/assets/new/targetinfoicon.png'] = 'rbxassetid://14368354234',
+	['aethercorev2/assets/new/targetnpc1.png'] = 'rbxassetid://14497400332',
+	['aethercorev2/assets/new/targetnpc2.png'] = 'rbxassetid://14497402744',
+	['aethercorev2/assets/new/targetplayers1.png'] = 'rbxassetid://14497396015',
+	['aethercorev2/assets/new/targetplayers2.png'] = 'rbxassetid://14497397862',
+	['aethercorev2/assets/new/targetstab.png'] = 'rbxassetid://14497393895',
+	['aethercorev2/assets/new/textguiicon.png'] = 'rbxassetid://14368355456',
+	['aethercorev2/assets/new/textv4.png'] = 'rbxassetid://14368357095',
+	['aethercorev2/assets/new/textvape.png'] = 'rbxassetid://14368358200',
+	['aethercorev2/assets/new/utilityicon.png'] = 'rbxassetid://14368359107',
+	['aethercorev2/assets/new/vape.png'] = 'rbxassetid://14373395239',
+	['aethercorev2/assets/new/warning.png'] = 'rbxassetid://14368361552',
+	['aethercorev2/assets/new/worldicon.png'] = 'rbxassetid://14368362492'
 }
 
 local isfile = isfile or function(file)
@@ -148,7 +149,7 @@ local function addBlur(parent, notif)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getcustomasset('catrewrite/assets/new/'..(notif and 'blurnotif' or 'blur')..'.png')
+	blur.Image = getcustomasset('aethercorev2/assets/new/'..(notif and 'blurnotif' or 'blur')..'.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -172,7 +173,7 @@ local function addCloseButton(parent, offset)
 	close.BackgroundColor3 = Color3.new(1, 1, 1)
 	close.BackgroundTransparency = 1
 	close.AutoButtonColor = false
-	close.Image = getcustomasset('catrewrite/assets/new/close.png')
+	close.Image = getcustomasset('aethercorev2/assets/new/close.png')
 	close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 	close.ImageTransparency = 0.5
 	close.Parent = parent
@@ -223,7 +224,18 @@ end
 local function addTooltip(gui, text)
 	if not text then return end
 
+	local function configManagerVisible()
+		return mainapi.Categories
+			and mainapi.Categories.Profiles
+			and mainapi.Categories.Profiles.ConfigManager
+			and mainapi.Categories.Profiles.ConfigManager.Visible
+	end
+
 	local function tooltipMoved(x, y)
+		if configManagerVisible() then
+			tooltip.Visible = false
+			return
+		end
 		local right = x + 16 + tooltip.Size.X.Offset > (scale.Scale * 1920)
 		tooltip.Position = UDim2.fromOffset(
 			(right and x - (tooltip.Size.X.Offset * scale.Scale) - 16 or x + 16) / scale.Scale,
@@ -233,6 +245,7 @@ local function addTooltip(gui, text)
 	end
 
 	gui.MouseEnter:Connect(function(x, y)
+		if configManagerVisible() then return end
 		local tooltipSize = getfontsize(text, tooltip.TextSize, uipallet.Font)
 		tooltip.Size = UDim2.fromOffset(tooltipSize.X + 10, tooltipSize.Y + 10)
 		tooltip.Text = text
@@ -324,12 +337,12 @@ local function downloadFile(path, func)
 	if not isfile(path) then
 		createDownloader(path)
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/'..select(1, path:gsub('aethercorev2/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
 		end
-		if path:find('.lua') then
+		if path:sub(-4) == '.lua' then
 			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
 		end
 		writefile(path, res)
@@ -369,8 +382,145 @@ local function loadJson(path)
 	return suc and type(res) == 'table' and res or nil
 end
 
-downloadFile('catrewrite/profiles/features.json')
-local newModules = loadJson('catrewrite/profiles/features.json') or {}
+local configFolder = 'aethercorev2/configs'
+local profileFolder = 'aethercorev2/profiles'
+
+local function ensureFolder(path)
+	if makefolder and (not isfolder or not isfolder(path)) then
+		pcall(makefolder, path)
+	end
+end
+
+local function ensureDataFolders()
+	ensureFolder('aethercorev2')
+	ensureFolder(profileFolder)
+	ensureFolder(configFolder)
+end
+
+local function getConfigPath(profile)
+	return configFolder..'/'..profile..mainapi.Place..'.json'
+end
+
+local function getLegacyProfilePath(profile)
+	return profileFolder..'/'..profile..mainapi.Place..'.txt'
+end
+
+local function refreshConfigProfiles()
+	local profiles, seen = {}, {}
+	local function addProfile(name, bind)
+		name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+		if name ~= '' and not seen[name] then
+			seen[name] = true
+			table.insert(profiles, {Name = name, Bind = bind or {}})
+		end
+	end
+
+	for _, profile in mainapi.Profiles do
+		addProfile(profile.Name, profile.Bind)
+	end
+
+	if listfiles then
+		local suffix = tostring(mainapi.Place)..'.json'
+		local suc, files = pcall(listfiles, configFolder)
+		if suc then
+			for _, path in files do
+				local file = tostring(path):gsub('\\', '/')
+				local name = file:match('/([^/]+)'..suffix:gsub('%.', '%%.')..'$')
+				if name then
+					addProfile(name)
+				end
+			end
+		end
+	end
+
+	addProfile('default')
+	table.sort(profiles, function(a, b)
+		if a.Name == 'default' then return true end
+		if b.Name == 'default' then return false end
+		return a.Name:lower() < b.Name:lower()
+	end)
+	mainapi.Profiles = profiles
+	return profiles
+end
+
+ensureDataFolders()
+
+local communityConfigs = {'cc', 'rage'}
+local defaultConfigs = communityConfigs
+
+local function installBundledConfig(name, force)
+	local sourcePath = 'aethercorev2/configs/'..name..'.json'
+	if force or not isfile(sourcePath) then
+		local downloaded = pcall(downloadFile, sourcePath)
+		if not downloaded then return false end
+	end
+	local wrapper = loadJson(sourcePath)
+	if not wrapper then return false end
+	local configName = wrapper.name or name
+	local configPath = getConfigPath(configName)
+	if force or not isfile(configPath) then
+		writefile(configPath, wrapper.config or '{}')
+	end
+	if wrapper.gui then
+		local guiPath = 'aethercorev2/profiles/'..game.GameId..'.gui.txt'
+		local guidata = isfile(guiPath) and loadJson(guiPath) or nil
+		local defaultGui = httpService:JSONDecode(wrapper.gui)
+		guidata = guidata or defaultGui
+		guidata.Profiles = guidata.Profiles or {}
+		local exists = false
+		for _, profile in guidata.Profiles do
+			if profile.Name == configName then
+				exists = true
+				break
+			end
+		end
+		if not exists then
+			table.insert(guidata.Profiles, {Name = configName, Bind = {}})
+			writefile(guiPath, httpService:JSONEncode(guidata))
+		end
+	end
+	return true
+end
+
+local function applySavedConfig(name)
+	name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+	if name == '' then return false end
+	mainapi:Save()
+	mainapi:Load(true, name)
+	mainapi:Save(name)
+	return true
+end
+
+local function installBundledConfigs(force)
+	local installed = false
+	for _, name in defaultConfigs do
+		installed = installBundledConfig(name, force) or installed
+	end
+	refreshConfigProfiles()
+	return installed
+end
+
+local function removeSavedConfig(name)
+	name = type(name) == 'string' and name:gsub('^%s*(.-)%s*$', '%1') or ''
+	if name == '' or name == 'default' then return false end
+	if isfile(getConfigPath(name)) and delfile then
+		delfile(getConfigPath(name))
+	end
+	for i = #mainapi.Profiles, 1, -1 do
+		if mainapi.Profiles[i].Name == name then
+			table.remove(mainapi.Profiles, i)
+		end
+	end
+	if mainapi.Profile == name then
+		mainapi.Profile = 'default'
+	end
+	mainapi:Save(mainapi.Profile)
+	refreshConfigProfiles()
+	return true
+end
+installBundledConfigs(false)
+downloadFile('aethercorev2/profiles/features.json')
+local newModules = loadJson('aethercorev2/profiles/features.json') or {}
 local function makeDraggable(gui, window)
 	gui.InputBegan:Connect(function(inputObj)
 		if window and not window.Visible then return end
@@ -423,7 +573,7 @@ local function removeTags(str)
 end
 
 do
-	local res = isfile('catrewrite/profiles/color.txt') and loadJson('catrewrite/profiles/color.txt')
+	local res = isfile('aethercorev2/profiles/color.txt') and loadJson('aethercorev2/profiles/color.txt')
 	if res then
 		uipallet.Main = res.Main and Color3.fromRGB(unpack(res.Main)) or uipallet.Main
 		uipallet.Text = res.Text and Color3.fromRGB(unpack(res.Text)) or uipallet.Text
@@ -710,7 +860,7 @@ components = {
 		preview.Size = UDim2.fromOffset(12, 12)
 		preview.Position = UDim2.new(1, -22, 0, 10)
 		preview.BackgroundTransparency = 1
-		preview.Image = getcustomasset('catrewrite/assets/new/colorpreview.png')
+		preview.Image = getcustomasset('aethercorev2/assets/new/colorpreview.png')
 		preview.ImageColor3 = Color3.fromHSV(optionapi.Hue, optionapi.Sat, optionapi.Value)
 		preview.ImageTransparency = 1 - optionapi.Opacity
 		preview.Parent = slider
@@ -726,7 +876,7 @@ components = {
 		expand.Size = UDim2.fromOffset(9, 5)
 		expand.Position = UDim2.fromOffset(4, 4)
 		expand.BackgroundTransparency = 1
-		expand.Image = getcustomasset('catrewrite/assets/new/expandicon.png')
+		expand.Image = getcustomasset('aethercorev2/assets/new/expandicon.png')
 		expand.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		expand.Parent = expandbutton
 		local rainbow = Instance.new('TextButton')
@@ -739,17 +889,17 @@ components = {
 		local rainbow1 = Instance.new('ImageLabel')
 		rainbow1.Size = UDim2.fromOffset(12, 12)
 		rainbow1.BackgroundTransparency = 1
-		rainbow1.Image = getcustomasset('catrewrite/assets/new/rainbow_1.png')
+		rainbow1.Image = getcustomasset('aethercorev2/assets/new/rainbow_1.png')
 		rainbow1.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		rainbow1.Parent = rainbow
 		local rainbow2 = rainbow1:Clone()
-		rainbow2.Image = getcustomasset('catrewrite/assets/new/rainbow_2.png')
+		rainbow2.Image = getcustomasset('aethercorev2/assets/new/rainbow_2.png')
 		rainbow2.Parent = rainbow
 		local rainbow3 = rainbow1:Clone()
-		rainbow3.Image = getcustomasset('catrewrite/assets/new/rainbow_3.png')
+		rainbow3.Image = getcustomasset('aethercorev2/assets/new/rainbow_3.png')
 		rainbow3.Parent = rainbow
 		local rainbow4 = rainbow1:Clone()
-		rainbow4.Image = getcustomasset('catrewrite/assets/new/rainbow_4.png')
+		rainbow4.Image = getcustomasset('aethercorev2/assets/new/rainbow_4.png')
 		rainbow4.Parent = rainbow
 		local knobholder = Instance.new('Frame')
 		knobholder.Name = 'Knob'
@@ -1014,7 +1164,7 @@ components = {
 		arrow.Size = UDim2.fromOffset(4, 8)
 		arrow.Position = UDim2.new(1, -17, 0, 11)
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getcustomasset('catrewrite/assets/new/expandright.png')
+		arrow.Image = getcustomasset('aethercorev2/assets/new/expandright.png')
 		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		arrow.Rotation = 90
 		arrow.Parent = button
@@ -1425,7 +1575,7 @@ components = {
 		icon.Size = UDim2.fromOffset(18, 12)
 		icon.Position = UDim2.fromOffset(10, 15)
 		icon.BackgroundTransparency = 1
-		icon.Image = getcustomasset('catrewrite/assets/new/targetstab.png')
+		icon.Image = getcustomasset('aethercorev2/assets/new/targetstab.png')
 		icon.Parent = window
 		local title = Instance.new('TextLabel')
 		title.Name = 'Title'
@@ -1487,20 +1637,20 @@ components = {
 		
 		optionapi.Players = components.TargetsButton({
 			Position = UDim2.fromOffset(11, 45),
-			Icon = getcustomasset('catrewrite/assets/new/targetplayers1.png'),
+			Icon = getcustomasset('aethercorev2/assets/new/targetplayers1.png'),
 			IconSize = UDim2.fromOffset(15, 16),
 			IconParent = tool,
-			ToolIcon = getcustomasset('catrewrite/assets/new/targetplayers2.png'),
+			ToolIcon = getcustomasset('aethercorev2/assets/new/targetplayers2.png'),
 			ToolSize = UDim2.fromOffset(11, 12),
 			Tooltip = 'Players',
 			Function = optionsettings.Function
 		}, window, tool)
 		optionapi.NPCs = components.TargetsButton({
 			Position = UDim2.fromOffset(112, 45),
-			Icon = getcustomasset('catrewrite/assets/new/targetnpc1.png'),
+			Icon = getcustomasset('aethercorev2/assets/new/targetnpc1.png'),
 			IconSize = UDim2.fromOffset(12, 16),
 			IconParent = tool,
-			ToolIcon = getcustomasset('catrewrite/assets/new/targetnpc2.png'),
+			ToolIcon = getcustomasset('aethercorev2/assets/new/targetnpc2.png'),
 			ToolSize = UDim2.fromOffset(9, 12),
 			Tooltip = 'NPCs',
 			Function = optionsettings.Function
@@ -1784,7 +1934,7 @@ components = {
 		buttonicon.Size = UDim2.fromOffset(14, 12)
 		buttonicon.Position = UDim2.fromOffset(10, 14)
 		buttonicon.BackgroundTransparency = 1
-		buttonicon.Image = optionsettings.Icon or getcustomasset('catrewrite/assets/new/allowedicon.png')
+		buttonicon.Image = optionsettings.Icon or getcustomasset('aethercorev2/assets/new/allowedicon.png')
 		buttonicon.Parent = button
 		local buttontitle = Instance.new('TextLabel')
 		buttontitle.Name = 'Title'
@@ -1830,7 +1980,7 @@ components = {
 		icon.Size = optionsettings.TabSize or UDim2.fromOffset(19, 16)
 		icon.Position = UDim2.fromOffset(10, 13)
 		icon.BackgroundTransparency = 1
-		icon.Image = optionsettings.Tab or getcustomasset('catrewrite/assets/new/allowedtab.png')
+		icon.Image = optionsettings.Tab or getcustomasset('aethercorev2/assets/new/allowedtab.png')
 		icon.Parent = window
 		local title = Instance.new('TextLabel')
 		title.Name = 'Title'
@@ -1873,7 +2023,7 @@ components = {
 		addbutton.Size = UDim2.fromOffset(16, 16)
 		addbutton.Position = UDim2.new(1, -26, 0, 8)
 		addbutton.BackgroundTransparency = 1
-		addbutton.Image = getcustomasset('catrewrite/assets/new/add.png')
+		addbutton.Image = getcustomasset('aethercorev2/assets/new/add.png')
 		addbutton.ImageColor3 = optionsettings.Color
 		addbutton.ImageTransparency = 0.3
 		addbutton.Parent = addbkg
@@ -1977,7 +2127,7 @@ components = {
 				close.BackgroundColor3 = Color3.new(1, 1, 1)
 				close.BackgroundTransparency = 1
 				close.AutoButtonColor = false
-				close.Image = getcustomasset('catrewrite/assets/new/closemini.png')
+				close.Image = getcustomasset('aethercorev2/assets/new/closemini.png')
 				close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 				close.ImageTransparency = 0.5
 				close.Parent = object
@@ -2284,7 +2434,7 @@ components = {
 		knob.Position = UDim2.fromScale(0.5, 0.5)
 		knob.AnchorPoint = Vector2.new(0.5, 0.5)
 		knob.BackgroundTransparency = 1
-		knob.Image = getcustomasset('catrewrite/assets/new/range.png')
+		knob.Image = getcustomasset('aethercorev2/assets/new/range.png')
 		knob.ImageColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
 		knob.Parent = knobholder
 		local knobholdermax = knobholder:Clone()
@@ -2297,7 +2447,7 @@ components = {
 		arrow.Size = UDim2.fromOffset(12, 6)
 		arrow.Position = UDim2.new(1, -56, 0, 10)
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getcustomasset('catrewrite/assets/new/rangearrow.png')
+		arrow.Image = getcustomasset('aethercorev2/assets/new/rangearrow.png')
 		arrow.ImageColor3 = color.Light(uipallet.Main, 0.14)
 		arrow.Parent = slider
 		optionsettings.Function = optionsettings.Function or function() end
@@ -2509,7 +2659,7 @@ function mainapi:CreateGUI()
 	logo.Size = UDim2.fromOffset(62, 18)
 	logo.Position = UDim2.fromOffset(11, 10)
 	logo.BackgroundTransparency = 1
-	logo.Image = getcustomasset('catrewrite/assets/new/guivape.png')
+	logo.Image = getcustomasset('aethercorev2/assets/new/guivape.png')
 	logo.ImageColor3 = select(3, uipallet.Main:ToHSV()) > 0.5 and uipallet.Text or Color3.new(1, 1, 1)
 	logo.Parent = window
 	local logov4 = Instance.new('ImageLabel')
@@ -2517,7 +2667,7 @@ function mainapi:CreateGUI()
 	logov4.Size = UDim2.fromOffset(28, 16)
 	logov4.Position = UDim2.new(1, 1, 0, 1)
 	logov4.BackgroundTransparency = 1
-	logov4.Image = getcustomasset('catrewrite/assets/new/guiv4.png')
+	logov4.Image = getcustomasset('aethercorev2/assets/new/guiv4.png')
 	logov4.Parent = logo
 	local children = Instance.new('Frame')
 	children.Name = 'Children'
@@ -2541,14 +2691,14 @@ function mainapi:CreateGUI()
 	settingsicon.Size = UDim2.fromOffset(14, 14)
 	settingsicon.Position = UDim2.fromOffset(15, 12)
 	settingsicon.BackgroundTransparency = 1
-	settingsicon.Image = getcustomasset('catrewrite/assets/new/guisettings.png')
+	settingsicon.Image = getcustomasset('aethercorev2/assets/new/guisettings.png')
 	settingsicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 	settingsicon.Parent = settingsbutton
 	local discordbutton = Instance.new('ImageButton')
 	discordbutton.Size = UDim2.fromOffset(16, 16)
 	discordbutton.Position = UDim2.new(1, -56, 0, 11)
 	discordbutton.BackgroundTransparency = 1
-	discordbutton.Image = getcustomasset('catrewrite/assets/new/discord.png')
+	discordbutton.Image = getcustomasset('aethercorev2/assets/new/discord.png')
 	discordbutton.Parent = window
 	addTooltip(discordbutton, 'Join discord')
 	local settingspane = Instance.new('TextButton')
@@ -2575,7 +2725,7 @@ function mainapi:CreateGUI()
 	back.Size = UDim2.fromOffset(16, 16)
 	back.Position = UDim2.fromOffset(11, 13)
 	back.BackgroundTransparency = 1
-	back.Image = getcustomasset('catrewrite/assets/new/back.png')
+	back.Image = getcustomasset('aethercorev2/assets/new/back.png')
 	back.ImageColor3 = color.Light(uipallet.Main, 0.37)
 	back.Parent = settingspane
 	local settingsversion = Instance.new('TextLabel')
@@ -2584,7 +2734,7 @@ function mainapi:CreateGUI()
 	settingsversion.Position = UDim2.new(0, 0, 1, -16)
 	settingsversion.BackgroundTransparency = 1
 	settingsversion.Text = 'Vape '..mainapi.Version..' '..(
-		isfile('catrewrite/profiles/commit.txt') and readfile('catrewrite/profiles/commit.txt'):sub(1, 6) or ''
+		isfile('aethercorev2/profiles/commit.txt') and readfile('aethercorev2/profiles/commit.txt'):sub(1, 6) or ''
 	)..' '
 	settingsversion.TextColor3 = color.Dark(uipallet.Text, 0.43)
 	settingsversion.TextXAlignment = Enum.TextXAlignment.Right
@@ -2638,7 +2788,7 @@ function mainapi:CreateGUI()
 		icon.Size = UDim2.fromOffset(12, 12)
 		icon.Position = UDim2.new(0.5, -6, 0, 5)
 		icon.BackgroundTransparency = 1
-		icon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+		icon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		icon.Parent = bind
 		local label = Instance.new('TextLabel')
@@ -2671,13 +2821,13 @@ function mainapi:CreateGUI()
 		bind.MouseEnter:Connect(function()
 			label.Visible = false
 			icon.Visible = not label.Visible
-			icon.Image = getcustomasset('catrewrite/assets/new/edit.png')
+			icon.Image = getcustomasset('aethercorev2/assets/new/edit.png')
 			icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
 		end)
 		bind.MouseLeave:Connect(function()
 			label.Visible = true
 			icon.Visible = not label.Visible
-			icon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+			icon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 			icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		end)
 		bind.MouseButton1Click:Connect(function()
@@ -2738,7 +2888,7 @@ function mainapi:CreateGUI()
 		arrow.Size = UDim2.fromOffset(4, 8)
 		arrow.Position = UDim2.new(1, -20, 0, 16)
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getcustomasset('catrewrite/assets/new/expandright.png')
+		arrow.Image = getcustomasset('aethercorev2/assets/new/expandright.png')
 		arrow.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		arrow.Parent = button
 		optionapi.Name = categorysettings.Name
@@ -2800,7 +2950,7 @@ function mainapi:CreateGUI()
 		button.Position = UDim2.new(1, -29, 0, 7)
 		button.BackgroundTransparency = 1
 		button.AutoButtonColor = false
-		button.Image = getcustomasset('catrewrite/assets/new/overlaysicon.png')
+		button.Image = getcustomasset('aethercorev2/assets/new/overlaysicon.png')
 		button.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		button.Parent = bar
 		addCorner(button, UDim.new(1, 0))
@@ -2827,7 +2977,7 @@ function mainapi:CreateGUI()
 		icon.Size = UDim2.fromOffset(14, 12)
 		icon.Position = UDim2.fromOffset(10, 13)
 		icon.BackgroundTransparency = 1
-		icon.Image = getcustomasset('catrewrite/assets/new/overlaystab.png')
+		icon.Image = getcustomasset('aethercorev2/assets/new/overlaystab.png')
 		icon.ImageColor3 = uipallet.Text
 		icon.Parent = window
 		local title = Instance.new('TextLabel')
@@ -3019,7 +3169,7 @@ function mainapi:CreateGUI()
 		arrow.Size = UDim2.fromOffset(4, 8)
 		arrow.Position = UDim2.new(1, -20, 0, 16)
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getcustomasset('catrewrite/assets/new/expandright.png')
+		arrow.Image = getcustomasset('aethercorev2/assets/new/expandright.png')
 		arrow.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		arrow.Parent = button
 		local settingspane = Instance.new('TextButton')
@@ -3046,7 +3196,7 @@ function mainapi:CreateGUI()
 		back.Size = UDim2.fromOffset(16, 16)
 		back.Position = UDim2.fromOffset(11, 13)
 		back.BackgroundTransparency = 1
-		back.Image = getcustomasset('catrewrite/assets/new/back.png')
+		back.Image = getcustomasset('aethercorev2/assets/new/back.png')
 		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		back.Parent = settingspane
 		addCorner(settingspane)
@@ -3294,7 +3444,7 @@ function mainapi:CreateGUI()
 		preview.Size = UDim2.fromOffset(12, 12)
 		preview.Position = UDim2.new(1, -22, 0, 10)
 		preview.BackgroundTransparency = 1
-		preview.Image = getcustomasset('catrewrite/assets/new/colorpreview.png')
+		preview.Image = getcustomasset('aethercorev2/assets/new/colorpreview.png')
 		preview.ImageColor3 = Color3.fromHSV(optionapi.Hue, 1, 1)
 		preview.Parent = slider
 		local valuebox = Instance.new('TextBox')
@@ -3322,7 +3472,7 @@ function mainapi:CreateGUI()
 		expandicon.Size = UDim2.fromOffset(9, 5)
 		expandicon.Position = UDim2.fromOffset(4, 4)
 		expandicon.BackgroundTransparency = 1
-		expandicon.Image = getcustomasset('catrewrite/assets/new/expandicon.png')
+		expandicon.Image = getcustomasset('aethercorev2/assets/new/expandicon.png')
 		expandicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		expandicon.Parent = expandbutton
 		local rainbow = Instance.new('TextButton')
@@ -3335,24 +3485,24 @@ function mainapi:CreateGUI()
 		local rainbow1 = Instance.new('ImageLabel')
 		rainbow1.Size = UDim2.fromOffset(12, 12)
 		rainbow1.BackgroundTransparency = 1
-		rainbow1.Image = getcustomasset('catrewrite/assets/new/rainbow_1.png')
+		rainbow1.Image = getcustomasset('aethercorev2/assets/new/rainbow_1.png')
 		rainbow1.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		rainbow1.Parent = rainbow
 		local rainbow2 = rainbow1:Clone()
-		rainbow2.Image = getcustomasset('catrewrite/assets/new/rainbow_2.png')
+		rainbow2.Image = getcustomasset('aethercorev2/assets/new/rainbow_2.png')
 		rainbow2.Parent = rainbow
 		local rainbow3 = rainbow1:Clone()
-		rainbow3.Image = getcustomasset('catrewrite/assets/new/rainbow_3.png')
+		rainbow3.Image = getcustomasset('aethercorev2/assets/new/rainbow_3.png')
 		rainbow3.Parent = rainbow
 		local rainbow4 = rainbow1:Clone()
-		rainbow4.Image = getcustomasset('catrewrite/assets/new/rainbow_4.png')
+		rainbow4.Image = getcustomasset('aethercorev2/assets/new/rainbow_4.png')
 		rainbow4.Parent = rainbow
 		local knob = Instance.new('ImageLabel')
 		knob.Name = 'Knob'
 		knob.Size = UDim2.fromOffset(26, 12)
 		knob.Position = UDim2.fromOffset(slidercolorpos[4] - 3, -5)
 		knob.BackgroundTransparency = 1
-		knob.Image = getcustomasset('catrewrite/assets/new/guislider.png')
+		knob.Image = getcustomasset('aethercorev2/assets/new/guislider.png')
 		knob.ImageColor3 = slidercolors[4]
 		knob.Parent = holder
 		optionsettings.Function = optionsettings.Function or function() end
@@ -3369,8 +3519,8 @@ function mainapi:CreateGUI()
 			ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
 			ColorSequenceKeypoint.new(1, Color3.fromHSV(optionapi.Hue, optionapi.Sat, 1))
 		}))
-		local normalknob = getcustomasset('catrewrite/assets/new/guislider.png')
-		local rainbowknob = getcustomasset('catrewrite/assets/new/guisliderrain.png')
+		local normalknob = getcustomasset('aethercorev2/assets/new/guislider.png')
+		local rainbowknob = getcustomasset('aethercorev2/assets/new/guisliderrain.png')
 		local rainbowthread
 
 		function optionapi:Save(tab)
@@ -3589,11 +3739,13 @@ function mainapi:CreateGUI()
 	end)
 	discordbutton.MouseButton1Click:Connect(function()
 		task.spawn(function()
+			if type(request) ~= 'function' then return end
+
 			local body = httpService:JSONEncode({
 				nonce = httpService:GenerateGUID(false),
 				args = {
-					invite = {code = 'catvape'},
-					code = 'catvape'
+					invite = {code = 'aethercorev2'},
+					code = 'aethercorev2'
 				},
 				cmd = 'INVITE_BROWSER'
 			})
@@ -3615,7 +3767,7 @@ function mainapi:CreateGUI()
 
 		task.spawn(function()
 			tooltip.Text = 'Copied!'
-			setclipboard('https://discord.gg/catvape')
+			setclipboard('https://discord.gg/aYu5c9v9zv')
 		end)
 	end)
 	settingsbutton.MouseEnter:Connect(function()
@@ -3693,7 +3845,7 @@ function mainapi:CreateCategory(categorysettings)
 	arrow.Size = UDim2.fromOffset(9, 4)
 	arrow.Position = UDim2.fromOffset(20, 18)
 	arrow.BackgroundTransparency = 1
-	arrow.Image = getcustomasset('catrewrite/assets/new/expandup.png')
+	arrow.Image = getcustomasset('aethercorev2/assets/new/expandup.png')
 	arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 	arrow.Rotation = 180
 	arrow.Parent = arrowbutton
@@ -3823,7 +3975,7 @@ function mainapi:CreateCategory(categorysettings)
 		bindicon.Size = UDim2.fromOffset(12, 12)
 		bindicon.Position = UDim2.new(0.5, -6, 0, 5)
 		bindicon.BackgroundTransparency = 1
-		bindicon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+		bindicon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 		bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		bindicon.Parent = bind
 		local bindtext = Instance.new('TextLabel')
@@ -3841,7 +3993,7 @@ function mainapi:CreateCategory(categorysettings)
 		bindcover.Size = UDim2.fromOffset(154, 40)
 		bindcover.BackgroundTransparency = 1
 		bindcover.Visible = false
-		bindcover.Image = getcustomasset('catrewrite/assets/new/bindbkg.png')
+		bindcover.Image = getcustomasset('aethercorev2/assets/new/bindbkg.png')
 		bindcover.ScaleType = Enum.ScaleType.Slice
 		bindcover.SliceCenter = Rect.new(0, 0, 141, 40)
 		bindcover.Parent = modulebutton
@@ -3867,7 +4019,7 @@ function mainapi:CreateCategory(categorysettings)
 		dots.Size = UDim2.fromOffset(3, 16)
 		dots.Position = UDim2.fromOffset(4, 12)
 		dots.BackgroundTransparency = 1
-		dots.Image = getcustomasset('catrewrite/assets/new/dots.png')
+		dots.Image = getcustomasset('aethercorev2/assets/new/dots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Parent = dotsbutton
 		modulechildren.Name = modulesettings.Name..'Children'
@@ -3921,18 +4073,40 @@ function mainapi:CreateCategory(categorysettings)
 			end
 		end
 
+		local function updateModuleButtonVisual()
+			local rainbow = mainapi.GUIColor.Rainbow and mainapi.RainbowMode.Value ~= 'Retro'
+			gradient.Enabled = false
+
+			if moduleapi.Enabled then
+				modulebutton.BackgroundColor3 = rainbow and Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - (moduleapi.Index * 0.025)) % 1)) or Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+				modulebutton.TextColor3 = mainapi.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+				gradient.Enabled = rainbow and mainapi.RainbowMode.Value == 'Gradient'
+				if gradient.Enabled then
+					modulebutton.BackgroundColor3 = Color3.new(1, 1, 1)
+					gradient.Color = ColorSequence.new({
+						ColorSequenceKeypoint.new(0, Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - (moduleapi.Index * 0.025)) % 1))),
+						ColorSequenceKeypoint.new(1, Color3.fromHSV(mainapi:Color((mainapi.GUIColor.Hue - ((moduleapi.Index + 1) * 0.025)) % 1)))
+					})
+				end
+				dots.ImageColor3 = modulebutton.TextColor3
+				bindicon.ImageColor3 = modulebutton.TextColor3
+				bindtext.TextColor3 = modulebutton.TextColor3
+			else
+				modulebutton.TextColor3 = (hovered or modulechildren.Visible) and uipallet.Text or color.Dark(uipallet.Text, 0.16)
+				modulebutton.BackgroundColor3 = (hovered or modulechildren.Visible) and color.Light(uipallet.Main, 0.02) or uipallet.Main
+				dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
+				bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
+				bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
+			end
+		end
+
 		function moduleapi:Toggle(multiple)
 			if mainapi.ThreadFix then
 				setthreadidentity(8)
 			end
 			self.Enabled = not self.Enabled
 			divider.Visible = self.Enabled
-			gradient.Enabled = self.Enabled
-			modulebutton.TextColor3 = (hovered or modulechildren.Visible) and uipallet.Text or color.Dark(uipallet.Text, 0.16)
-			modulebutton.BackgroundColor3 = (hovered or modulechildren.Visible) and color.Light(uipallet.Main, 0.02) or uipallet.Main
-			dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or color.Light(uipallet.Main, 0.37)
-			bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-			bindtext.TextColor3 = color.Dark(uipallet.Text, 0.43)
+			updateModuleButtonVisual()
 			if not self.Enabled then
 				for _, v in self.Connections do
 					v:Disconnect()
@@ -3954,13 +4128,13 @@ function mainapi:CreateCategory(categorysettings)
 		bind.MouseEnter:Connect(function()
 			bindtext.Visible = false
 			bindicon.Visible = not bindtext.Visible
-			bindicon.Image = getcustomasset('catrewrite/assets/new/edit.png')
+			bindicon.Image = getcustomasset('aethercorev2/assets/new/edit.png')
 			if not moduleapi.Enabled then bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.16) end
 		end)
 		bind.MouseLeave:Connect(function()
 			bindtext.Visible = #moduleapi.Bind > 0
 			bindicon.Visible = not bindtext.Visible
-			bindicon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+			bindicon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 			if not moduleapi.Enabled then
 				bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 			end
@@ -4083,6 +4257,10 @@ function mainapi:CreateCategory(categorysettings)
 	end
 
 	function categoryapi:Expand()
+		if categorysettings.Profiles then
+			refreshConfigProfiles()
+			self:ChangeValue()
+		end
 		self.Expanded = not self.Expanded
 		children.Visible = self.Expanded
 		arrow.Rotation = self.Expanded and 0 or 180
@@ -4202,7 +4380,7 @@ function mainapi:CreateOverlay(categorysettings)
 	pin.Position = UDim2.new(1, -47, 0, 12)
 	pin.BackgroundTransparency = 1
 	pin.AutoButtonColor = false
-	pin.Image = getcustomasset('catrewrite/assets/new/pin.png')
+	pin.Image = getcustomasset('aethercorev2/assets/new/pin.png')
 	pin.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 	pin.Parent = window
 	local dotsbutton = Instance.new('TextButton')
@@ -4217,7 +4395,7 @@ function mainapi:CreateOverlay(categorysettings)
 	dots.Size = UDim2.fromOffset(3, 16)
 	dots.Position = UDim2.fromOffset(4, 12)
 	dots.BackgroundTransparency = 1
-	dots.Image = getcustomasset('catrewrite/assets/new/dots.png')
+	dots.Image = getcustomasset('aethercorev2/assets/new/dots.png')
 	dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 	dots.Parent = dotsbutton
 	local customchildren = Instance.new('Frame')
@@ -4334,6 +4512,7 @@ function mainapi:CreateOverlay(categorysettings)
 end
 
 function mainapi:CreateCategoryList(categorysettings)
+	local displayName = categorysettings.DisplayName or categorysettings.Name
 	local categoryapi = {
 		Type = 'CategoryList',
 		Expanded = false,
@@ -4345,7 +4524,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	categorysettings.Color = categorysettings.Color or Color3.fromRGB(5, 134, 105)
 
 	local window = Instance.new('TextButton')
-	window.Name = categorysettings.Name..'CategoryList'
+	window.Name = displayName..'CategoryList'
 	window.Size = UDim2.fromOffset(220, 45)
 	window.Position = UDim2.fromOffset(240, 46)
 	window.BackgroundColor3 = uipallet.Main
@@ -4369,7 +4548,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	title.Size = UDim2.new(1, -(categorysettings.Size.X.Offset > 20 and 44 or 36), 0, 20)
 	title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 12)
 	title.BackgroundTransparency = 1
-	title.Text = categorysettings.Name
+	title.Text = displayName
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = uipallet.Text
 	title.TextSize = 13
@@ -4387,7 +4566,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	arrow.Size = UDim2.fromOffset(9, 4)
 	arrow.Position = UDim2.fromOffset(20, 19)
 	arrow.BackgroundTransparency = 1
-	arrow.Image = getcustomasset('catrewrite/assets/new/expandup.png')
+	arrow.Image = getcustomasset('aethercorev2/assets/new/expandup.png')
 	arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 	arrow.Rotation = 180
 	arrow.Parent = arrowbutton
@@ -4413,7 +4592,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	settings.Position = UDim2.new(1, -52, 0, 13)
 	settings.BackgroundTransparency = 1
 	settings.AutoButtonColor = false
-	settings.Image = getcustomasset('catrewrite/assets/new/customsettings.png')
+	settings.Image = getcustomasset('aethercorev2/assets/new/customsettings.png')
 	settings.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 	settings.Parent = window
 	local divider = Instance.new('Frame')
@@ -4463,7 +4642,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	addbutton.Size = UDim2.fromOffset(16, 16)
 	addbutton.Position = UDim2.new(1, -26, 0, 8)
 	addbutton.BackgroundTransparency = 1
-	addbutton.Image = getcustomasset('catrewrite/assets/new/add.png')
+	addbutton.Image = getcustomasset('aethercorev2/assets/new/add.png')
 	addbutton.ImageColor3 = categorysettings.Color
 	addbutton.ImageTransparency = 0.3
 	addbutton.Parent = addbkg
@@ -4476,16 +4655,25 @@ function mainapi:CreateCategoryList(categorysettings)
 	function categoryapi:ChangeValue(val)
 		if val then
 			if categorysettings.Profiles then
+				val = val:gsub('^%s*(.-)%s*$', '%1')
+				if val == '' then return end
 				local ind = self:GetValue(val)
 				if ind then
 					if val ~= 'default' then
 						table.remove(mainapi.Profiles, ind)
-						if isfile('catrewrite/profiles/'..val..mainapi.Place..'.txt') and delfile then
-							delfile('catrewrite/profiles/'..val..mainapi.Place..'.txt')
+						if isfile(getConfigPath(val)) and delfile then
+							delfile(getConfigPath(val))
 						end
+						if mainapi.Profile == val then
+							mainapi.Profile = 'default'
+						end
+						mainapi:Save(mainapi.Profile)
 					end
 				else
 					table.insert(mainapi.Profiles, {Name = val, Bind = {}})
+					local currentProfile = mainapi.Profile
+					mainapi:Save(val)
+					mainapi:Save(currentProfile)
 				end
 			else
 				local ind = table.find(self.List, val)
@@ -4547,7 +4735,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				dots.Size = UDim2.fromOffset(3, 16)
 				dots.Position = UDim2.fromOffset(10, 9)
 				dots.BackgroundTransparency = 1
-				dots.Image = getcustomasset('catrewrite/assets/new/dots.png')
+				dots.Image = getcustomasset('aethercorev2/assets/new/dots.png')
 				dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 				dots.Parent = dotsbutton
 				local bind = Instance.new('TextButton')
@@ -4568,7 +4756,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				bindicon.Size = UDim2.fromOffset(12, 12)
 				bindicon.Position = UDim2.new(0.5, -6, 0, 5)
 				bindicon.BackgroundTransparency = 1
-				bindicon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+				bindicon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 				bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 				bindicon.Parent = bind
 				local bindtext = Instance.new('TextLabel')
@@ -4584,7 +4772,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				bind.MouseEnter:Connect(function()
 					bindtext.Visible = false
 					bindicon.Visible = not bindtext.Visible
-					bindicon.Image = getcustomasset('catrewrite/assets/new/edit.png')
+					bindicon.Image = getcustomasset('aethercorev2/assets/new/edit.png')
 					if v.Name ~= mainapi.Profile then
 						bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
 					end
@@ -4592,7 +4780,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				bind.MouseLeave:Connect(function()
 					bindtext.Visible = #v.Bind > 0
 					bindicon.Visible = not bindtext.Visible
-					bindicon.Image = getcustomasset('catrewrite/assets/new/bind.png')
+					bindicon.Image = getcustomasset('aethercorev2/assets/new/bind.png')
 					if v.Name ~= mainapi.Profile then
 						bindicon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 					end
@@ -4602,7 +4790,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				bindcover.Size = UDim2.fromOffset(154, 33)
 				bindcover.BackgroundTransparency = 1
 				bindcover.Visible = false
-				bindcover.Image = getcustomasset('catrewrite/assets/new/bindbkg.png')
+				bindcover.Image = getcustomasset('aethercorev2/assets/new/bindbkg.png')
 				bindcover.ScaleType = Enum.ScaleType.Slice
 				bindcover.SliceCenter = Rect.new(0, 0, 141, 40)
 				bindcover.Parent = object
@@ -4632,8 +4820,9 @@ function mainapi:CreateCategoryList(categorysettings)
 					end
 				end)
 				object.MouseButton1Click:Connect(function()
-					mainapi:Save(v.Name)
-					mainapi:Load(true)
+					mainapi:Save()
+					mainapi:Load(true, v.Name)
+					mainapi:Save()
 				end)
 				object.MouseEnter:Connect(function()
 					bind.Visible = true
@@ -4735,7 +4924,7 @@ function mainapi:CreateCategoryList(categorysettings)
 				close.BackgroundColor3 = Color3.new(1, 1, 1)
 				close.BackgroundTransparency = 1
 				close.AutoButtonColor = false
-				close.Image = getcustomasset('catrewrite/assets/new/closemini.png')
+				close.Image = getcustomasset('aethercorev2/assets/new/closemini.png')
 				close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 				close.ImageTransparency = 0.5
 				close.Parent = object
@@ -4781,6 +4970,10 @@ function mainapi:CreateCategoryList(categorysettings)
 	end
 
 	function categoryapi:Expand()
+		if categorysettings.Profiles then
+			refreshConfigProfiles()
+			self:ChangeValue()
+		end
 		self.Expanded = not self.Expanded
 		children.Visible = self.Expanded
 		arrow.Rotation = self.Expanded and 0 or 180
@@ -4809,8 +5002,9 @@ function mainapi:CreateCategoryList(categorysettings)
 		addbutton.ImageTransparency = 0.3
 	end)
 	addbutton.MouseButton1Click:Connect(function()
-		if not table.find(categoryapi.List, addvalue.Text) then
-			categoryapi:ChangeValue(addvalue.Text)
+		local value = addvalue.Text:gsub('^%s*(.-)%s*$', '%1')
+		if value ~= '' and (categorysettings.Profiles and not categoryapi:GetValue(value) or not table.find(categoryapi.List, value)) then
+			categoryapi:ChangeValue(value)
 			addvalue.Text = ''
 		end
 	end)
@@ -4827,8 +5021,9 @@ function mainapi:CreateCategoryList(categorysettings)
 		categoryapi:Expand()
 	end)
 	addvalue.FocusLost:Connect(function(enter)
-		if enter and not table.find(categoryapi.List, addvalue.Text) then
-			categoryapi:ChangeValue(addvalue.Text)
+		local value = addvalue.Text:gsub('^%s*(.-)%s*$', '%1')
+		if enter and value ~= '' and (categorysettings.Profiles and not categoryapi:GetValue(value) or not table.find(categoryapi.List, value)) then
+			categoryapi:ChangeValue(value)
 			addvalue.Text = ''
 		end
 	end)
@@ -4876,7 +5071,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	end)
 
 	categoryapi.Button = self.Categories.Main:CreateButton({
-		Name = categorysettings.Name,
+		Name = displayName,
 		Icon = categorysettings.CategoryIcon,
 		Size = categorysettings.CategorySize,
 		Window = window
@@ -4902,7 +5097,7 @@ function mainapi:CreateSearch()
 	searchicon.Size = UDim2.fromOffset(14, 14)
 	searchicon.Position = UDim2.new(1, -23, 0, 11)
 	searchicon.BackgroundTransparency = 1
-	searchicon.Image = getcustomasset('catrewrite/assets/new/search.png')
+	searchicon.Image = getcustomasset('aethercorev2/assets/new/search.png')
 	searchicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 	searchicon.Parent = searchbkg
 	local legiticon = Instance.new('ImageButton')
@@ -4910,7 +5105,7 @@ function mainapi:CreateSearch()
 	legiticon.Size = UDim2.fromOffset(29, 16)
 	legiticon.Position = UDim2.fromOffset(8, 11)
 	legiticon.BackgroundTransparency = 1
-	legiticon.Image = getcustomasset('catrewrite/assets/new/legit.png')
+	legiticon.Image = getcustomasset('aethercorev2/assets/new/legit.png')
 	legiticon.Parent = searchbkg
 	local legitdivider = Instance.new('Frame')
 	legitdivider.Name = 'LegitDivider'
@@ -4965,6 +5160,64 @@ function mainapi:CreateSearch()
 		self.Legit.Window.Visible = true
 		self.Legit.Window.Position = UDim2.new(0.5, -350, 0.5, -194)
 	end)
+
+	local function focusModule(moduleapi)
+		local frame = moduleapi.Object.Parent
+		if not frame or not frame:IsA('ScrollingFrame') then return end
+
+		frame.Visible = true
+		local window = frame.Parent
+		if window then
+			window.Visible = true
+		end
+
+		local modulePosition = moduleapi.Object.AbsolutePosition.Y - frame.AbsolutePosition.Y
+		local targetPosition = frame.CanvasPosition.Y + modulePosition + (moduleapi.Object.AbsoluteSize.Y / 2) - (frame.AbsoluteWindowSize.Y / 2)
+		local maxPosition = math.max(0, frame.AbsoluteCanvasSize.Y - frame.AbsoluteWindowSize.Y)
+		tween:Tween(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CanvasPosition = Vector2.new(0, math.clamp(targetPosition, 0, maxPosition))
+		})
+
+		local highlight = Instance.new('Frame')
+		highlight.Name = 'SearchPulse'
+		highlight.Size = UDim2.fromScale(1, 1)
+		highlight.BackgroundColor3 = Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+		highlight.BackgroundTransparency = 0.35
+		highlight.BorderSizePixel = 0
+		highlight.Parent = moduleapi.Object
+		tween:Tween(highlight, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 1
+		})
+		task.delay(0.6, highlight.Destroy, highlight)
+	end
+
+	local function getSearchedModule()
+		local query = search.Text:lower()
+		local fallback
+		if query == '' then return end
+
+		for name, moduleapi in self.Modules do
+			local lowerName = name:lower()
+			if lowerName == query then
+				return moduleapi
+			end
+			if not fallback and lowerName:find(query, 1, true) then
+				fallback = moduleapi
+			end
+		end
+
+		return fallback
+	end
+
+	search.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			local moduleapi = getSearchedModule()
+			if moduleapi then
+				focusModule(moduleapi)
+			end
+		end
+	end)
+
 	search:GetPropertyChangedSignal('Text'):Connect(function()
 		for _, v in children:GetChildren() do
 			if v:IsA('TextButton') then
@@ -4974,28 +5227,16 @@ function mainapi:CreateSearch()
 		if search.Text == '' then return end
 
 		for i, v in self.Modules do
-			if i:lower():find(search.Text:lower()) then
+			if i:lower():find(search.Text:lower(), 1, true) then
 				local button = v.Object:Clone()
 				button.Bind:Destroy()
 				button.MouseButton1Click:Connect(function()
 					v:Toggle()
+					focusModule(v)
 				end)
 
 				button.MouseButton2Click:Connect(function()
-					v.Object.Parent.Parent.Visible = true
-					local frame = v.Object.Parent
-					local highlight = Instance.new('Frame')
-					highlight.Size = UDim2.fromScale(1, 1)
-					highlight.BackgroundColor3 = Color3.new(1, 1, 1)
-					highlight.BackgroundTransparency = 0.6
-					highlight.BorderSizePixel = 0
-					highlight.Parent = v.Object
-					tween:Tween(highlight, TweenInfo.new(0.5), {
-						BackgroundTransparency = 1
-					})
-					task.delay(0.5, highlight.Destroy, highlight)
-
-					frame.CanvasPosition = Vector2.new(0, (v.Object.LayoutOrder * 40) - (math.min(frame.CanvasSize.Y.Offset, 600) / 2))
+					focusModule(v)
 				end)
 
 				button.Parent = children
@@ -5047,7 +5288,7 @@ function mainapi:CreateLegit()
 	icon.Size = UDim2.fromOffset(16, 16)
 	icon.Position = UDim2.fromOffset(18, 13)
 	icon.BackgroundTransparency = 1
-	icon.Image = getcustomasset('catrewrite/assets/new/legittab.png')
+	icon.Image = getcustomasset('aethercorev2/assets/new/legittab.png')
 	icon.ImageColor3 = uipallet.Text
 	icon.Parent = window
 	local close = addCloseButton(window)
@@ -5096,7 +5337,7 @@ function mainapi:CreateLegit()
 	searchicon.BackgroundTransparency = 1
 	searchicon.Position = UDim2.new(1, -28, 0, 8)
 	searchicon.Size = UDim2.fromOffset(12, 12)
-	searchicon.Image = getcustomasset('catrewrite/assets/new/search.png')
+	searchicon.Image = getcustomasset('aethercorev2/assets/new/search.png')
 	searchicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 	searchicon.Parent = searchbox
 	local categorylist = Instance.new('Frame')
@@ -5233,7 +5474,7 @@ function mainapi:CreateLegit()
 		dots.Size = UDim2.fromOffset(2, 12)
 		dots.Position = UDim2.fromOffset(6, 6)
 		dots.BackgroundTransparency = 1
-		dots.Image = getcustomasset('catrewrite/assets/new/dots.png')
+		dots.Image = getcustomasset('aethercorev2/assets/new/dots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Parent = dotsbutton
 		local shadow = Instance.new('TextButton')
@@ -5270,7 +5511,7 @@ function mainapi:CreateLegit()
 		back.Size = UDim2.fromOffset(16, 16)
 		back.Position = UDim2.fromOffset(11, 13)
 		back.BackgroundTransparency = 1
-		back.Image = getcustomasset('catrewrite/assets/new/back.png')
+		back.Image = getcustomasset('aethercorev2/assets/new/back.png')
 		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		back.Parent = settingspane
 		addCorner(settingspane)
@@ -5307,6 +5548,11 @@ function mainapi:CreateLegit()
 
 		function moduleapi:Toggle()
 			moduleapi.Enabled = not moduleapi.Enabled
+			if moduleapi.HudOverlayButton and moduleapi.HudOverlayButton.Enabled ~= moduleapi.Enabled and not moduleapi.SyncingHudOverlay then
+				moduleapi.SyncingHudOverlay = true
+				moduleapi.HudOverlayButton:Toggle()
+				moduleapi.SyncingHudOverlay = nil
+			end
 			if moduleapi.Children then
 				moduleapi.Children.Visible = moduleapi.Enabled
 			end
@@ -5325,6 +5571,22 @@ function mainapi:CreateLegit()
 				table.clear(moduleapi.Connections)
 			end
 			task.spawn(modulesettings.Function, moduleapi.Enabled)
+		end
+
+		if moduleapi.ApiCategory == 'Hud' and moduleapi.Children then
+			moduleapi.HudOverlayButton = mainapi.Overlays:CreateToggle({
+				Name = modulesettings.Name,
+				Icon = modulesettings.Icon or getcustomasset('aethercorev2/assets/new/overlaystab.png'),
+				Size = modulesettings.IconSize or UDim2.fromOffset(14, 12),
+				Position = modulesettings.IconPosition or UDim2.fromOffset(12, 13),
+				Function = function(callback)
+					if moduleapi.Enabled ~= callback and not moduleapi.SyncingHudOverlay then
+						moduleapi.SyncingHudOverlay = true
+						moduleapi:Toggle()
+						moduleapi.SyncingHudOverlay = nil
+					end
+				end
+			})
 		end
 
 		back.MouseEnter:Connect(function()
@@ -5461,7 +5723,7 @@ function mainapi:CreateNotification(title, text, duration, type)
 	if not self.Notifications.Enabled then return end
 	local color = type == 'alert' and Color3.fromRGB(250, 50, 56) or type == 'warning' and Color3.fromRGB(236, 129, 43) or Color3.fromRGB(220, 220, 220)
 	if license.Closet or license.Webhook then
-		if license.Webhook then
+		if license.Webhook and type(request) == 'function' then
 			request({
 				Url = license.Webhook,
 				Method = 'POST',
@@ -5494,7 +5756,7 @@ function mainapi:CreateNotification(title, text, duration, type)
 		notification.Position = UDim2.new(1, 0, 1, -(29 + (78 * i)))
 		notification.ZIndex = 5
 		notification.BackgroundTransparency = 1
-		notification.Image = getcustomasset('catrewrite/assets/new/notification.png')
+		notification.Image = getcustomasset('aethercorev2/assets/new/notification.png')
 		notification.ScaleType = Enum.ScaleType.Slice
 		notification.SliceCenter = Rect.new(7, 7, 9, 9)
 		notification.Parent = notifications
@@ -5505,7 +5767,7 @@ function mainapi:CreateNotification(title, text, duration, type)
 		iconshadow.Position = UDim2.fromOffset(-5, -8)
 		iconshadow.ZIndex = 5
 		iconshadow.BackgroundTransparency = 1
-		iconshadow.Image = getcustomasset('catrewrite/assets/new/'..(type or 'info')..'.png')
+		iconshadow.Image = getcustomasset('aethercorev2/assets/new/'..(type or 'info')..'.png')
 		iconshadow.ImageColor3 = Color3.new()
 		iconshadow.ImageTransparency = 0.5
 		iconshadow.Parent = notification
@@ -5582,12 +5844,12 @@ function mainapi:Load(skipgui, profile)
 	local guidata = {}
 	local savecheck = true
 
-	if isfile('catrewrite/profiles/'..game.GameId..'.gui.txt') then
-		guidata = loadJson('catrewrite/profiles/'..game.GameId..'.gui.txt')
+	if isfile('aethercorev2/profiles/'..game.GameId..'.gui.txt') then
+		guidata = loadJson('aethercorev2/profiles/'..game.GameId..'.gui.txt')
 		if not guidata then
 			guidata = {Categories = {}}
 			self:CreateNotification('Vape', 'Failed to load GUI settings, Try rejoining ur game', 10, 'alert')
-			delfile('catrewrite/profiles/'..game.GameId..'.gui.txt')
+			delfile('aethercorev2/profiles/'..game.GameId..'.gui.txt')
 			savecheck = false
 		end
 
@@ -5624,19 +5886,30 @@ function mainapi:Load(skipgui, profile)
 	self.Profiles = guidata.Profiles or {{
 		Name = 'default', Bind = {}
 	}}
+	refreshConfigProfiles()
 	self.Categories.Profiles:ChangeValue()
 	if self.ProfileLabel then
 		self.ProfileLabel.Text = #self.Profile > 10 and self.Profile:sub(1, 10)..'...' or self.Profile
 		self.ProfileLabel.Size = UDim2.fromOffset(getfontsize(self.ProfileLabel.Text, self.ProfileLabel.TextSize, self.ProfileLabel.Font).X + 16, 24)
 	end
 
-	if isfile('catrewrite/profiles/'..self.Profile..self.Place..'.txt') then
-		local savedata = loadJson('catrewrite/profiles/'..self.Profile..self.Place..'.txt')
+	local configPath = getConfigPath(self.Profile)
+	local legacyConfigPath = getLegacyProfilePath(self.Profile)
+	if not isfile(configPath) and isfile(legacyConfigPath) then
+		configPath = legacyConfigPath
+	end
+
+	if isfile(configPath) then
+		local savedata = loadJson(configPath)
 		if not savedata then
 			savedata = {Categories = {}, Modules = {}, Legit = {}}
 			self:CreateNotification('Vape', 'Failed to load '..self.Profile..' profile.', 10, 'alert')
 			savecheck = false
 		end
+
+		savedata.Categories = savedata.Categories or {}
+		savedata.Modules = savedata.Modules or {}
+		savedata.Legit = savedata.Legit or {}
 
 		for i, v in savedata.Categories do
 			local object = self.Categories[i]
@@ -5661,29 +5934,39 @@ function mainapi:Load(skipgui, profile)
 			object.Object.Position = UDim2.fromOffset(v.Position.X, v.Position.Y)
 		end
 
-		for i, v in savedata.Modules do
-			local object = self.Modules[i]
-			if not object then continue end
+		for i, object in self.Modules do
+			local v = savedata.Modules[i]
+			if not v then
+				if object.Enabled then
+					if skipgui and self.ToggleNotifications.Enabled then self:CreateNotification('Module Toggled', i.."<font color='#FFFFFF'> has been </font><font color='#FF5A5A'>Disabled</font><font color='#FFFFFF'>!</font>", 0.75) end
+					object:Toggle(true)
+				end
+				continue
+			end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
 			end
-			if v.Enabled ~= object.Enabled then
+			if (v.Enabled or false) ~= object.Enabled then
 				if skipgui then
 					if self.ToggleNotifications.Enabled then self:CreateNotification('Module Toggled', i.."<font color='#FFFFFF'> has been </font>"..(v.Enabled and "<font color='#5AFF5A'>Enabled</font>" or "<font color='#FF5A5A'>Disabled</font>").."<font color='#FFFFFF'>!</font>", 0.75) end
 				end
 				object:Toggle(true)
 			end
-			object:SetBind(v.Bind)
-			object.Object.Bind.Visible = #v.Bind > 0
+			object:SetBind(v.Bind or {})
+			object.Object.Bind.Visible = #(v.Bind or {}) > 0
 		end
-
-		for i, v in savedata.Legit do
-			local object = self.Legit.Modules[i]
-			if not object then continue end
+		for i, object in self.Legit.Modules do
+			local v = savedata.Legit[i]
+			if not v then
+				if object.Enabled then
+					object:Toggle()
+				end
+				continue
+			end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
 			end
-			if object.Enabled ~= v.Enabled then
+			if object.Enabled ~= (v.Enabled or false) then
 				object:Toggle()
 			end
 			if v.Position and object.Children then
@@ -5693,7 +5976,10 @@ function mainapi:Load(skipgui, profile)
 
 		self:UpdateTextGUI(true)
 	else
+		local previousLoaded = self.Loaded
+		self.Loaded = true
 		self:Save()
+		self.Loaded = previousLoaded
 	end
 
 	if self.Downloader then
@@ -5704,7 +5990,7 @@ function mainapi:Load(skipgui, profile)
 	self.Categories.Main.Options.Bind:SetBind(self.Keybind)
 
 	if not inputService.KeyboardEnabled or shared.VapeDeveloper then
-		local hide = isfile('catrewrite/profiles/hide.txt') and readfile('catrewrite/profiles/hide.txt') or nil
+		local hide = isfile('aethercorev2/profiles/hide.txt') and readfile('aethercorev2/profiles/hide.txt') or nil
 		if hide ~= nil then
 			hide = hide == 'true' and true or false
 		end
@@ -5721,7 +6007,7 @@ function mainapi:Load(skipgui, profile)
 		image.Size = UDim2.fromOffset(22, 22)
 		image.Position = UDim2.fromScale(0.5, 0.5)
 		image.BackgroundTransparency = 1
-		image.Image = getcustomasset('catrewrite/assets/new/vape.png')
+		image.Image = getcustomasset('aethercorev2/assets/new/vape.png')
 		image.ImageTransparency = hide and 1 or 0
 		image.Parent = button
 		local buttoncorner = Instance.new('UICorner')
@@ -5747,12 +6033,12 @@ function mainapi:Load(skipgui, profile)
 
 		if guipane then
 			guipane:CreateToggle({
-				Name = 'Hide catvape button',
+				Name = 'Hide AetherCoreV2 button',
 				Default = hide or false,
 				Function = function(call)
 					button.BackgroundTransparency = call and 1 or 0.35
 					image.ImageTransparency = call and 1 or 0
-					writefile('catrewrite/profiles/hide.txt', tostring(call))
+					writefile('aethercorev2/profiles/hide.txt', tostring(call))
 				end
 			})
 		end
@@ -5830,8 +6116,9 @@ function mainapi:Save(newprofile)
 		}
 	end
 
-	writefile('catrewrite/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
-	writefile('catrewrite/profiles/'..self.Profile..self.Place..'.txt', httpService:JSONEncode(savedata))
+	ensureDataFolders()
+	writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
+	writefile(getConfigPath(newprofile or self.Profile), httpService:JSONEncode(savedata))
 end
 
 function mainapi:SaveOptions(object, savedoptions)
@@ -5909,7 +6196,7 @@ local scarcitybanner = Instance.new('TextLabel')
 scarcitybanner.Size = UDim2.fromScale(1, 0.02)
 scarcitybanner.Position = UDim2.fromScale(0, 0.97)
 scarcitybanner.BackgroundTransparency = 1
-scarcitybanner.Text = 'Thank you for choosing catvape! join discord.gg/catvape or click the discord button to join.'
+scarcitybanner.Text = 'Thank you for choosing AetherCoreV2! Join https://discord.gg/aYu5c9v9zv or click the Discord button to join.'
 scarcitybanner.TextScaled = true
 scarcitybanner.TextColor3 = Color3.new(1, 1, 1)
 scarcitybanner.TextStrokeTransparency = 0.5
@@ -6000,43 +6287,53 @@ mainapi:CreateGUI()
 mainapi.Categories.Main:CreateDivider()
 mainapi:CreateCategory({
 	Name = 'Combat',
-	Icon = getcustomasset('catrewrite/assets/new/combaticon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/combaticon.png'),
 	Size = UDim2.fromOffset(13, 14)
 })
 mainapi:CreateCategory({
 	Name = 'Blatant',
-	Icon = getcustomasset('catrewrite/assets/new/blatanticon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/blatanticon.png'),
 	Size = UDim2.fromOffset(14, 14)
 })
 mainapi:CreateCategory({
 	Name = 'Render',
-	Icon = getcustomasset('catrewrite/assets/new/rendericon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/rendericon.png'),
+	Size = UDim2.fromOffset(15, 14)
+})
+mainapi:CreateCategory({
+	Name = 'Visuals',
+	Icon = getcustomasset('aethercorev2/assets/new/rendertab.png'),
+	Size = UDim2.fromOffset(15, 14)
+})
+mainapi:CreateCategory({
+	Name = 'Legit',
+	Icon = getcustomasset('aethercorev2/assets/new/legit.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
 mainapi:CreateCategory({
 	Name = 'Utility',
-	Icon = getcustomasset('catrewrite/assets/new/utilityicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/utilityicon.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
 mainapi:CreateCategory({
 	Name = 'World',
-	Icon = getcustomasset('catrewrite/assets/new/worldicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/worldicon.png'),
 	Size = UDim2.fromOffset(14, 14)
 })
 mainapi:CreateCategory({
 	Name = 'Inventory',
-	Icon = getcustomasset('catrewrite/assets/new/inventoryicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/inventoryicon.png'),
 	Size = UDim2.fromOffset(15, 14)
 })
 mainapi:CreateCategory({
 	Name = 'Minigames',
-	Icon = getcustomasset('catrewrite/assets/new/miniicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/miniicon.png'),
 	Size = UDim2.fromOffset(19, 12)
 })
 if game.GameId == 2619619496 then
 	mainapi:CreateCategory({
 		Name = 'Kits',
-		Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
+		Icon = getcustomasset('aethercorev2/assets/new/friendstab.png'),
 		Size = UDim2.fromOffset(15, 15)
 	})
 end
@@ -6054,7 +6351,7 @@ local friendscolor = {
 }
 local friendssettings = {
 	Name = 'Friends',
-	Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/friendstab.png'),
 	Size = UDim2.fromOffset(17, 16),
 	Placeholder = 'Roblox username',
 	Color = Color3.fromRGB(5, 134, 105),
@@ -6103,36 +6400,1193 @@ mainapi:Clean(friends.Update)
 mainapi:Clean(friends.ColorUpdate)
 
 --[[
-	Profiles
+	Configs
 ]]
 local profiles = mainapi:CreateCategoryList({
 	Name = 'Profiles',
-	Icon = getcustomasset('catrewrite/assets/new/profilesicon.png'),
+	DisplayName = 'Configs',
+	Icon = getcustomasset('aethercorev2/assets/new/profilesicon.png'),
 	Size = UDim2.fromOffset(17, 10),
 	Position = UDim2.fromOffset(12, 16),
 	Placeholder = 'Type name',
 	Profiles = true
 })
-local json = profiles:CreateTextBox({
-	Name = 'JSON Config',
-	Placeholder = '[]'
-})
-profiles:CreateButton({
-	Name = 'Import json',
-	Function = function()
-		local success, result = pcall(function() 
-			return httpService:JSONDecode(json.Value) 
-		end)
-		if success and result then
-			local awesome = `imported ({#mainapi.Profiles + 1})`
-			table.insert(mainapi.Profiles, {Name = awesome, Bind = {}})
-			mainapi:Save(awesome)
-			writefile('catrewrite/profiles/'..awesome..mainapi.Place..'.txt', result.config)
-			writefile('catrewrite/profiles/'..game.GameId..'.gui.txt', result.gui)
-			mainapi:Load(true, awesome)
+local function createConfigManager(categoryapi)
+	local selectedProfile = mainapi.Profile or 'default'
+	local selectedCommunityConfig = communityConfigs[1] or 'cc'
+	local previewMode = 'community'
+	local accentObjects = {}
+	local configMetadata = {
+		cc = {
+			Title = 'cc',
+			Initials = 'CC',
+			Description = 'A legitimate-focused configuration with essential modules for smooth gameplay. Great for everyday PvP and ranked matches.',
+			Tags = {'Verified', 'Featured', 'Safe'}
+		},
+		legit = {
+			Title = 'legit+',
+			Initials = 'LG',
+			Description = 'Smooth legit-style setup with visual clarity, safety checks and gentle movement.',
+			Tags = {'Verified', 'Safe', 'Low Flag'}
+		},
+		['bedwars sweat'] = {
+			Title = 'bedwars sweat',
+			Initials = 'BW',
+			Description = 'Optimised for BedWars wins with clean visuals, reliable utility and fast reactions.',
+			Tags = {'Featured', 'Safe', 'Utility'}
+		},
+		['sky pvp'] = {
+			Title = 'sky pvp',
+			Initials = 'SP',
+			Description = 'Practice and ranked Sky PvP preset focused on aerial fights and awareness.',
+			Tags = {'New', 'Safe', 'Aerial'}
+		},
+		['utility stack'] = {
+			Title = 'utility stack',
+			Initials = 'US',
+			Description = 'A clean package of useful quality-of-life modules for every match.',
+			Tags = {'Verified', 'Safe', 'QOL'}
+		},
+		rage = {
+			Title = 'rage',
+			Initials = 'RG',
+			Description = 'An aggressive configuration tuned for maximum pressure and fast eliminations. Best for unranked or casual lobbies.',
+			Tags = {'Verified', 'Safe', 'High Risk'}
+		}
+	}
+
+	local function trim(text)
+		return type(text) == 'string' and text:gsub('^%s*(.-)%s*$', '%1') or ''
+	end
+
+	local function getAccent(v, s)
+		return Color3.fromHSV(
+			mainapi.GUIColor.Hue,
+			math.clamp(mainapi.GUIColor.Sat * (s or 1), 0, 1),
+			math.clamp(mainapi.GUIColor.Value * (v or 1), 0, 1)
+		)
+	end
+
+	local function getAccentText()
+		return Color3.fromHSV(mainapi.GUIColor.Hue, math.clamp(mainapi.GUIColor.Sat, 0, 0.82), 1)
+	end
+
+	local function getAccentBg(v)
+		return Color3.fromHSV(mainapi.GUIColor.Hue, math.clamp(mainapi.GUIColor.Sat * 0.50, 0, 0.70), v or 0.17)
+	end
+
+	local function getMuted(a)
+		return color.Dark(uipallet.Text, a or 0.34)
+	end
+
+	local function bindAccent(obj, prop, v, s, mode)
+		table.insert(accentObjects, {Object = obj, Property = prop, V = v, S = s, Mode = mode})
+		if mode == 'text' then obj[prop] = getAccentText()
+		elseif mode == 'bg' then obj[prop] = getAccentBg(v)
+		else obj[prop] = getAccent(v, s) end
+	end
+
+	local function refreshAccents()
+		for i = #accentObjects, 1, -1 do
+			local a = accentObjects[i]
+			if not a.Object or not a.Object.Parent then
+				table.remove(accentObjects, i)
+			elseif a.Mode == 'text' then a.Object[a.Property] = getAccentText()
+			elseif a.Mode == 'bg' then a.Object[a.Property] = getAccentBg(a.V)
+			else a.Object[a.Property] = getAccent(a.V, a.S) end
 		end
 	end
-})
+
+	local function decodeConfigData(data)
+		if type(data) ~= 'table' then return nil end
+		if type(data.config) == 'string' then
+			local ok, dec = pcall(function() return httpService:JSONDecode(data.config) end)
+			return ok and type(dec) == 'table' and dec or nil
+		end
+		if type(data.config) == 'table' then return data.config end
+		if type(data.Modules) == 'table' then return data end
+		return nil
+	end
+
+	local function readConfigData(name, bundled)
+		local path = bundled and ('aethercorev2/configs/'..name..'.json') or getConfigPath(name)
+		local wrapper = isfile(path) and loadJson(path) or nil
+		return decodeConfigData(wrapper), wrapper, path
+	end
+
+	local function getConfigSummary(name, bundled)
+		local decoded, wrapper = readConfigData(name, bundled)
+		local modules, enabled, disabled, keybinds = {}, {}, {}, {}
+		if decoded and type(decoded.Modules) == 'table' then
+			for mn, md in decoded.Modules do
+				table.insert(modules, mn)
+				if type(md) == 'table' then
+					if md.Enabled then table.insert(enabled, mn)
+					else table.insert(disabled, mn) end
+					if type(md.Bind) == 'table' and #md.Bind > 0 then
+						table.insert(keybinds, {Name = mn, Bind = table.concat(md.Bind, ' + ')})
+					end
+				else
+					table.insert(disabled, mn)
+				end
+			end
+			table.sort(modules)
+			table.sort(enabled)
+			table.sort(disabled)
+			table.sort(keybinds, function(a, b) return a.Name:lower() < b.Name:lower() end)
+		end
+		return {
+			Modules = modules, EnabledModules = enabled, DisabledModules = disabled,
+			Keybinds = keybinds, Count = #modules, Enabled = #enabled,
+			Game = wrapper and wrapper.game or tostring(mainapi.Place or game.GameId),
+			Exists = decoded ~= nil
+		}
+	end
+
+	local function clearGui(parent)
+		for _, c in parent:GetChildren() do
+			if c:IsA('GuiObject') then c:Destroy() end
+		end
+	end
+
+	-- ── Input blocker ────────────────────────────────────────────────────
+	local inputBlocker = Instance.new('TextButton')
+	inputBlocker.Name = 'ConfigManagerInputBlocker'
+	inputBlocker.Size = UDim2.fromScale(1, 1)
+	inputBlocker.BackgroundTransparency = 1
+	inputBlocker.Text = ''
+	inputBlocker.AutoButtonColor = false
+	inputBlocker.Active = true
+	inputBlocker.ZIndex = 49
+	inputBlocker.Visible = false
+	inputBlocker.Parent = clickgui
+
+	-- ── Root frame ───────────────────────────────────────────────────────
+	local BASE = Color3.fromRGB(8, 9, 15)
+	local SURFACE = Color3.fromRGB(11, 13, 21)
+	local PANEL = Color3.fromRGB(13, 16, 26)
+	local CARD = Color3.fromRGB(16, 19, 30)
+	local BORDER = Color3.fromRGB(35, 40, 62)
+
+	local manager = Instance.new('Frame')
+	manager.Name = 'ConfigManager'
+	manager.Size = UDim2.new(1, -32, 1, -32)
+	manager.Position = UDim2.fromOffset(16, 16)
+	manager.BackgroundColor3 = BASE
+	manager.Active = true
+	manager.ZIndex = 50
+	manager.Visible = false
+	manager.ClipsDescendants = true
+	manager.Parent = clickgui
+	addCorner(manager, UDim.new(0, 12))
+
+	local function setZ(obj)
+		if obj:IsA('GuiObject') then
+			obj.ZIndex = math.max(obj.ZIndex, manager.ZIndex + 1)
+		end
+	end
+	manager.DescendantAdded:Connect(setZ)
+
+	-- Subtle top-glow gradient
+	local rootGrad = Instance.new('UIGradient')
+	rootGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(11, 14, 23)),
+		ColorSequenceKeypoint.new(0.55, BASE),
+		ColorSequenceKeypoint.new(1, getAccentBg(0.11))
+	})
+	rootGrad.Rotation = 22
+	rootGrad.Parent = manager
+
+	local rootStroke = Instance.new('UIStroke')
+	rootStroke.Transparency = 0.08
+	rootStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	rootStroke.Parent = manager
+	bindAccent(rootStroke, 'Color', 1.0, 0.78)
+
+	-- ── Top header bar ───────────────────────────────────────────────────
+	local HEADER_H = 68
+
+	local headerBar = Instance.new('Frame')
+	headerBar.Name = 'Header'
+	headerBar.Size = UDim2.new(1, 0, 0, HEADER_H)
+	headerBar.BackgroundColor3 = SURFACE
+	headerBar.BorderSizePixel = 0
+	headerBar.Parent = manager
+
+	local headerGrad = Instance.new('UIGradient')
+	headerGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(12, 15, 25)),
+		ColorSequenceKeypoint.new(1, getAccentBg(0.14))
+	})
+	headerGrad.Rotation = 0
+	headerGrad.Parent = headerBar
+
+	local headerDivider = Instance.new('Frame')
+	headerDivider.Size = UDim2.new(1, 0, 0, 1)
+	headerDivider.Position = UDim2.new(0, 0, 1, -1)
+	headerDivider.BackgroundColor3 = BORDER
+	headerDivider.BackgroundTransparency = 0.20
+	headerDivider.BorderSizePixel = 0
+	headerDivider.Parent = headerBar
+
+	local headerAccentLine = Instance.new('Frame')
+	headerAccentLine.Size = UDim2.new(1, 0, 0, 1)
+	headerAccentLine.Position = UDim2.new(0, 0, 0, 0)
+	headerAccentLine.BackgroundTransparency = 0.10
+	headerAccentLine.BorderSizePixel = 0
+	headerAccentLine.Parent = headerBar
+	bindAccent(headerAccentLine, 'BackgroundColor3', 0.95, 0.65)
+
+	-- Icon badge
+	local iconBadge = Instance.new('Frame')
+	iconBadge.Size = UDim2.fromOffset(36, 36)
+	iconBadge.Position = UDim2.fromOffset(20, 16)
+	iconBadge.BackgroundColor3 = getAccentBg(0.22)
+	iconBadge.BorderSizePixel = 0
+	iconBadge.Parent = headerBar
+	addCorner(iconBadge, UDim.new(0, 8))
+	bindAccent(iconBadge, 'BackgroundColor3', 0.22, nil, 'bg')
+
+	local iconBadgeStroke = Instance.new('UIStroke')
+	iconBadgeStroke.Transparency = 0.12
+	iconBadgeStroke.Parent = iconBadge
+	bindAccent(iconBadgeStroke, 'Color', 1.0, 0.80)
+
+	local iconBadgeLabel = Instance.new('TextLabel')
+	iconBadgeLabel.Size = UDim2.fromScale(1, 1)
+	iconBadgeLabel.BackgroundTransparency = 1
+	iconBadgeLabel.Text = '▣'
+	iconBadgeLabel.TextSize = 18
+	iconBadgeLabel.FontFace = uipallet.Font
+	iconBadgeLabel.Parent = iconBadge
+	bindAccent(iconBadgeLabel, 'TextColor3', nil, nil, 'text')
+
+	local headerTitle = Instance.new('TextLabel')
+	headerTitle.Size = UDim2.new(0.5, -80, 0, 26)
+	headerTitle.Position = UDim2.fromOffset(66, 12)
+	headerTitle.BackgroundTransparency = 1
+	headerTitle.Text = 'Community Configs'
+	headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+	headerTitle.TextColor3 = uipallet.Text
+	headerTitle.TextSize = 20
+	headerTitle.FontFace = uipallet.FontSemiBold
+	headerTitle.Parent = headerBar
+
+	local headerSub = Instance.new('TextLabel')
+	headerSub.Size = UDim2.new(0.6, -80, 0, 18)
+	headerSub.Position = UDim2.fromOffset(67, 39)
+	headerSub.BackgroundTransparency = 1
+	headerSub.Text = 'Browse, preview, save, and apply community-made loadouts'
+	headerSub.TextXAlignment = Enum.TextXAlignment.Left
+	headerSub.TextColor3 = getMuted(0.40)
+	headerSub.TextSize = 11
+	headerSub.FontFace = uipallet.Font
+	headerSub.Parent = headerBar
+
+	-- Version pill
+	local versionPill = Instance.new('TextLabel')
+	versionPill.Size = UDim2.fromOffset(72, 24)
+	versionPill.Position = UDim2.new(1, -200, 0, 22)
+	versionPill.BackgroundColor3 = CARD
+	versionPill.Text = 'v'..tostring(mainapi.Version)
+	versionPill.TextColor3 = getMuted(0.26)
+	versionPill.TextSize = 11
+	versionPill.FontFace = uipallet.FontSemiBold
+	versionPill.Parent = headerBar
+	addCorner(versionPill, UDim.new(0, 7))
+
+	local gamePill = Instance.new('TextLabel')
+	gamePill.Size = UDim2.fromOffset(90, 24)
+	gamePill.Position = UDim2.new(1, -116, 0, 22)
+	gamePill.BackgroundColor3 = getAccentBg(0.18)
+	gamePill.Text = '● LIVE'
+	gamePill.TextColor3 = getAccentText()
+	gamePill.TextSize = 11
+	gamePill.FontFace = uipallet.FontSemiBold
+	gamePill.Parent = headerBar
+	addCorner(gamePill, UDim.new(0, 7))
+	bindAccent(gamePill, 'BackgroundColor3', 0.18, nil, 'bg')
+	bindAccent(gamePill, 'TextColor3', nil, nil, 'text')
+
+	-- Close button
+	local closeBtn = Instance.new('TextButton')
+	closeBtn.Name = 'Close'
+	closeBtn.Size = UDim2.fromOffset(32, 32)
+	closeBtn.Position = UDim2.new(1, -16, 0, 18)
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.BackgroundColor3 = CARD
+	closeBtn.AutoButtonColor = false
+	closeBtn.Text = '×'
+	closeBtn.TextColor3 = getMuted(0.22)
+	closeBtn.TextSize = 22
+	closeBtn.FontFace = uipallet.Font
+	closeBtn.Parent = headerBar
+	addCorner(closeBtn, UDim.new(0, 8))
+
+	-- ── Content area ─────────────────────────────────────────────────────
+	local CONTENT_Y = HEADER_H + 16
+	local BOTTOM_BAR_H = 58
+	local CONTENT_H_OFFSET = -(CONTENT_Y + BOTTOM_BAR_H + 16)
+
+	-- Three-column layout
+	-- Col A: Saved Configs    ~30% width
+	-- Col B: Community        ~26% width  
+	-- Col C: Preview          ~44% width
+
+	local COL_GAP = 12
+	local COL_A_W = 0.30
+	local COL_B_W = 0.26
+	local COL_C_W = 0.44
+
+	local function makePanel(name, x_scale, x_offset, w_scale, w_offset)
+		local panel = Instance.new('Frame')
+		panel.Name = name
+		panel.Position = UDim2.new(x_scale, x_offset, 0, CONTENT_Y)
+		panel.Size = UDim2.new(w_scale, w_offset, 1, CONTENT_H_OFFSET)
+		panel.BackgroundColor3 = PANEL
+		panel.ClipsDescendants = false
+		panel.Parent = manager
+		addCorner(panel, UDim.new(0, 9))
+
+		local panelStroke = Instance.new('UIStroke')
+		panelStroke.Color = BORDER
+		panelStroke.Transparency = 0.22
+		panelStroke.Parent = panel
+
+		local topLine = Instance.new('Frame')
+		topLine.Size = UDim2.new(1, 0, 0, 1)
+		topLine.BackgroundTransparency = 0.18
+		topLine.BorderSizePixel = 0
+		topLine.Parent = panel
+		bindAccent(topLine, 'BackgroundColor3', 0.88, 0.55)
+
+		return panel, panelStroke
+	end
+
+	-- Column A: Saved Configs
+	local panelSaved, _ = makePanel('SavedConfigs', 0, 12, COL_A_W, -6)
+
+	-- Column B: Community
+	local panelCommunity, _ = makePanel('CommunityConfigs', COL_A_W, 18, COL_B_W, -6)
+
+	-- Column C: Preview
+	local panelPreview, _ = makePanel('ConfigPreview', COL_A_W + COL_B_W, 24, COL_C_W, -24)
+
+	-- ── Panel header helper ───────────────────────────────────────────────
+	local function makePanelHeader(panel, icon, labelText, countDefault)
+		local hdr = Instance.new('Frame')
+		hdr.Name = 'PanelHeader'
+		hdr.Size = UDim2.new(1, 0, 0, 44)
+		hdr.BackgroundTransparency = 1
+		hdr.Parent = panel
+
+		local ico = Instance.new('TextLabel')
+		ico.Size = UDim2.fromOffset(22, 44)
+		ico.Position = UDim2.fromOffset(14, 0)
+		ico.BackgroundTransparency = 1
+		ico.Text = icon
+		ico.TextSize = 15
+		ico.FontFace = uipallet.Font
+		ico.Parent = hdr
+		bindAccent(ico, 'TextColor3', nil, nil, 'text')
+
+		local lbl = Instance.new('TextLabel')
+		lbl.Size = UDim2.new(1, -100, 1, 0)
+		lbl.Position = UDim2.fromOffset(38, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = labelText
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextColor3 = uipallet.Text
+		lbl.TextSize = 13
+		lbl.FontFace = uipallet.FontSemiBold
+		lbl.Parent = hdr
+
+		local divLine = Instance.new('Frame')
+		divLine.Size = UDim2.new(1, -28, 0, 1)
+		divLine.Position = UDim2.fromOffset(14, 43)
+		divLine.BackgroundColor3 = BORDER
+		divLine.BackgroundTransparency = 0.30
+		divLine.BorderSizePixel = 0
+		divLine.Parent = hdr
+
+		local cnt = Instance.new('TextLabel')
+		cnt.Name = 'Count'
+		cnt.Size = UDim2.fromOffset(56, 22)
+		cnt.Position = UDim2.new(1, -68, 0, 11)
+		cnt.BackgroundColor3 = CARD
+		cnt.Text = countDefault or '0'
+		cnt.TextColor3 = getMuted(0.24)
+		cnt.TextSize = 11
+		cnt.FontFace = uipallet.Font
+		cnt.Parent = hdr
+		addCorner(cnt, UDim.new(0, 6))
+
+		return hdr, cnt
+	end
+
+	local _, savedCount = makePanelHeader(panelSaved, '⌄', 'Installed')
+	local _, communityCount = makePanelHeader(panelCommunity, '◉', 'Discover')
+	local _, previewCount = makePanelHeader(panelPreview, '▤', 'Preview')
+	previewCount.Text = 'LIVE'
+	bindAccent(previewCount, 'TextColor3', nil, nil, 'text')
+	previewCount.BackgroundColor3 = getAccentBg(0.18)
+	bindAccent(previewCount, 'BackgroundColor3', 0.18, nil, 'bg')
+
+	-- ── Scrollable list helper ────────────────────────────────────────────
+	local function makeList(parent, topOffset, bottomGap)
+		local sf = Instance.new('ScrollingFrame')
+		sf.Name = 'List'
+		sf.Size = UDim2.new(1, -20, 1, -(topOffset + (bottomGap or 52)))
+		sf.Position = UDim2.fromOffset(10, topOffset)
+		sf.BackgroundTransparency = 1
+		sf.BorderSizePixel = 0
+		sf.ScrollBarThickness = 3
+		sf.ScrollBarImageTransparency = 0.12
+		sf.CanvasSize = UDim2.new()
+		sf.Parent = parent
+		bindAccent(sf, 'ScrollBarImageColor3', nil, nil, 'text')
+
+		local layout = Instance.new('UIListLayout')
+		layout.Padding = UDim.new(0, 7)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = sf
+
+		return sf, layout
+	end
+
+	local savedList, savedLayout = makeList(panelSaved, 52, 96)
+	local communityList, communityLayout = makeList(panelCommunity, 52, 52)
+	local previewList, previewLayout = makeList(panelPreview, 52, 10)
+
+	local function updateCanvas(list, layout)
+		task.defer(function()
+			if list and list.Parent then
+				list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 8)
+			end
+		end)
+	end
+
+	-- ── Search box (saved panel) ──────────────────────────────────────────
+	local searchBox = Instance.new('TextBox')
+	searchBox.Name = 'Search'
+	searchBox.Size = UDim2.new(1, -20, 0, 34)
+	searchBox.Position = UDim2.new(0, 10, 1, -44)
+	searchBox.BackgroundColor3 = CARD
+	searchBox.ClearTextOnFocus = false
+	searchBox.PlaceholderText = '⌕  Search saved...'
+	searchBox.Text = ''
+	searchBox.TextColor3 = uipallet.Text
+	searchBox.PlaceholderColor3 = getMuted(0.45)
+	searchBox.TextSize = 12
+	searchBox.TextXAlignment = Enum.TextXAlignment.Left
+	searchBox.FontFace = uipallet.Font
+	searchBox.Parent = panelSaved
+	addCorner(searchBox, UDim.new(0, 7))
+
+	local searchStroke = Instance.new('UIStroke')
+	searchStroke.Color = BORDER
+	searchStroke.Transparency = 0.18
+	searchStroke.Parent = searchBox
+
+	-- Pad text
+	local searchPad = Instance.new('UIPadding')
+	searchPad.PaddingLeft = UDim.new(0, 10)
+	searchPad.Parent = searchBox
+
+	-- ── Import box (bottom bar, spans preview panel) ──────────────────────
+	local importBox = Instance.new('TextBox')
+	importBox.Name = 'ImportJSON'
+	importBox.Size = UDim2.new(COL_B_W + COL_C_W, -30, 0, 38)
+	importBox.Position = UDim2.new(COL_A_W, 18, 1, -(BOTTOM_BAR_H - 10))
+	importBox.BackgroundColor3 = CARD
+	importBox.ClearTextOnFocus = false
+	importBox.PlaceholderText = '⌨  Paste JSON config to import...'
+	importBox.Text = ''
+	importBox.TextColor3 = uipallet.Text
+	importBox.PlaceholderColor3 = getMuted(0.45)
+	importBox.TextSize = 12
+	importBox.TextXAlignment = Enum.TextXAlignment.Left
+	importBox.FontFace = uipallet.Font
+	importBox.Parent = manager
+	addCorner(importBox, UDim.new(0, 8))
+
+	local importStroke = Instance.new('UIStroke')
+	importStroke.Color = BORDER
+	importStroke.Transparency = 0.22
+	importStroke.Parent = importBox
+
+	local importPad = Instance.new('UIPadding')
+	importPad.PaddingLeft = UDim.new(0, 12)
+	importPad.Parent = importBox
+
+	-- ── Bottom action bar ─────────────────────────────────────────────────
+	local bottomBar = Instance.new('Frame')
+	bottomBar.Name = 'BottomBar'
+	bottomBar.Size = UDim2.new(1, 0, 0, BOTTOM_BAR_H)
+	bottomBar.Position = UDim2.new(0, 0, 1, -BOTTOM_BAR_H)
+	bottomBar.BackgroundColor3 = SURFACE
+	bottomBar.BorderSizePixel = 0
+	bottomBar.Parent = manager
+
+	local bottomDivider = Instance.new('Frame')
+	bottomDivider.Size = UDim2.new(1, 0, 0, 1)
+	bottomDivider.BackgroundColor3 = BORDER
+	bottomDivider.BackgroundTransparency = 0.25
+	bottomDivider.BorderSizePixel = 0
+	bottomDivider.Parent = bottomBar
+
+	-- ── Button factory ────────────────────────────────────────────────────
+	local function makeBtn(parent, label, x, y, w, h, style, callback)
+		local isPrimary = style == 'primary'
+		local isDanger = style == 'danger'
+		local isGhost = style == 'ghost'
+
+		local btn = Instance.new('TextButton')
+		btn.Name = label:gsub('%W+', '')
+		btn.Size = UDim2.fromOffset(w or 120, h or 34)
+		btn.Position = UDim2.fromOffset(x, y)
+		btn.AutoButtonColor = false
+		btn.Text = label
+		btn.TextSize = 12
+		btn.FontFace = isPrimary and uipallet.FontSemiBold or uipallet.Font
+		btn.Parent = parent
+		addCorner(btn, UDim.new(0, 7))
+
+		if isPrimary then
+			btn.BackgroundColor3 = getAccent(0.82, 0.72)
+			btn.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+			bindAccent(btn, 'BackgroundColor3', 0.82, 0.72)
+			local s = Instance.new('UIStroke'); s.Transparency = 0.04; s.Parent = btn
+			bindAccent(s, 'Color', 1.0, 0.90)
+		elseif isDanger then
+			btn.BackgroundColor3 = Color3.fromRGB(40, 11, 20)
+			btn.TextColor3 = Color3.fromRGB(248, 80, 96)
+			local s = Instance.new('UIStroke'); s.Color = Color3.fromRGB(140, 35, 58); s.Transparency = 0.14; s.Parent = btn
+		elseif isGhost then
+			btn.BackgroundColor3 = CARD
+			btn.TextColor3 = getMuted(0.16)
+			local s = Instance.new('UIStroke'); s.Color = BORDER; s.Transparency = 0.20; s.Parent = btn
+		else
+			btn.BackgroundColor3 = Color3.fromRGB(14, 17, 28)
+			btn.TextColor3 = getMuted(0.12)
+			local s = Instance.new('UIStroke'); s.Color = BORDER; s.Transparency = 0.22; s.Parent = btn
+		end
+
+		btn.MouseEnter:Connect(function()
+			tween:Tween(btn, uipallet.Tween, {
+				BackgroundColor3 = isPrimary and getAccent(1.0, 0.80) or isDanger and Color3.fromRGB(55, 15, 28) or isGhost and Color3.fromRGB(18, 22, 36) or Color3.fromRGB(18, 22, 35)
+			})
+		end)
+		btn.MouseLeave:Connect(function()
+			tween:Tween(btn, uipallet.Tween, {
+				BackgroundColor3 = isPrimary and getAccent(0.82, 0.72) or isDanger and Color3.fromRGB(40, 11, 20) or isGhost and CARD or Color3.fromRGB(14, 17, 28)
+			})
+		end)
+		if callback then btn.MouseButton1Click:Connect(callback) end
+		return btn
+	end
+
+	-- ── Tag helper ────────────────────────────────────────────────────────
+	local function makeTag(parent, text, x, y)
+		local tag = Instance.new('TextLabel')
+		local tw = math.max(38, (#text * 6) + 16)
+		tag.Size = UDim2.fromOffset(tw, 18)
+		tag.Position = UDim2.fromOffset(x, y)
+		tag.BackgroundColor3 = getAccentBg(0.17)
+		tag.Text = text:upper()
+		tag.TextSize = 9
+		tag.FontFace = uipallet.FontSemiBold
+		tag.Parent = parent
+		addCorner(tag, UDim.new(0, 5))
+		bindAccent(tag, 'BackgroundColor3', 0.17, nil, 'bg')
+		bindAccent(tag, 'TextColor3', nil, nil, 'text')
+		return x + tw + 5
+	end
+
+	local function makeStatusPill(parent, text, pos, w, accent)
+		local p = Instance.new('TextLabel')
+		p.Size = UDim2.fromOffset(w or 52, 18)
+		p.Position = pos
+		p.BackgroundColor3 = accent and getAccentBg(0.18) or CARD
+		p.Text = text
+		p.TextColor3 = accent and getAccentText() or getMuted(0.26)
+		p.TextSize = 9
+		p.FontFace = uipallet.FontSemiBold
+		p.Parent = parent
+		addCorner(p, UDim.new(0, 5))
+		if accent then
+			bindAccent(p, 'BackgroundColor3', 0.18, nil, 'bg')
+			bindAccent(p, 'TextColor3', nil, nil, 'text')
+		end
+		return p
+	end
+
+	-- ── Row factory ───────────────────────────────────────────────────────
+	local function createRow(parent, name, selected, callback, bundled)
+		local meta = configMetadata[name] or {
+			Title = name, Initials = string.upper(name:sub(1, math.min(3, #name))),
+			Description = bundled and 'Community configuration.' or 'Saved configuration.', Tags = {}
+		}
+		local summary = getConfigSummary(name, bundled)
+
+		local ROW_H = bundled and 76 or 64
+		local row = Instance.new('TextButton')
+		row.Name = name
+		row.Size = UDim2.new(1, -2, 0, ROW_H)
+		row.BackgroundColor3 = selected and getAccentBg(0.20) or CARD
+		row.AutoButtonColor = false
+		row.Text = ''
+		row.Parent = parent
+		addCorner(row, UDim.new(0, 8))
+
+		local rowStroke = Instance.new('UIStroke')
+		rowStroke.Color = selected and getAccentText() or BORDER
+		rowStroke.Transparency = selected and 0.04 or 0.26
+		rowStroke.Parent = row
+		if selected then
+			bindAccent(row, 'BackgroundColor3', 0.20, nil, 'bg')
+			bindAccent(rowStroke, 'Color', nil, nil, 'text')
+		end
+
+		-- Avatar badge
+		local av = Instance.new('TextLabel')
+		av.Size = UDim2.fromOffset(38, 38)
+		av.Position = UDim2.fromOffset(10, (ROW_H - 38) / 2)
+		av.BackgroundColor3 = getAccent(0.80, 0.75)
+		av.Text = bundled and (meta.Initials or name:upper():sub(1, 3)) or '▱'
+		av.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+		av.TextSize = bundled and 12 or 18
+		av.FontFace = uipallet.FontSemiBold
+		av.Parent = row
+		addCorner(av, UDim.new(0, 7))
+		bindAccent(av, 'BackgroundColor3', 0.80, 0.75)
+
+		local nameLabel = Instance.new('TextLabel')
+		nameLabel.Size = UDim2.new(1, -106, 0, 19)
+		nameLabel.Position = UDim2.fromOffset(58, bundled and 10 or 14)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Text = meta.Title or name
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.TextColor3 = selected and uipallet.Text or getMuted(0.06)
+		nameLabel.TextSize = 13
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.FontFace = uipallet.FontSemiBold
+		nameLabel.Parent = row
+
+		local subLabel = Instance.new('TextLabel')
+		subLabel.Size = UDim2.new(1, -106, 0, 14)
+		subLabel.Position = UDim2.fromOffset(58, bundled and 29 or 33)
+		subLabel.BackgroundTransparency = 1
+		subLabel.Text = bundled and 'AetherCore Team' or (name == 'default' and 'Default config' or 'Local saved config')
+		subLabel.TextXAlignment = Enum.TextXAlignment.Left
+		subLabel.TextColor3 = getMuted(0.40)
+		subLabel.TextSize = 10
+		subLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		subLabel.FontFace = uipallet.Font
+		subLabel.Parent = row
+
+		local modCount = Instance.new('TextLabel')
+		modCount.Size = UDim2.fromOffset(80, 14)
+		modCount.Position = UDim2.new(1, -88, 0, bundled and 52 or 26)
+		modCount.BackgroundTransparency = 1
+		modCount.Text = summary.Count..' modules'
+		modCount.TextXAlignment = Enum.TextXAlignment.Right
+		modCount.TextColor3 = getMuted(0.30)
+		modCount.TextSize = 10
+		modCount.FontFace = uipallet.Font
+		modCount.Parent = row
+
+		if bundled then
+			local x = 58
+			for _, t in meta.Tags do x = makeTag(row, t, x, 48) end
+			local installed = isfile(getConfigPath(name))
+			makeStatusPill(row, installed and 'INSTALLED' or 'AVAILABLE', UDim2.new(1, -76, 0, 9), 64, installed)
+		elseif selected then
+			makeStatusPill(row, 'ACTIVE', UDim2.new(1, -68, 0, 9), 56, true)
+		end
+
+		row.MouseEnter:Connect(function()
+			if not selected then
+				tween:Tween(row, uipallet.Tween, {BackgroundColor3 = Color3.fromRGB(16, 20, 32)})
+			end
+		end)
+		row.MouseLeave:Connect(function()
+			if not selected then
+				tween:Tween(row, uipallet.Tween, {BackgroundColor3 = CARD})
+			end
+		end)
+		row.MouseButton1Click:Connect(callback)
+		return row
+	end
+
+	-- ── Preview pane helpers ──────────────────────────────────────────────
+	local function makePreviewLine(parent, leftText, rightText, active)
+		local line = Instance.new('Frame')
+		line.Size = UDim2.new(1, -2, 0, 22)
+		line.BackgroundTransparency = 1
+		line.Parent = parent
+
+		local bullet = Instance.new('TextLabel')
+		bullet.Size = UDim2.fromOffset(16, 22)
+		bullet.BackgroundTransparency = 1
+		bullet.Text = '•'
+		bullet.TextSize = 13
+		bullet.FontFace = uipallet.FontSemiBold
+		bullet.Parent = line
+		if active then bindAccent(bullet, 'TextColor3', nil, nil, 'text')
+		else bullet.TextColor3 = getMuted(0.40) end
+
+		local left = Instance.new('TextLabel')
+		left.Size = UDim2.new(1, -86, 1, 0)
+		left.Position = UDim2.fromOffset(18, 0)
+		left.BackgroundTransparency = 1
+		left.Text = leftText
+		left.TextXAlignment = Enum.TextXAlignment.Left
+		left.TextColor3 = active and getMuted(0.08) or getMuted(0.36)
+		left.TextSize = 11
+		left.TextTruncate = Enum.TextTruncate.AtEnd
+		left.FontFace = uipallet.Font
+		left.Parent = line
+
+		local right = Instance.new('TextLabel')
+		right.Size = UDim2.fromOffset(68, 22)
+		right.Position = UDim2.new(1, -68, 0, 0)
+		right.BackgroundTransparency = 1
+		right.Text = rightText or ''
+		right.TextXAlignment = Enum.TextXAlignment.Right
+		right.TextColor3 = active and getAccentText() or getMuted(0.40)
+		right.TextSize = 10
+		right.FontFace = uipallet.Font
+		right.Parent = line
+		if active then bindAccent(right, 'TextColor3', nil, nil, 'text') end
+		return line
+	end
+
+	local function makePreviewSectionLabel(parent, text)
+		local lbl = Instance.new('TextLabel')
+		lbl.Size = UDim2.new(1, -2, 0, 26)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = text
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextColor3 = getMuted(0.10)
+		lbl.TextSize = 12
+		lbl.FontFace = uipallet.FontSemiBold
+		lbl.Parent = parent
+	end
+
+	local function makePreviewNote(parent, text)
+		local lbl = Instance.new('TextLabel')
+		lbl.Size = UDim2.new(1, -2, 0, 32)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = text
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextYAlignment = Enum.TextYAlignment.Top
+		lbl.TextColor3 = getMuted(0.40)
+		lbl.TextSize = 11
+		lbl.TextWrapped = true
+		lbl.FontFace = uipallet.Font
+		lbl.Parent = parent
+	end
+
+	-- ── Refresh preview ───────────────────────────────────────────────────
+	local function refreshPreview()
+		clearGui(previewList)
+		local name = previewMode == 'saved' and (selectedProfile or mainapi.Profile or 'default') or selectedCommunityConfig
+		local bundled = previewMode ~= 'saved'
+		local meta = bundled and (configMetadata[name] or {
+			Title = name, Initials = name:upper():sub(1, 3), Description = 'Community configuration.', Tags = {}
+		}) or {
+			Title = name, Initials = '▱',
+			Description = name == 'default' and 'Default configuration.' or 'Your saved local configuration.',
+			Tags = {}
+		}
+		local summary = getConfigSummary(name, bundled)
+
+		-- Header card inside preview
+		local hdrCard = Instance.new('Frame')
+		hdrCard.Size = UDim2.new(1, -2, 0, 96)
+		hdrCard.BackgroundColor3 = CARD
+		hdrCard.BorderSizePixel = 0
+		hdrCard.Parent = previewList
+		addCorner(hdrCard, UDim.new(0, 8))
+
+		local bigAv = Instance.new('TextLabel')
+		bigAv.Size = UDim2.fromOffset(48, 48)
+		bigAv.Position = UDim2.fromOffset(12, 12)
+		bigAv.BackgroundColor3 = getAccent(0.82, 0.76)
+		bigAv.Text = bundled and (meta.Initials or name:upper():sub(1, 3)) or '▱'
+		bigAv.TextColor3 = mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+		bigAv.TextSize = bundled and 14 or 22
+		bigAv.FontFace = uipallet.FontSemiBold
+		bigAv.Parent = hdrCard
+		addCorner(bigAv, UDim.new(0, 9))
+		bindAccent(bigAv, 'BackgroundColor3', 0.82, 0.76)
+
+		local bigTitle = Instance.new('TextLabel')
+		bigTitle.Size = UDim2.new(1, -74, 0, 22)
+		bigTitle.Position = UDim2.fromOffset(70, 10)
+		bigTitle.BackgroundTransparency = 1
+		bigTitle.Text = meta.Title or name
+		bigTitle.TextXAlignment = Enum.TextXAlignment.Left
+		bigTitle.TextColor3 = uipallet.Text
+		bigTitle.TextSize = 15
+		bigTitle.FontFace = uipallet.FontSemiBold
+		bigTitle.Parent = hdrCard
+
+		local bigBy = bigTitle:Clone()
+		bigBy.Position = UDim2.fromOffset(70, 32)
+		bigBy.Text = bundled and 'by AetherCore Team' or 'local config'
+		bigBy.TextColor3 = getMuted(0.40)
+		bigBy.TextSize = 10
+		bigBy.FontFace = uipallet.Font
+		bigBy.Parent = hdrCard
+
+		local descLabel = Instance.new('TextLabel')
+		descLabel.Size = UDim2.new(1, -24, 0, 30)
+		descLabel.Position = UDim2.fromOffset(12, 62)
+		descLabel.BackgroundTransparency = 1
+		descLabel.Text = meta.Description
+		descLabel.TextColor3 = getMuted(0.28)
+		descLabel.TextSize = 11
+		descLabel.TextWrapped = true
+		descLabel.TextXAlignment = Enum.TextXAlignment.Left
+		descLabel.TextYAlignment = Enum.TextYAlignment.Top
+		descLabel.FontFace = uipallet.Font
+		descLabel.Parent = hdrCard
+
+		-- Stats row
+		local statsFrame = Instance.new('Frame')
+		statsFrame.Size = UDim2.new(1, -2, 0, 46)
+		statsFrame.BackgroundColor3 = CARD
+		statsFrame.BorderSizePixel = 0
+		statsFrame.Parent = previewList
+		addCorner(statsFrame, UDim.new(0, 8))
+
+		local statLayout = Instance.new('UIListLayout')
+		statLayout.FillDirection = Enum.FillDirection.Horizontal
+		statLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		statLayout.Padding = UDim.new(0, 0)
+		statLayout.Parent = statsFrame
+
+		local statData = {
+			{'Total', tostring(summary.Count)},
+			{'Enabled', tostring(summary.Enabled)},
+			{'Keybinds', tostring(#summary.Keybinds)},
+		}
+		for i, sd in statData do
+			local seg = Instance.new('Frame')
+			seg.Size = UDim2.new(1 / #statData, 0, 1, 0)
+			seg.BackgroundTransparency = 1
+			seg.Parent = statsFrame
+			if i > 1 then
+				local sep = Instance.new('Frame')
+				sep.Size = UDim2.fromOffset(1, 26)
+				sep.AnchorPoint = Vector2.new(0, 0.5)
+				sep.Position = UDim2.new(0, 0, 0.5, -13)
+				sep.BackgroundColor3 = BORDER
+				sep.BackgroundTransparency = 0.30
+				sep.BorderSizePixel = 0
+				sep.Parent = seg
+			end
+			local val = Instance.new('TextLabel')
+			val.Size = UDim2.new(1, 0, 0, 20)
+			val.Position = UDim2.fromOffset(0, 6)
+			val.BackgroundTransparency = 1
+			val.Text = sd[2]
+			val.TextSize = 16
+			val.FontFace = uipallet.FontSemiBold
+			val.Parent = seg
+			bindAccent(val, 'TextColor3', nil, nil, 'text')
+
+			local valLbl = Instance.new('TextLabel')
+			valLbl.Size = UDim2.new(1, 0, 0, 14)
+			valLbl.Position = UDim2.fromOffset(0, 27)
+			valLbl.BackgroundTransparency = 1
+			valLbl.Text = sd[1]
+			valLbl.TextSize = 10
+			valLbl.TextColor3 = getMuted(0.34)
+			valLbl.FontFace = uipallet.Font
+			valLbl.Parent = seg
+		end
+
+		-- Module list
+		makePreviewSectionLabel(previewList, 'Active modules')
+		local shown = 0
+		for _, mn in summary.EnabledModules do
+			if shown >= 10 then break end
+			shown += 1
+			makePreviewLine(previewList, mn, 'ON', true)
+		end
+		if shown == 0 then
+			makePreviewNote(previewList, summary.Exists and 'No modules currently enabled.' or 'Config not downloaded yet. Use the buttons below to fetch it.')
+		end
+		if #summary.Modules > shown then
+			makePreviewNote(previewList, '+'..tostring(#summary.Modules - shown)..' more settings stored in this config.')
+		end
+
+		-- Keybinds
+		if #summary.Keybinds > 0 then
+			makePreviewSectionLabel(previewList, 'Keybinds')
+			local kb = 0
+			for _, bd in summary.Keybinds do
+				if kb >= 6 then break end
+				kb += 1
+				makePreviewLine(previewList, bd.Name, bd.Bind, true)
+			end
+		end
+
+		updateCanvas(previewList, previewLayout)
+	end
+
+	-- ── Main refresh ──────────────────────────────────────────────────────
+	local function refreshManager()
+		refreshConfigProfiles()
+		refreshAccents()
+		clearGui(savedList)
+		clearGui(communityList)
+
+		local filter = searchBox.Text:lower()
+		local visCount = 0
+
+		for _, p in mainapi.Profiles do
+			if filter == '' or p.Name:lower():find(filter, 1, true) then
+				visCount += 1
+				createRow(savedList, p.Name, p.Name == (mainapi.Profile or selectedProfile), function()
+					selectedProfile = p.Name
+					previewMode = 'saved'
+					applySavedConfig(p.Name)
+					categoryapi:ChangeValue()
+					refreshManager()
+				end, false)
+			end
+		end
+
+		for _, cname in communityConfigs do
+			createRow(communityList, cname, cname == selectedCommunityConfig, function()
+				selectedCommunityConfig = cname
+				previewMode = 'community'
+				refreshManager()
+			end, true)
+		end
+
+		savedCount.Text = tostring(visCount)..' / '..tostring(#mainapi.Profiles)
+		communityCount.Text = tostring(#communityConfigs)
+
+		refreshPreview()
+		updateCanvas(savedList, savedLayout)
+		updateCanvas(communityList, communityLayout)
+	end
+
+	-- ── Action buttons ────────────────────────────────────────────────────
+	-- In saved panel bottom area
+	local savedNewBtn = makeBtn(panelSaved, '+ New Config', 10, 0, 0, 34, 'ghost', function()
+		local newName = 'config'..(#mainapi.Profiles + 1)
+		table.insert(mainapi.Profiles, {Name = newName, Bind = {}})
+		mainapi:Save(newName)
+		selectedProfile = newName
+		previewMode = 'saved'
+		categoryapi:ChangeValue()
+		refreshManager()
+	end)
+	savedNewBtn.Position = UDim2.new(0, 10, 1, -86)
+	savedNewBtn.Size = UDim2.new(1, -20, 0, 34)
+
+	-- Community panel: Download All
+	local dlAllBtn = makeBtn(panelCommunity, '▷  Apply Config', 10, 0, 0, 34, 'primary', function()
+		if installBundledConfigs(false) then
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', 'Community configs downloaded.', 5, 'info')
+		end
+	end)
+	dlAllBtn.Position = UDim2.new(0, 10, 1, -44)
+	dlAllBtn.Size = UDim2.new(1, -20, 0, 34)
+
+	-- Bottom action bar buttons (right side)
+	local BAR_Y = (BOTTOM_BAR_H - 38) / 2
+
+	makeBtn(bottomBar, '☁  Download Selected', 12, BAR_Y, 148, 38, 'primary', function()
+		if installBundledConfig(selectedCommunityConfig, false) then
+			selectedProfile = selectedCommunityConfig
+			previewMode = 'community'
+			applySavedConfig(selectedCommunityConfig)
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' downloaded & applied.', 5, 'info')
+		end
+	end)
+
+	makeBtn(bottomBar, '⟳  Reinstall', 168, BAR_Y, 102, 38, 'neutral', function()
+		mainapi:Save()
+		if installBundledConfig(selectedCommunityConfig, true) then
+			selectedProfile = selectedCommunityConfig
+			previewMode = 'community'
+			applySavedConfig(selectedCommunityConfig)
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', selectedCommunityConfig..' reinstalled & applied.', 5, 'info')
+		end
+	end)
+
+	makeBtn(bottomBar, '⌫  Delete Saved', 278, BAR_Y, 110, 38, 'danger', function()
+		local target = selectedProfile or mainapi.Profile
+		if removeSavedConfig(target) then
+			selectedProfile = mainapi.Profile
+			previewMode = 'saved'
+			categoryapi:ChangeValue()
+			refreshManager()
+			mainapi:CreateNotification('Configs', target..' deleted.', 5, 'info')
+		else
+			mainapi:CreateNotification('Configs', 'Cannot delete: select a non-default saved config.', 5, 'warning')
+		end
+	end)
+
+	-- Import button (far right of bottom bar)
+	local importActionBtn = makeBtn(bottomBar, '↥  Import', 0, BAR_Y, 88, 38, 'neutral', function()
+		local text = trim(importBox.Text)
+		if text == '' then
+			mainapi:CreateNotification('Configs', 'Paste a JSON config into the import box first.', 5, 'warning')
+			return
+		end
+		local ok, result = pcall(function() return httpService:JSONDecode(text) end)
+		if ok and type(result) == 'table' and result.config and result.gui then
+			local imported = 'imported'..(#mainapi.Profiles + 1)
+			table.insert(mainapi.Profiles, {Name = imported, Bind = {}})
+			mainapi:Save(imported)
+			writefile(getConfigPath(imported), result.config)
+			writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', result.gui)
+			mainapi:Load(true, imported)
+			selectedProfile = imported
+			previewMode = 'saved'
+			categoryapi:ChangeValue()
+			refreshManager()
+			importBox.Text = ''
+			mainapi:CreateNotification('Configs', imported..' imported successfully.', 5, 'info')
+		else
+			mainapi:CreateNotification('Configs', 'Invalid JSON — check the format and try again.', 5, 'warning')
+		end
+	end)
+	-- Anchor import button to right of bottom bar
+	importActionBtn.Position = UDim2.new(1, -100, 0, BAR_Y)
+	importActionBtn.AnchorPoint = Vector2.new(1, 0)
+
+	importBox.FocusLost:Connect(function(enter)
+		if enter then
+			local text = trim(importBox.Text)
+			if text == '' then return end
+			local ok, result = pcall(function() return httpService:JSONDecode(text) end)
+			if ok and type(result) == 'table' and result.config and result.gui then
+				local imported = 'imported'..(#mainapi.Profiles + 1)
+				table.insert(mainapi.Profiles, {Name = imported, Bind = {}})
+				mainapi:Save(imported)
+				writefile(getConfigPath(imported), result.config)
+				writefile('aethercorev2/profiles/'..game.GameId..'.gui.txt', result.gui)
+				mainapi:Load(true, imported)
+				selectedProfile = imported
+				previewMode = 'saved'
+				categoryapi:ChangeValue()
+				refreshManager()
+				importBox.Text = ''
+				mainapi:CreateNotification('Configs', imported..' imported.', 5, 'info')
+			else
+				mainapi:CreateNotification('Configs', 'Invalid JSON config.', 5, 'warning')
+			end
+		end
+	end)
+
+	-- ── Close / open wiring ───────────────────────────────────────────────
+	local function doClose()
+		if categoryapi.Button and categoryapi.Button.Enabled then
+			categoryapi.Button:Toggle()
+		else
+			manager.Visible = false
+			inputBlocker.Visible = false
+			categoryapi.Expanded = false
+		end
+	end
+
+	closeBtn.MouseEnter:Connect(function()
+		tween:Tween(closeBtn, uipallet.Tween, {BackgroundColor3 = Color3.fromRGB(22, 26, 40), TextColor3 = uipallet.Text})
+	end)
+	closeBtn.MouseLeave:Connect(function()
+		tween:Tween(closeBtn, uipallet.Tween, {BackgroundColor3 = CARD, TextColor3 = getMuted(0.22)})
+	end)
+	closeBtn.MouseButton1Click:Connect(doClose)
+
+	searchBox:GetPropertyChangedSignal('Text'):Connect(function()
+		refreshManager()
+	end)
+
+	function categoryapi:Expand()
+		manager.Visible = not manager.Visible
+		inputBlocker.Visible = manager.Visible
+		self.Expanded = manager.Visible
+		self.Object.Visible = false
+		tooltip.Visible = false
+		if self.Button then self.Button.Enabled = manager.Visible end
+		if manager.Visible then
+			selectedProfile = mainapi.Profile or selectedProfile
+			previewMode = 'community'
+			refreshManager()
+		end
+	end
+
+	if categoryapi.Button then
+		local oldToggle = categoryapi.Button.Toggle
+		function categoryapi.Button:Toggle()
+			oldToggle(self)
+			categoryapi.Object.Visible = false
+			if not mainapi.Loaded then
+				if self.Enabled then oldToggle(self) end
+				manager.Visible = false
+				inputBlocker.Visible = false
+				categoryapi.Expanded = false
+				return
+			end
+			manager.Visible = self.Enabled
+			inputBlocker.Visible = manager.Visible
+			categoryapi.Expanded = manager.Visible
+			tooltip.Visible = false
+			if manager.Visible then
+				selectedProfile = mainapi.Profile or selectedProfile
+				previewMode = 'community'
+				refreshManager()
+			end
+		end
+	end
+
+	categoryapi.ConfigManager = manager
+end
+local communityConfigManagerLoader = loadstring(downloadFile('aethercorev2/guis/communityconfigs.lua'), 'communityconfigs')
+if communityConfigManagerLoader then
+	local loadedConfigManager = communityConfigManagerLoader({
+		uipallet = uipallet,
+		color = color,
+		tween = tween,
+		mainapi = mainapi,
+		httpService = httpService,
+		inputService = inputService,
+		guiService = guiService,
+		runService = runService,
+		getConfigPath = getConfigPath,
+		loadJson = loadJson,
+		refreshConfigProfiles = refreshConfigProfiles,
+		communityConfigs = communityConfigs,
+		installBundledConfig = installBundledConfig,
+		applySavedConfig = applySavedConfig,
+		removeSavedConfig = removeSavedConfig,
+		clickgui = clickgui,
+		scale = scale,
+		gui = gui,
+		scaledgui = scaledgui,
+		tooltip = tooltip
+	})
+	if loadedConfigManager then
+		createConfigManager = loadedConfigManager
+	end
+end
+createConfigManager(profiles)
+
 
 --[[
 	Targets
@@ -6140,7 +7594,7 @@ profiles:CreateButton({
 local targets
 targets = mainapi:CreateCategoryList({
 	Name = 'Targets',
-	Icon = getcustomasset('catrewrite/assets/new/friendstab.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/friendstab.png'),
 	Size = UDim2.fromOffset(17, 16),
 	Placeholder = 'Roblox username',
 	Function = function()
@@ -6164,18 +7618,32 @@ mainapi.MultiKeybind = general:CreateToggle({
 	Name = 'Enable Multi-Keybinding',
 	Tooltip = 'Allows multiple keys to be bound to a module (eg. G + H)'
 })
+general:CreateToggle({
+	Name = 'Disable Loading Screen',
+	Function = function(callback)
+		if not isfolder('aethercorev2/profiles') then
+			makefolder('aethercorev2/profiles')
+		end
+		writefile('aethercorev2/profiles/disableloading.txt', callback and 'true' or 'false')
+		if callback and _G.AetherCoreCloseLoadingScreen then
+			pcall(_G.AetherCoreCloseLoadingScreen)
+		end
+	end,
+	Default = isfile('aethercorev2/profiles/disableloading.txt') and readfile('aethercorev2/profiles/disableloading.txt') == 'true',
+	Tooltip = 'Prevents AetherCore from showing its startup loading screen.'
+})
 general:CreateButton({
 	Name = 'Reset current profile',
 	Function = function()
 	mainapi.Save = function() end
-		if isfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
-			delfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		if isfile(getConfigPath(mainapi.Profile)) and delfile then
+			delfile(getConfigPath(mainapi.Profile))
 		end
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('catrewrite/loader.lua'), 'loader')()
+			loadstring(readfile('aethercorev2/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/main.lua', true), 'main')(license)
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Vape'
@@ -6184,16 +7652,16 @@ general:CreateButton({
 	Name = 'Export to JSON',
 	Function = function()
 		local tab = {}
-		if isfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt') then
-			tab.config = readfile('catrewrite/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		if isfile(getConfigPath(mainapi.Profile)) then
+			tab.config = readfile(getConfigPath(mainapi.Profile))
 		end
-		if isfile('catrewrite/profiles/'..game.GameId..'.gui.txt') then
-			tab.gui = readfile('catrewrite/profiles/'..game.GameId..'.gui.txt')
+		if isfile('aethercorev2/profiles/'..game.GameId..'.gui.txt') then
+			tab.gui = readfile('aethercorev2/profiles/'..game.GameId..'.gui.txt')
 		end
 		tab.game = tostring(mainapi.Place or 'universal'.. game.PlaceId)
 		setclipboard(httpService:JSONEncode(tab))
 	end,
-	Tooltip = 'Converts ur config to json format'
+	Tooltip = 'Converts your config to JSON format'
 })
 general:CreateButton({
 	Name = 'Self destruct',
@@ -6207,9 +7675,9 @@ general:CreateButton({
 	Function = function()
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('catrewrite/loader.lua'), 'loader')()
+			loadstring(readfile('aethercorev2/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/main.lua', true), 'main')(license)
 		end
 	end,
 	Tooltip = 'Reloads vape for debugging purposes'
@@ -6321,12 +7789,12 @@ guipane:CreateDropdown({
 	List = inputService.TouchEnabled and {'new', 'old'} or {'new', 'old', 'rise'},
 	Function = function(val, mouse)
 		if mouse then
-			writefile('catrewrite/profiles/gui.txt', val)
+			writefile('aethercorev2/profiles/gui.txt', val)
 			shared.vapereload = true
 			if shared.VapeDeveloper then
-				loadstring(readfile('catrewrite/loader.lua'), 'loader')()
+				loadstring(readfile('aethercorev2/main.lua'), 'main')(license)
 			else
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/plutoxqqq/AetherCoreV2/'..readfile('aethercorev2/profiles/commit.txt')..'/main.lua', true), 'main')(license)
 			end
 		end
 	end,
@@ -6376,12 +7844,14 @@ guipane:CreateButton({
 			CombatCategory = 2,
 			BlatantCategory = 3,
 			RenderCategory = 4,
-			UtilityCategory = 5,
-			WorldCategory = 6,
-			InventoryCategory = 7,
-			MinigamesCategory = 8,
-			FriendsCategory = 9,
-			ProfilesCategory = 10
+			VisualsCategory = 5,
+			LegitCategory = 6,
+			UtilityCategory = 7,
+			WorldCategory = 8,
+			InventoryCategory = 9,
+			MinigamesCategory = 10,
+			FriendsCategory = 10,
+			ProfilesCategory = 11
 		}
 		local categories = {}
 		for _, v in mainapi.Categories do
@@ -6434,13 +7904,102 @@ mainapi.GUIColor = mainapi.Categories.Main:CreateGUISlider({
 })
 mainapi.Categories.Main:CreateBind()
 
+
+--[[
+	Useful Overlays
+]]
+
+local function createInfoOverlay(settings)
+	local overlay
+	overlay = mainapi:CreateOverlay({
+		Name = settings.Name,
+		Icon = settings.Icon,
+		Size = settings.Size,
+		Position = settings.Position,
+		CategorySize = 190,
+		Function = function(callback)
+			if callback then
+				settings.Update(settings, 1 / 60)
+				table.insert(overlay.Connections, runService.Heartbeat:Connect(function(dt)
+					if os.clock() - settings.LastUpdate > settings.Interval then
+						settings.LastUpdate = os.clock()
+						settings.Update(settings, dt)
+					end
+				end))
+			end
+		end
+	})
+	overlay.Object.Size = UDim2.fromOffset(190, 82)
+	local body = Instance.new('TextLabel')
+	body.Name = 'Body'
+	body.Size = UDim2.new(1, -20, 0, 34)
+	body.Position = UDim2.fromOffset(10, 42)
+	body.BackgroundTransparency = 1
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.TextColor3 = color.Dark(uipallet.Text, 0.16)
+	body.TextSize = 12
+	body.FontFace = uipallet.Font
+	body.Parent = overlay.Object.CustomChildren
+	settings.Label = body
+	return overlay
+end
+
+local overlayStarted = os.clock()
+createInfoOverlay({
+	Name = 'Session Panel',
+	Icon = getcustomasset('aethercorev2/assets/new/info.png'),
+	Size = UDim2.fromOffset(14, 14),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 1,
+	LastUpdate = 0,
+	Update = function(self)
+		local elapsed = math.floor(os.clock() - overlayStarted)
+		self.Label.Text = 'Runtime  '..math.floor(elapsed / 60)..'m '..(elapsed % 60)..'s\nProfile  '..tostring(mainapi.Profile or 'default')
+	end
+})
+
+createInfoOverlay({
+	Name = 'Performance Monitor',
+	Icon = getcustomasset('aethercorev2/assets/new/radaricon.png'),
+	Size = UDim2.fromOffset(14, 14),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 0.5,
+	LastUpdate = 0,
+	Update = function(self, dt)
+		local fps = math.floor(1 / math.max(dt or (1 / 60), 0.001))
+		self.Label.Text = 'FPS  '..fps..'\nStatus  optimised'
+	end
+})
+
+createInfoOverlay({
+	Name = 'Module Summary',
+	Icon = getcustomasset('aethercorev2/assets/new/overlaystab.png'),
+	Size = UDim2.fromOffset(14, 12),
+	Position = UDim2.fromOffset(12, 13),
+	Interval = 1,
+	LastUpdate = 0,
+	Update = function(self)
+		local enabled, total = 0, 0
+		for _, category in mainapi.Categories do
+			if category.Modules then
+				for _, module in category.Modules do
+					total += 1
+					if module.Enabled then enabled += 1 end
+				end
+			end
+		end
+		self.Label.Text = 'Enabled  '..enabled..' / '..total..'\nTheme  script accent'
+	end
+})
+
 --[[
 	Text GUI
 ]]
 
 local textgui = mainapi:CreateOverlay({
 	Name = 'Text GUI',
-	Icon = getcustomasset('catrewrite/assets/new/textguiicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/textguiicon.png'),
 	Size = UDim2.fromOffset(16, 12),
 	Position = UDim2.fromOffset(12, 14),
 	Function = function()
@@ -6574,8 +8133,8 @@ local textguimodules = textgui:CreateToggle({
 textguimoduleslist = textgui:CreateTextList({
 	Name = 'Blacklist',
 	Tooltip = 'Name of module to hide.',
-	Icon = getcustomasset('catrewrite/assets/new/blockedicon.png'),
-	Tab = getcustomasset('catrewrite/assets/new/blockedtab.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/blockedicon.png'),
+	Tab = getcustomasset('aethercorev2/assets/new/blockedtab.png'),
 	TabSize = UDim2.fromOffset(21, 16),
 	Color = Color3.fromRGB(250, 50, 56),
 	Function = function()
@@ -6652,7 +8211,7 @@ VapeLogo.BackgroundTransparency = 1
 VapeLogo.BorderSizePixel = 0
 VapeLogo.Visible = false
 VapeLogo.BackgroundColor3 = Color3.new()
-VapeLogo.Image = getcustomasset('catrewrite/assets/new/textvape.png')
+VapeLogo.Image = getcustomasset('aethercorev2/assets/new/textvape.png')
 VapeLogo.Parent = textgui.Children
 
 local lastside = textgui.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
@@ -6674,7 +8233,7 @@ VapeLogoV4.Position = UDim2.new(1, 1, 0, 1)
 VapeLogoV4.BackgroundColor3 = Color3.new()
 VapeLogoV4.BackgroundTransparency = 1
 VapeLogoV4.BorderSizePixel = 0
-VapeLogoV4.Image = getcustomasset('catrewrite/assets/new/textv4.png')
+VapeLogoV4.Image = getcustomasset('aethercorev2/assets/new/textv4.png')
 VapeLogoV4.Parent = VapeLogo
 local VapeLogoShadow = VapeLogo:Clone()
 VapeLogoShadow.Position = UDim2.fromOffset(1, 1)
@@ -6744,7 +8303,7 @@ local targetinfoobj
 local targetinfobcolor
 targetinfoobj = mainapi:CreateOverlay({
 	Name = 'Target Info',
-	Icon = getcustomasset('catrewrite/assets/new/targetinfoicon.png'),
+	Icon = getcustomasset('aethercorev2/assets/new/targetinfoicon.png'),
 	Size = UDim2.fromOffset(14, 14),
 	Position = UDim2.fromOffset(12, 14),
 	CategorySize = 240,
@@ -7290,8 +8849,9 @@ local function keybindStart(inputObj)
 
 		for _, v in mainapi.Profiles do
 			if checkKeybinds(mainapi.HeldKeybinds, v.Bind, inputObj.KeyCode.Name) and v.Name ~= mainapi.Profile then
-				mainapi:Save(v.Name)
-				mainapi:Load(true)
+				mainapi:Save()
+				mainapi:Load(true, v.Name)
+				mainapi:Save()
 				break
 			end
 		end
