@@ -15542,50 +15542,95 @@ run(function()
         return best
     end
 
-    local function depositAll(hive)
-        local prompt = hive:FindFirstChildOfClass('ProximityPrompt')
-        if not prompt then return 0 end
+    local function findKnitRemote(fn, maxDepth)
+        local function scan(f, depth)
+            if depth <= 0 or type(f) ~= 'function' then return nil end
+            local ok, consts = pcall(debug.getconstants, f)
+            if ok and consts then
+                for i, v in consts do
+                    if v == 'Client' and type(consts[i + 1]) == 'string' then
+                        return consts[i + 1]
+                    end
+                end
+            end
+            local i = 1
+            while true do
+                local ok2, p = pcall(getproto, f, i)
+                if not ok2 or not p then break end
+                local result = scan(p, depth - 1)
+                if result then return result end
+                i += 1
+            end
+            return nil
+        end
+        return scan(fn, maxDepth)
+    end
 
-        -- Count bees upfront to cap the loop
+    local beeDepositRemote = nil
+    local beeDepositScanned = false
+
+    local function lazyInitBeeDeposit()
+        if beeDepositScanned then return end
+        beeDepositScanned = true
+        local controllerCandidates = {
+            'BeehiveController', 'BeekeeperController', 'BeeKeeperController',
+            'BeekeeperKitController', 'BeeKeeperKitController', 'BeeHiveController',
+            'BeeController', 'HiveController', 'BeehiveKitController'
+        }
+        local methodCandidates = {
+            'KnitStart', 'onKitLocalActivated', 'deposit', 'depositBee',
+            'storeBeesInHive', 'onProximityPrompt', 'setupHive', 'setupBeehive',
+            'onHiveDeposit', 'onBeehiveInteract', 'interact'
+        }
+        for _, ctrlName in controllerCandidates do
+            local ok, ctrl = pcall(function() return bedwars[ctrlName] end)
+            if ok and ctrl and type(ctrl) == 'table' then
+                for _, method in methodCandidates do
+                    local fn = rawget(ctrl, method)
+                    if type(fn) == 'function' then
+                        local remote = findKnitRemote(fn, 8)
+                        if remote and remote ~= '' then
+                            beeDepositRemote = remote
+                            return
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local function depositAll(hive)
+        lazyInitBeeDeposit()
+
         local totalBees = 0
         for _, item in store.inventory.inventory.items do
             if item.itemType == 'bee' then totalBees += (item.amount or 1) end
         end
         if totalBees == 0 then return 0 end
 
-        -- Strategy 1: if we have network ownership of the hive, expand the
-        -- prompt's MaxActivationDistance so the server accepts the fire from
-        -- any range — no TP, no anti-cheat.
-        local origDist = prompt.MaxActivationDistance
-        local usedDistPatch = false
-        if isnetworkowner(hive) then
-            prompt.MaxActivationDistance = 9e9
-            task.wait(0.05)
-            usedDistPatch = true
+        if beeDepositRemote then
+            local n = 0
+            for _ = 1, totalBees do
+                if not getItem('bee') then break end
+                pcall(function()
+                    local remote = bedwars.Client:Get(beeDepositRemote)
+                    local ok = pcall(function() remote:CallServer(hive) end)
+                    if not ok then remote:SendToServer(hive) end
+                end)
+                n += 1
+                task.wait(0.1)
+            end
+            return n
         end
 
-        -- Strategy 2 fallback: TP next to hive each iteration if we couldn't
-        -- patch the distance (hive is server-owned).
-        local root = entitylib.character.RootPart
-        local originalCFrame = not usedDistPatch and root.CFrame or nil
-        local hivePos = not usedDistPatch and CFrame.new(hive.Position + Vector3.new(0, 3, 0)) or nil
-
+        local prompt = hive:FindFirstChildOfClass('ProximityPrompt')
+        if not prompt then return 0 end
         local n = 0
         for _ = 1, totalBees do
             if not getItem('bee') then break end
-            if not usedDistPatch then
-                root.CFrame = hivePos
-                task.wait(0.05)
-            end
             pcall(fireproximityprompt, prompt)
             n += 1
             task.wait(0.15)
-        end
-
-        if usedDistPatch then
-            prompt.MaxActivationDistance = origDist
-        elseif originalCFrame then
-            root.CFrame = originalCFrame
         end
         return n
     end
