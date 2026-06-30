@@ -11496,6 +11496,94 @@ run(function()
 end)
 
 run(function()
+    local AutoPatch
+    local Layers
+    local PatchSwitch
+
+    local function getStrongestBlock()
+        local best, bestHealth = nil, 0
+        for _, item in store.inventory.inventory.items do
+            local meta = bedwars.ItemMeta[item.itemType]
+            local block = meta and meta.block
+            if block and (block.health or 0) > bestHealth then
+                best = item
+                bestHealth = block.health
+            end
+        end
+        return best
+    end
+
+    local function isEnemy(player)
+        if not player then return false end
+        local myTeam = lplr:GetAttribute('Team')
+        return player:GetAttribute('Team') ~= myTeam
+    end
+
+    local function bedInRange(worldPos)
+        local myTeam = lplr:GetAttribute('Team') or -1
+        local radius = Layers.Value * 3 + 6
+        for _, v in collectionService:GetTagged('bed') do
+            if v:GetAttribute('Team' .. myTeam .. 'NoBreak') then
+                if (worldPos - v.Position).Magnitude <= radius then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local patching = false
+
+    AutoPatch = vape.Categories.World:CreateModule({
+        Name = 'Auto Patch',
+        Function = function(call)
+            if not call then
+                patching = false
+                return
+            end
+            AutoPatch:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
+                if not AutoPatch.Enabled or patching then return end
+                if not entitylib.isAlive then return end
+                if not isEnemy(data.player) then return end
+
+                local worldPos = data.blockRef.blockPosition * 3
+                if not bedInRange(worldPos) then return end
+
+                local block = getStrongestBlock()
+                if not block then return end
+
+                patching = true
+                task.spawn(function()
+                    local old = store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
+                    if PatchSwitch.Enabled then
+                        local hotbar = getHotbar(block.tool)
+                        if hotbar and hotbarSwitch(hotbar) then task.wait() end
+                    end
+                    bedwars.placeBlock(worldPos, block.itemType, false)
+                    if PatchSwitch.Enabled and old and hotbarSwitch(old) then task.wait() end
+                    patching = false
+                end)
+            end))
+        end,
+        Tooltip = 'Instantly replaces blocks broken by enemies near your bed, using the strongest block available'
+    })
+
+    Layers = AutoPatch:CreateSlider({
+        Name = 'Layers',
+        Min = 1,
+        Max = 8,
+        Default = 2,
+        Suffix = function(v) return v == 1 and 'layer' or 'layers' end,
+        Tooltip = 'How many block layers out from the bed to monitor and patch'
+    })
+    PatchSwitch = AutoPatch:CreateToggle({
+        Name = 'Auto Switch',
+        Default = true,
+        Tooltip = 'Switch hotbar to the strongest block before placing, then switch back'
+    })
+end)
+
+run(function()
     local BlockIn
     
     local rayCheck = RaycastParams.new()
