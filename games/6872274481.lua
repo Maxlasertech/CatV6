@@ -11691,16 +11691,36 @@ run(function()
                     local ok2, result = pcall(function()
                         return bedwars.Client:Get('FetchRanks'):CallServer({userId})
                     end)
-                    if not ok2 or typeof(result) ~= 'table' or not result[1] then
-                        notif('Rank Lookup', username .. ': unranked', 4, 'info')
+                    local division = nil
+                    if ok2 and typeof(result) == 'table' and result[1] then
+                        division = result[1].rankDivision
+                    end
+                    -- Fallback for local player: derive division from Store rankPoints
+                    if not division and userId == lplr.UserId and okRD and RD then
+                        local okS, state = pcall(function() return bedwars.Store:getState() end)
+                        if okS and state and state.Leaderboard and state.Leaderboard.rankStats then
+                            local rp = state.Leaderboard.rankStats.rankPoints
+                            if type(rp) == 'number' and rp > 0 then
+                                for div = 25, 1, -1 do
+                                    local okF, floor = pcall(function() return RD.getRankPointsFromDivision(RD, div) end)
+                                    if okF and type(floor) == 'number' and rp >= floor then
+                                        division = div
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if not division then
+                        local hint = not ok2 and tostring(result):sub(1, 40) or 'no data'
+                        notif('Rank Lookup', username .. ': unranked (' .. hint .. ')', 5, 'info')
                         continue
                     end
-                    local division = result[1].rankDivision
-                    local meta = division and bedwars.RankMeta[division]
+                    local meta = bedwars.RankMeta[division]
                     local rankName = meta and meta.name or ('Division ' .. tostring(division))
                     local shortName = meta and meta.shortName
                     local rpFloor = nil
-                    if okRD and RD and division then
+                    if okRD and RD then
                         local ok3, rp = pcall(function() return RD.getRankPointsFromDivision(RD, division) end)
                         if ok3 and type(rp) == 'number' then rpFloor = rp end
                     end
