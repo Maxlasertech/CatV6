@@ -22546,28 +22546,12 @@ run(function()
 	})
 end)
 
---[[
-    Force Drop + Item Stash
-    Lets you drop items that are normally undroppable (bees, crystals, kit items, etc.)
-    and auto-recovers them from the world when you respawn at base.
-]]
-
 run(function()
     local ForceDrop
-    local ItemStash
     local DropHeld
     local DropFiltered
     local ItemFilter
-    local SetBase
-    local StashRadius
-    local OnlyOwned
-    local basePosition = nil
 
-    -- Parts we force-dropped, keyed by the dropped Part so we can track them
-    local stash = {}   -- {[part] = true}
-
-    -- Patch every known droppability flag on an ItemMeta entry so the
-    -- client-side check inside dropItemInHand passes.
     local function patchMeta(meta)
         if type(meta) ~= 'table' then return end
         for _, k in {'droppable', 'isDroppable', 'canDrop', 'allowDrop'} do
@@ -22578,7 +22562,6 @@ run(function()
         end
     end
 
-    -- Fire the server drop remote directly, bypassing all client-side guards.
     local function forceDrop(item)
         if not item or not item.tool then return nil end
         patchMeta(bedwars.ItemMeta[item.itemType])
@@ -22591,16 +22574,14 @@ run(function()
         return ok and dropped or nil
     end
 
-    -- ── Force Drop module ────────────────────────────────────────────────────
-
     ForceDrop = vape.Categories.Inventory:CreateModule({
         Name    = 'Force Drop',
-        Tooltip = 'Drops items that are normally undroppable; tracks them for base recovery'
+        Tooltip = 'Drops any item including ones that are normally undroppable (bees, crystals, etc.)'
     })
 
     DropHeld = ForceDrop:CreateButton({
         Name    = 'Drop Held Item',
-        Tooltip = 'Force-drops your currently held item and tracks it for stash recovery',
+        Tooltip = 'Force-drops your currently held item',
         Function = function()
             if not entitylib.isAlive then return end
             local hand = store.hand
@@ -22612,7 +22593,6 @@ run(function()
             if not item then return end
             local dropped = forceDrop(item)
             if dropped then
-                stash[dropped] = true
                 notif('ForceDrop', 'Dropped ' .. (bedwars.ItemMeta[item.itemType] and bedwars.ItemMeta[item.itemType].displayName or item.itemType), 3, 'info')
             else
                 notif('ForceDrop', 'Server rejected drop — item may be server-locked', 5, 'alert')
@@ -22629,12 +22609,9 @@ run(function()
             for _, item in store.inventory.inventory.items do
                 local filter = ItemFilter.List
                 if #filter > 0 and not table.find(filter, item.itemType) then continue end
-                local dropped = forceDrop(item)
-                if dropped then
-                    stash[dropped] = true
-                    count += 1
-                    task.wait(0.05)
-                end
+                forceDrop(item)
+                count += 1
+                task.wait(0.05)
             end
             notif('ForceDrop', 'Dropped ' .. count .. ' item(s)', 3, 'info')
         end
@@ -22644,111 +22621,5 @@ run(function()
         Name    = 'Item Filter',
         Default = {'bee', 'special_bee', 'frost_crystal'},
         Tooltip = 'Items to drop with "Drop All"; leave empty to drop every inventory item'
-    })
-
-    -- ── Item Stash module ────────────────────────────────────────────────────
-
-    ItemStash = vape.Categories.Inventory:CreateModule({
-        Name    = 'Item Stash',
-        Tooltip = 'Auto-recovers your stashed items when you respawn near your base',
-        Function = function(call)
-            if not call then return end
-
-            -- Recover on respawn: hook CharacterAdded for this session
-            local function onSpawn(char)
-                if not basePosition then return end
-                task.wait(1)  -- wait for character to fully load
-                if not char.Parent then return end
-                local root = char:FindFirstChild('HumanoidRootPart')
-                if not root then return end
-                if (root.Position - basePosition).Magnitude > StashRadius.Value then return end
-
-                for part in stash do
-                    if not part or not part.Parent then
-                        stash[part] = nil
-                        continue
-                    end
-                    -- Network-TP the dropped part to our feet, then pick it up
-                    if isnetworkowner(part) then
-                        part.CFrame = CFrame.new(root.Position - Vector3.new(0, 2, 0))
-                    end
-                    task.wait(0.05)
-                    bedwars.Client:Get(remotes.PickupItem):CallServerAsync({
-                        itemDrop = part
-                    }):andThen(function(suc)
-                        if suc then
-                            stash[part] = nil
-                            if bedwars.SoundList then
-                                bedwars.SoundManager:playSound(bedwars.SoundList.PICKUP_ITEM_DROP)
-                            end
-                        end
-                    end)
-                end
-            end
-
-            ItemStash:Clean(lplr.CharacterAdded:Connect(onSpawn))
-
-            -- Also continuously sweep in case the player walks back to base while alive
-            repeat
-                if entitylib.isAlive and basePosition then
-                    local localPos = entitylib.character.RootPart.Position
-                    if (localPos - basePosition).Magnitude <= StashRadius.Value then
-                        for part in stash do
-                            if not part or not part.Parent then
-                                stash[part] = nil
-                                continue
-                            end
-                            if OnlyOwned.Enabled and not isnetworkowner(part) then continue end
-                            if isnetworkowner(part) then
-                                part.CFrame = CFrame.new(localPos - Vector3.new(0, 2, 0))
-                            end
-                            if (localPos - part.Position).Magnitude <= 8 then
-                                bedwars.Client:Get(remotes.PickupItem):CallServerAsync({
-                                    itemDrop = part
-                                }):andThen(function(suc)
-                                    if suc then
-                                        stash[part] = nil
-                                        if bedwars.SoundList then
-                                            bedwars.SoundManager:playSound(bedwars.SoundList.PICKUP_ITEM_DROP)
-                                        end
-                                    end
-                                end)
-                            end
-                        end
-                    end
-                end
-                task.wait(0.2)
-            until not ItemStash.Enabled
-        end
-    })
-
-    SetBase = ItemStash:CreateButton({
-        Name    = 'Set Base Here',
-        Tooltip = 'Marks your current position as the base; stash items are recovered here on respawn',
-        Function = function()
-            if entitylib.isAlive then
-                basePosition = entitylib.character.RootPart.Position
-                notif('ItemStash', ('Base set (%.0f, %.0f, %.0f)'):format(
-                    basePosition.X, basePosition.Y, basePosition.Z
-                ), 4, 'info')
-            else
-                notif('ItemStash', 'Must be alive to set base', 3, 'alert')
-            end
-        end
-    })
-
-    StashRadius = ItemStash:CreateSlider({
-        Name    = 'Base Radius',
-        Min     = 5,
-        Max     = 60,
-        Default = 25,
-        Suffix  = function(v) return v == 1 and 'stud' or 'studs' end,
-        Tooltip = 'How close to the base position before stash items are auto-recovered'
-    })
-
-    OnlyOwned = ItemStash:CreateToggle({
-        Name    = 'Require Network Owner',
-        Default = true,
-        Tooltip = 'Only pick up items you have network ownership of (safer; prevents picking up others\' drops)'
     })
 end)
