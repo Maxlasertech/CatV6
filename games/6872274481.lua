@@ -22296,6 +22296,7 @@ end)
 run(function()
 	local AutoZola
 	local EnemyLinks
+	local LinkNPCs
 	local AllyLinks
 	local MaxEnemyLinks
 	local MaxAllyLinks
@@ -22469,7 +22470,7 @@ run(function()
 			-- Range / death expiry
 			local alive = false
 			for _, ent in entitylib.List do
-				if tostring(ent.Character) == key then
+				if ent.Character == key then
 					if ent.RootPart and (ent.RootPart.Position - localPos).Magnitude <= maxRange then
 						alive = true
 					end
@@ -22580,14 +22581,14 @@ run(function()
 						Range   = EnemyRange.Value,
 						Part    = 'RootPart',
 						Players = true,
-						NPCs    = false,
+						NPCs    = LinkNPCs.Enabled,
 						Limit   = maxE - curE,
 						Sort    = sortmethods[EnemyPriority.Value],
 					})
 
 					for _, ent in ents do
 						if curE >= maxE then break end
-						local key = tostring(ent.Character)
+						local key = ent.Character
 						if enemyLinked[key] then continue end
 
 						if tryFireLink(ENEMY_CANDIDATES, ent) then
@@ -22603,7 +22604,7 @@ run(function()
 					local allies = getAllies(AllyRange.Value)
 					for _, ent in allies do
 						if curA >= maxA then break end
-						local key = tostring(ent.Character)
+						local key = ent.Character
 						if allyLinked[key] then continue end
 
 						if tryFireLink(ALLY_CANDIDATES, ent) then
@@ -22631,6 +22632,12 @@ run(function()
 		Name    = 'Auto Enemy Links',
 		Default = true,
 		Tooltip = 'Link up to 8 nearby enemies — damage spreads to all linked targets'
+	})
+	LinkNPCs = AutoZola:CreateToggle({
+		Name    = 'Link NPCs',
+		Default = false,
+		Darker  = true,
+		Tooltip = 'Include NPCs (golems, etc.) as enemy link targets'
 	})
 	AllyLinks = AutoZola:CreateToggle({
 		Name    = 'Auto Ally Links',
