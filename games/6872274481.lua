@@ -22150,3 +22150,401 @@ run(function()
 		end
 	})
 end)
+
+run(function()
+	local AutoZola
+	local EnemyLinks
+	local AllyLinks
+	local MaxEnemyLinks
+	local MaxAllyLinks
+	local EnemyRange
+	local AllyRange
+	local EnemyPriority
+	local BreakAll
+
+	-- Kit's hard limit is 60 blocks; Bedwars treats stud distance ~= block distance here
+	local LINK_MAX_RANGE = 60
+
+	-- Candidate ability IDs for each link type — ordered most-likely first.
+	-- The discovery system prepends any names found at runtime, so these are fallbacks.
+	local ENEMY_CANDIDATES = {
+		'zola_link_enemy', 'ZOLA_LINK_ENEMY',
+		'zola_enemy_link', 'ZOLA_ENEMY_LINK',
+		'zola_link',       'ZOLA_LINK',
+		'zola_chain',      'ZOLA_CHAIN',
+		'link_enemy',      'LINK_ENEMY',
+		'zola_tether',     'ZOLA_TETHER',
+	}
+	local ALLY_CANDIDATES = {
+		'zola_link_ally',  'ZOLA_LINK_ALLY',
+		'zola_ally_link',  'ZOLA_ALLY_LINK',
+		'zola_protect',    'ZOLA_PROTECT',
+		'zola_guard',      'ZOLA_GUARD',
+		'link_ally',       'LINK_ALLY',
+		'zola_shield',     'ZOLA_SHIELD',
+	}
+	local BREAK_CANDIDATES = {
+		'zola_break_link',  'ZOLA_BREAK_LINK',
+		'zola_unlink',      'ZOLA_UNLINK',
+		'zola_clear_links', 'ZOLA_CLEAR_LINKS',
+		'zola_break',       'ZOLA_BREAK',
+	}
+
+	-- Shared across the module function + BreakAll button
+	local enemyLinked    = {}
+	local allyLinked     = {}
+	local enemyLinkCount = 0
+	local allyLinkCount  = 0
+
+	-- Find ability names whose string contains `keyword` by scanning the
+	-- AbilityController's upvalues and the local player's attributes.
+	local function scanAbilityNames(keyword)
+		local found = {}
+		pcall(function()
+			for _, obj in {lplr.Character, lplr} do
+				if not obj then continue end
+				for _, v in obj:GetAttributes() do
+					if type(v) == 'string' and v:lower():find(keyword) and not table.find(found, v) then
+						table.insert(found, 1, v)
+					end
+				end
+			end
+		end)
+		pcall(function()
+			local ac = bedwars.AbilityController
+			if not ac then return end
+			for _, fn in {ac.canUseAbility, ac.useAbility} do
+				if type(fn) ~= 'function' then continue end
+				for i = 1, 50 do
+					local ok, _, val = pcall(debug.getupvalue, fn, i)
+					if not ok then break end
+					if type(val) ~= 'table' then continue end
+					for k in next, val do
+						if type(k) == 'string' and k:lower():find(keyword) and not table.find(found, k) then
+							table.insert(found, k)
+						end
+					end
+				end
+			end
+		end)
+		return found
+	end
+
+	-- Build a deduplicated ordered list: discovered names first, then `candidates`.
+	local function buildOrder(candidates)
+		local ordered = {}
+		for _, v in scanAbilityNames('zola') do
+			if not table.find(ordered, v) then table.insert(ordered, v) end
+		end
+		for _, v in scanAbilityNames('link') do
+			if not table.find(ordered, v) then table.insert(ordered, v) end
+		end
+		for _, v in candidates do
+			if not table.find(ordered, v) then table.insert(ordered, v) end
+		end
+		return ordered
+	end
+
+	-- Attempt to fire a link ability on `ent`, trying multiple argument layouts.
+	local function tryFireLink(candidates, ent)
+		local ac      = bedwars.AbilityController
+		if not ac then return false end
+		local ordered  = buildOrder(candidates)
+		local rootPos  = ent and ent.RootPart and ent.RootPart.Position
+		local char     = ent and (ent.Character or ent)
+
+		for _, name in ordered do
+			local ok, canUse = pcall(function() return ac:canUseAbility(name) end)
+			if not ok or not canUse then continue end
+
+			local fired = false
+			-- Try with both target position and entity instance
+			if rootPos then
+				fired = pcall(function()
+					ac:useAbility(name, newproxy(true), {
+						target         = rootPos,
+						entityInstance = char,
+					})
+				end)
+			end
+			-- Entity instance only
+			if not fired then
+				fired = pcall(function()
+					ac:useAbility(name, newproxy(true), {entityInstance = char})
+				end)
+			end
+			-- Bare call (some abilities use implicit targeting)
+			if not fired then
+				fired = pcall(function() ac:useAbility(name) end)
+			end
+			if fired then return true end
+		end
+
+		-- Last-resort: look for a ZolaController in bedwars and try its link methods
+		local ok2 = false
+		pcall(function()
+			local ctrl = bedwars.ZolaController or bedwars.ZolaKitController
+			if not ctrl then return end
+			for mname, fn in ctrl do
+				if type(fn) ~= 'function' then continue end
+				if not (mname:lower():find('link') or mname:lower():find('target')) then continue end
+				pcall(function()
+					bedwars.Client:Get(fn):SendToServer({target = char})
+					ok2 = true
+				end)
+				if ok2 then return end
+			end
+		end)
+		return ok2
+	end
+
+	-- Try to fire all discoverable break-link abilities.
+	local function tryBreakLinks()
+		local ac = bedwars.AbilityController
+		if not ac then return end
+		for _, name in buildOrder(BREAK_CANDIDATES) do
+			local ok, canUse = pcall(function() return ac:canUseAbility(name) end)
+			if ok and canUse then pcall(function() ac:useAbility(name) end) end
+		end
+	end
+
+	local function resetLinks()
+		tryBreakLinks()
+		table.clear(enemyLinked)
+		table.clear(allyLinked)
+		enemyLinkCount = 0
+		allyLinkCount  = 0
+	end
+
+	-- Remove entries for characters that are dead or have gone beyond link range.
+	local function pruneLinks(linked, maxRange)
+		local char = entitylib.character
+		if not char or not char.RootPart then return 0 end
+		local localPos = char.RootPart.Position
+		local removed  = 0
+		for i = #linked, 1, -1 do
+			local key   = linked[i]
+			local alive = false
+			for _, ent in entitylib.List do
+				if tostring(ent.Character) == key then
+					if ent.RootPart and (ent.RootPart.Position - localPos).Magnitude <= maxRange then
+						alive = true
+					end
+					break
+				end
+			end
+			if not alive then
+				table.remove(linked, i)
+				removed += 1
+			end
+		end
+		return removed
+	end
+
+	-- Collect alive same-team entities within `maxRange`, sorted nearest-first.
+	local function getAllies(maxRange)
+		local myTeam = lplr:GetAttribute('Team')
+		local char   = entitylib.character
+		if not char or not char.RootPart or not myTeam then return {} end
+		local localPos = char.RootPart.Position
+
+		local list = {}
+		for _, ent in entitylib.List do
+			if not ent.Player or ent.Player == lplr then continue end
+			if ent.Player:GetAttribute('Team') ~= myTeam then continue end
+			if not ent.RootPart then continue end
+			local dist = (ent.RootPart.Position - localPos).Magnitude
+			if dist <= maxRange then
+				table.insert(list, {ent = ent, dist = dist})
+			end
+		end
+		table.sort(list, function(a, b) return a.dist < b.dist end)
+
+		local out = {}
+		for _, v in list do table.insert(out, v.ent) end
+		return out
+	end
+
+	-- ── Module ────────────────────────────────────────────────────────────────
+
+	AutoZola = vape.Categories.Kits:CreateModule({
+		Name     = 'Auto Zola',
+		Function = function(call)
+			if not call then
+				table.clear(enemyLinked)
+				table.clear(allyLinked)
+				enemyLinkCount = 0
+				allyLinkCount  = 0
+				return
+			end
+
+			-- HUD: shows live enemy / ally link counts
+			local frame = Instance.new('Frame')
+			frame.Size                   = UDim2.fromOffset(190, 50)
+			frame.Position               = UDim2.new(0.5, -95, 1, -84)
+			frame.BackgroundColor3       = Color3.fromRGB(8, 8, 8)
+			frame.BackgroundTransparency = 0.2
+			frame.BorderSizePixel        = 0
+			frame.Parent                 = vape.gui
+			Instance.new('UICorner', frame).CornerRadius = UDim.new(0, 8)
+			local fstroke     = Instance.new('UIStroke', frame)
+			fstroke.Color     = Color3.fromRGB(150, 70, 255)
+			fstroke.Thickness = 1
+
+			local eLine = Instance.new('TextLabel')
+			eLine.Size                   = UDim2.new(1, -12, 0.5, -2)
+			eLine.Position               = UDim2.fromOffset(8, 4)
+			eLine.BackgroundTransparency = 1
+			eLine.TextColor3             = Color3.fromRGB(255, 110, 70)
+			eLine.TextSize               = 10
+			eLine.Font                   = Enum.Font.GothamBold
+			eLine.TextXAlignment         = Enum.TextXAlignment.Left
+			eLine.Text                   = 'Enemy Links: 0/8'
+			eLine.Parent                 = frame
+
+			local aLine = Instance.new('TextLabel')
+			aLine.Size                   = UDim2.new(1, -12, 0.5, -2)
+			aLine.Position               = UDim2.new(0, 8, 0.5, 2)
+			aLine.BackgroundTransparency = 1
+			aLine.TextColor3             = Color3.fromRGB(80, 200, 255)
+			aLine.TextSize               = 10
+			aLine.Font                   = Enum.Font.GothamBold
+			aLine.TextXAlignment         = Enum.TextXAlignment.Left
+			aLine.Text                   = 'Ally Links:  0/3'
+			aLine.Parent                 = frame
+
+			repeat
+				if not entitylib.isAlive then
+					eLine.Text = 'Enemy Links: —'
+					aLine.Text = 'Ally Links:  —'
+					task.wait(0.2)
+					continue
+				end
+
+				local char     = entitylib.character
+				local localPos = char.RootPart.Position
+				local maxE     = MaxEnemyLinks.Value
+				local maxA     = MaxAllyLinks.Value
+
+				-- Expire links that went out of range or died
+				local removedE = pruneLinks(enemyLinked, LINK_MAX_RANGE)
+				local removedA = pruneLinks(allyLinked,  LINK_MAX_RANGE)
+				enemyLinkCount = math.max(0, enemyLinkCount - removedE)
+				allyLinkCount  = math.max(0, allyLinkCount  - removedA)
+
+				-- Enemy links — link nearest/prioritised enemies up to cap
+				if EnemyLinks.Enabled and enemyLinkCount < maxE then
+					local ents = entitylib.AllPosition({
+						Origin  = localPos,
+						Range   = EnemyRange.Value,
+						Part    = 'RootPart',
+						Players = true,
+						NPCs    = false,
+						Limit   = maxE - enemyLinkCount,
+						Sort    = sortmethods[EnemyPriority.Value],
+					})
+
+					for _, ent in ents do
+						if enemyLinkCount >= maxE then break end
+						local key = tostring(ent.Character)
+						if table.find(enemyLinked, key) then continue end
+
+						if tryFireLink(ENEMY_CANDIDATES, ent) then
+							table.insert(enemyLinked, key)
+							enemyLinkCount += 1
+							task.wait(0.05)
+						end
+					end
+				end
+
+				-- Ally links — link nearest teammates up to cap
+				if AllyLinks.Enabled and allyLinkCount < maxA then
+					local allies = getAllies(AllyRange.Value)
+					for _, ent in allies do
+						if allyLinkCount >= maxA then break end
+						local key = tostring(ent.Character)
+						if table.find(allyLinked, key) then continue end
+
+						if tryFireLink(ALLY_CANDIDATES, ent) then
+							table.insert(allyLinked, key)
+							allyLinkCount += 1
+							task.wait(0.05)
+						end
+					end
+				end
+
+				eLine.Text = ('Enemy Links: %d/%d'):format(enemyLinkCount, maxE)
+				aLine.Text = ('Ally Links:  %d/%d'):format(allyLinkCount,  maxA)
+
+				task.wait(0.15)
+			until not AutoZola.Enabled
+
+			frame:Destroy()
+			table.clear(enemyLinked)
+			table.clear(allyLinked)
+			enemyLinkCount = 0
+			allyLinkCount  = 0
+		end,
+		Tooltip = 'Automatically manages Zola\'s enemy and ally links'
+	})
+
+	EnemyLinks = AutoZola:CreateToggle({
+		Name    = 'Auto Enemy Links',
+		Default = true,
+		Tooltip = 'Link up to 8 nearby enemies — any damage spreads to all linked targets'
+	})
+	AllyLinks = AutoZola:CreateToggle({
+		Name    = 'Auto Ally Links',
+		Default = true,
+		Tooltip = 'Link up to 3 allies — halves their damage taken at cost of your health'
+	})
+	MaxEnemyLinks = AutoZola:CreateSlider({
+		Name    = 'Max Enemy Links',
+		Min     = 1,
+		Max     = 8,
+		Default = 8,
+		Suffix  = function(v) return v == 1 and 'link' or 'links' end,
+		Tooltip = 'How many enemies to link simultaneously (kit max 8) — more links = wider damage spread'
+	})
+	MaxAllyLinks = AutoZola:CreateSlider({
+		Name    = 'Max Ally Links',
+		Min     = 1,
+		Max     = 3,
+		Default = 3,
+		Suffix  = function(v) return v == 1 and 'link' or 'links' end,
+		Tooltip = 'How many allies to protect simultaneously (kit max 3)'
+	})
+	EnemyRange = AutoZola:CreateSlider({
+		Name    = 'Enemy Link Range',
+		Min     = 1,
+		Max     = 60,
+		Default = 40,
+		Suffix  = function(v) return v == 1 and 'stud' or 'studs' end,
+	})
+	AllyRange = AutoZola:CreateSlider({
+		Name    = 'Ally Link Range',
+		Min     = 1,
+		Max     = 60,
+		Default = 55,
+		Suffix  = function(v) return v == 1 and 'stud' or 'studs' end,
+		Tooltip = 'Links break beyond 60 blocks — keep this close to that limit'
+	})
+
+	local methods = {'Distance', 'Health', 'Damage'}
+	for i in sortmethods do
+		if not table.find(methods, i) then table.insert(methods, i) end
+	end
+	EnemyPriority = AutoZola:CreateDropdown({
+		Name    = 'Enemy Priority',
+		List    = methods,
+		Default = 'Distance',
+		Tooltip = 'Which enemies to prioritize when choosing link targets'
+	})
+	BreakAll = AutoZola:CreateButton({
+		Name     = 'Break All Links',
+		Tooltip  = 'Immediately breaks all active links and resets counters',
+		Function = function()
+			resetLinks()
+		end
+	})
+end)
