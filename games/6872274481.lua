@@ -22552,26 +22552,90 @@ run(function()
     local DropFiltered
     local ItemFilter
 
+    -- Force every known droppability flag into the "allowed" state.
+    -- Uses rawset so metatables can't intercept the write.
     local function patchMeta(meta)
         if type(meta) ~= 'table' then return end
-        for _, k in {'droppable', 'isDroppable', 'canDrop', 'allowDrop'} do
-            if rawget(meta, k) == false then rawset(meta, k, true) end
+        for _, k in {
+            'droppable', 'isDroppable', 'canDrop', 'allowDrop',
+            'canBeDropped', 'isDroppingAllowed', 'isDropEnabled',
+        } do
+            rawset(meta, k, true)
         end
-        for _, k in {'notDroppable', 'noDroppable', 'preventDrop', 'noDrop', 'locked'} do
-            if rawget(meta, k) == true then rawset(meta, k, false) end
+        for _, k in {
+            'notDroppable', 'noDroppable', 'preventDrop', 'noDrop',
+            'locked', 'kitItem', 'isKitItem', 'permanent', 'isPermanent',
+            'noRemove', 'keepOnDeath', 'isSpecial',
+        } do
+            rawset(meta, k, false)
         end
     end
 
+    -- Scan a function (and its inner protos up to maxDepth) for the Knit
+    -- remote name: the string constant that immediately follows 'Client'
+    -- in the constant table.  This is the same heuristic used by dumpRemote.
+    local function findKnitRemote(fn, maxDepth)
+        local function scan(f, depth)
+            if depth <= 0 or type(f) ~= 'function' then return nil end
+            local ok, consts = pcall(debug.getconstants, f)
+            if ok and consts then
+                for i, v in consts do
+                    if v == 'Client' and type(consts[i + 1]) == 'string' then
+                        return consts[i + 1]
+                    end
+                end
+            end
+            local i = 1
+            while true do
+                local ok2, p = pcall(getproto, f, i)
+                if not ok2 or not p then break end
+                local result = scan(p, depth - 1)
+                if result then return result end
+                i += 1
+            end
+            return nil
+        end
+        return scan(fn, maxDepth)
+    end
+
+    -- Discovered at init time so we only scan once.
+    local dropController  = Knit.Controllers.ItemDropController
+    local dropFnRemote    = findKnitRemote(dropController.dropItemInHand, 6)
+
     local function forceDrop(item)
         if not item or not item.tool then return nil end
+
+        -- Patch both itemType and tool.Name in case they differ
         patchMeta(bedwars.ItemMeta[item.itemType])
-        local ok, dropped = pcall(function()
+        patchMeta(bedwars.ItemMeta[item.tool.Name])
+
+        -- Strategy 1: call the underlying Knit server remote directly,
+        -- bypassing dropItemInHand's own client-side droppability gate.
+        if dropFnRemote then
+            local ok, dropped = pcall(function()
+                return bedwars.Client:Get(dropFnRemote):CallServer({
+                    item   = item.tool,
+                    amount = item.amount,
+                })
+            end)
+            if ok and dropped then return dropped end
+        end
+
+        -- Strategy 2: call dropItemInHand via the controller (correct self)
+        -- after meta is already patched — lets the function's own check pass.
+        local ok2, dropped2 = pcall(function()
+            return dropController:dropItemInHand()
+        end)
+        if ok2 and dropped2 then return dropped2 end
+
+        -- Strategy 3: original Client.Get wrapper (last resort)
+        local ok3, dropped3 = pcall(function()
             return bedwars.Client:Get(remotes.DropItem):CallServer({
                 item   = item.tool,
                 amount = item.amount,
             })
         end)
-        return ok and dropped or nil
+        return ok3 and dropped3 or nil
     end
 
     ForceDrop = vape.Categories.Inventory:CreateModule({
@@ -22595,7 +22659,7 @@ run(function()
             if dropped then
                 notif('ForceDrop', 'Dropped ' .. (bedwars.ItemMeta[item.itemType] and bedwars.ItemMeta[item.itemType].displayName or item.itemType), 3, 'info')
             else
-                notif('ForceDrop', 'Server rejected drop — item may be server-locked', 5, 'alert')
+                notif('ForceDrop', 'All drop strategies failed — item is fully server-locked', 5, 'alert')
             end
         end
     })
@@ -22609,8 +22673,9 @@ run(function()
             for _, item in store.inventory.inventory.items do
                 local filter = ItemFilter.List
                 if #filter > 0 and not table.find(filter, item.itemType) then continue end
-                forceDrop(item)
-                count += 1
+                if forceDrop(item) then
+                    count += 1
+                end
                 task.wait(0.05)
             end
             notif('ForceDrop', 'Dropped ' .. count .. ' item(s)', 3, 'info')
