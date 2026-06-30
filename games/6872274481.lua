@@ -11670,76 +11670,34 @@ run(function()
     })
 
     RankLookup:CreateButton({
-        Name = 'DEBUG Lookup',
-        Tooltip = 'Debug version — prints every step to console and notifs',
+        Name = 'Lookup',
+        Tooltip = 'Fetch rank for each username in the list above',
         Function = function()
             local list = Usernames.ListEnabled
-            warn('[RankLookup] ListEnabled count:', #list)
-            notif('Rank Lookup', 'List has ' .. #list .. ' username(s)', 4, 'info')
             if #list == 0 then
-                notif('Rank Lookup', 'List is empty — add a username and enable it', 5, 'alert')
+                notif('Rank Lookup', 'Add at least one username to the list', 4, 'alert')
                 return
             end
             task.spawn(function()
                 for _, username in list do
-                    warn('[RankLookup] Looking up username:', username)
-                    notif('Rank Lookup', 'Looking up: ' .. username, 4, 'info')
-
-                    -- Step 1: resolve UserId
                     local ok, userId = pcall(game.Players.GetUserIdFromNameAsync, game.Players, username)
-                    warn('[RankLookup] GetUserIdFromNameAsync ok=' .. tostring(ok) .. ' userId=' .. tostring(userId))
                     if not ok or not userId then
-                        notif('Rank Lookup', 'FAIL UserId lookup: ' .. tostring(userId), 5, 'alert')
+                        notif('Rank Lookup', username .. ': player not found', 4, 'alert')
                         continue
                     end
-                    notif('Rank Lookup', 'UserId: ' .. tostring(userId), 4, 'info')
-
-                    -- Step 2: call FetchRanks
                     local ok2, result = pcall(function()
                         return bedwars.Client:Get('FetchRanks'):CallServer({userId})
                     end)
-                    warn('[RankLookup] FetchRanks ok=' .. tostring(ok2) .. ' result type=' .. typeof(result))
-                    if not ok2 then
-                        notif('Rank Lookup', 'FAIL FetchRanks error: ' .. tostring(result), 6, 'alert')
+                    if not ok2 or typeof(result) ~= 'table' or not result[1] then
+                        notif('Rank Lookup', username .. ': unranked', 4, 'info')
                         continue
                     end
-                    if typeof(result) ~= 'table' then
-                        notif('Rank Lookup', 'FAIL result is ' .. typeof(result) .. ' not table', 5, 'alert')
-                        continue
-                    end
-                    if not result[1] then
-                        notif('Rank Lookup', 'FAIL result[1] is nil (empty table)', 5, 'alert')
-                        continue
-                    end
-
-                    -- Step 3: dump all fields in result[1]
-                    local data = result[1]
-                    local fields = {}
-                    for k, v in pairs(data) do
-                        warn('[RankLookup] data.' .. tostring(k) .. ' =', v)
-                        table.insert(fields, tostring(k) .. '=' .. tostring(v))
-                    end
-                    notif('Rank Lookup', 'Raw data: ' .. table.concat(fields, ' | '), 12, 'info')
-
-                    -- Step 4: check RankMeta
-                    local division = data.rankDivision
-                    warn('[RankLookup] rankDivision =', division)
-                    if division then
-                        local meta = bedwars.RankMeta[division]
-                        warn('[RankLookup] RankMeta entry =', meta)
-                        if meta then
-                            local metaFields = {}
-                            for k, v in pairs(meta) do
-                                warn('[RankLookup] RankMeta.' .. tostring(k) .. ' =', v)
-                                table.insert(metaFields, tostring(k) .. '=' .. tostring(v))
-                            end
-                            notif('Rank Lookup', 'RankMeta: ' .. table.concat(metaFields, ' | '), 12, 'info')
-                        else
-                            notif('Rank Lookup', 'RankMeta[' .. tostring(division) .. '] is nil', 5, 'alert')
-                        end
-                    else
-                        notif('Rank Lookup', 'rankDivision field is nil', 5, 'alert')
-                    end
+                    local division = result[1].rankDivision
+                    local meta = division and bedwars.RankMeta[division]
+                    local rankName = meta and meta.name or ('Division ' .. tostring(division))
+                    local shortName = meta and meta.shortName
+                    local display = rankName .. (shortName and ' (' .. shortName .. ')' or '')
+                    notif('Rank Lookup', username .. ' — ' .. display, 8, 'info')
                 end
             end)
         end
