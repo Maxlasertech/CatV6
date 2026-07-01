@@ -23094,3 +23094,100 @@ run(function()
         Tooltip = 'Items to drop with "Drop All"; leave empty to drop every inventory item'
     })
 end)
+
+run(function()
+    local SnowballTNT
+    local TNTType
+    local Rings
+    local BaseRadius
+    local MaxTNT
+    local Height
+
+    SnowballTNT = vape.Categories.Blatant:CreateModule({
+        Name = 'Snowball TNT',
+        Function = function(callback)
+            if callback then
+                SnowballTNT:Clean(workspace.ChildAdded:Connect(function(projectile)
+                    task.delay(0, function()
+                        if not projectile or not projectile.Parent then return end
+                        if not entitylib.isAlive then return end
+                        if projectile:GetAttribute('ProjectileShooter') ~= lplr.UserId then return end
+
+                        local name = projectile.Name
+                        if not name:find('frosty_snowball') and name ~= 'frosted_snowball' then return end
+
+                        local lastPos = projectile:GetPivot().Position
+                        projectile.Destroying:Once(function()
+                            local item = TNTType.Value
+                            if not getItem(item) then return end
+
+                            local pos = lastPos
+                            local rings = Rings.Value
+                            local baseRadius = BaseRadius.Value
+                            local maxTNT = MaxTNT.Value
+                            local height = Height.Value
+                            local placed = 0
+
+                            for r = 1, rings do
+                                if placed >= maxTNT then break end
+                                local radius = baseRadius + (r * r * 0.9)
+                                local points = math.max(6, math.floor(12 + r * 2))
+                                for i = 1, points do
+                                    if placed >= maxTNT then break end
+                                    if not getItem(item) then break end
+                                    local angle = (math.pi * 2) * (i / points)
+                                    local x = math.cos(angle) * radius
+                                    local z = math.sin(angle) * radius
+                                    task.spawn(bedwars.placeBlock, pos + Vector3.new(
+                                        math.floor(x + 0.5),
+                                        height,
+                                        math.floor(z + 0.5)
+                                    ), item)
+                                    placed += 1
+                                    task.wait(0.05)
+                                end
+                            end
+                        end)
+
+                        SnowballTNT:Clean(runService.Heartbeat:Connect(function()
+                            if projectile and projectile.Parent then
+                                lastPos = projectile:GetPivot().Position
+                            end
+                        end))
+                    end)
+                end))
+            end
+        end,
+        Tooltip = 'Places TNT in rings at your frosted snowball impact point'
+    })
+
+    TNTType = SnowballTNT:CreateDropdown({
+        Name = 'TNT Type',
+        List = {'siege_tnt', 'tnt'},
+        Default = 'siege_tnt'
+    })
+    Rings = SnowballTNT:CreateSlider({
+        Name = 'Rings',
+        Min = 1,
+        Max = 15,
+        Default = 10
+    })
+    BaseRadius = SnowballTNT:CreateSlider({
+        Name = 'Base Radius',
+        Min = 1,
+        Max = 30,
+        Default = 10
+    })
+    MaxTNT = SnowballTNT:CreateSlider({
+        Name = 'Max TNT',
+        Min = 10,
+        Max = 250,
+        Default = 250
+    })
+    Height = SnowballTNT:CreateSlider({
+        Name = 'Height',
+        Min = 0,
+        Max = 250,
+        Default = 180
+    })
+end)
