@@ -23114,7 +23114,7 @@ run(function()
                         if projectile:GetAttribute('ProjectileShooter') ~= lplr.UserId then return end
 
                         local name = projectile.Name
-                        if not name:find('frosty_snowball') and name ~= 'frosted_snowball' then return end
+                        if name ~= 'snowball' then return end
 
                         local lastPos = projectile:GetPivot().Position
                         projectile.Destroying:Once(function()
