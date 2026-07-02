@@ -15710,7 +15710,19 @@ run(function()
         return handler and handler:getContainedPositions(bed) or {bed.Position / 3}
     end
 
-    local function isBedVisible(bed)
+    local function bedHasDefense(bed)
+        for _, cp in bedContainedPositions(bed) do
+            local wp = cp * 3
+            for _, dir in sides do
+                local nb = getPlacedBlock(wp + dir)
+                if nb and nb ~= bed and not nb:GetAttribute('NoBreak') then return true end
+            end
+        end
+        return false
+    end
+
+    local function isBedExposed(bed)
+        if bedHasDefense(bed) then return false end
         for _, cp in bedContainedPositions(bed) do
             if isVisible(cp * 3) then return true end
         end
@@ -16051,7 +16063,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    if isBedExposed(bestBed) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
