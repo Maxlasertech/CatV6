@@ -2,7 +2,7 @@
 
 ## What This Prompt Is
 
-This is a complete reference prompt for understanding and working with the **Breaker** and **Bed Breaking** modules in the Bedwars game file (`games/6872274481.lua`). There are actually TWO breaker modules in the Bedwars file — the original **Breaker** and the more advanced **Bed Breaking**. Both live under the Minigames category.
+This is a complete reference prompt for understanding and working with the **Breaker** module in the Bedwars game file (`games/6872274481.lua`). This covers the original Breaker only (lines ~14348–14708), which lives under the Minigames category.
 
 ---
 
@@ -12,7 +12,7 @@ The Fart client is a Roblox exploit script (forked from Vape V4). It loads per-g
 
 Every module follows this pattern:
 1. **Register** — `CreateModule()` with a Name, Function (enable/disable callback), and Tooltip
-2. **Create sub-options** — sliders, toggles, dropdowns, text lists, color sliders
+2. **Create sub-options** — sliders, toggles, dropdowns, text lists
 3. **Run loop** — when enabled, run a `repeat...until` loop that ticks at a configurable rate
 4. **Cleanup** — when disabled, destroy any created instances and clear tables
 
@@ -23,6 +23,12 @@ Every module follows this pattern:
 ### `collection(tags, module, customadd, customremove)` (line ~135)
 Tracks Roblox instances by CollectionService tag in real time. Returns a table that auto-populates when tagged objects are added/removed from the game. This is how Breaker discovers beds, lucky blocks, ores, etc. without polling the entire workspace.
 
+- Accepts a single tag string or a table of tags
+- Connects to `CollectionService:GetInstanceAddedSignal` and `GetInstanceRemovedSignal`
+- Optionally accepts `customadd` / `customremove` callbacks for filtering (e.g. only add blocks whose name is in a custom list, or only add enemy-placed teslas/hives)
+- Returns the live table + a cleanup function
+- Cleanup is auto-registered to the module via `module:Clean()`
+
 ### `getPlacedBlock(pos)` (line ~278)
 Converts a world position to a block grid position via `bedwars.BlockController:getBlockPosition(pos)`, then looks up the block at that position in the block store. Returns the block instance and the rounded position.
 
@@ -30,197 +36,272 @@ Converts a world position to a block grid position via `bedwars.BlockController:
 Snaps a Vector3 to the Bedwars block grid (blocks are 3 studs apart): `math.round(vec.X / 3) * 3` for each axis.
 
 ### `getBlockHits(block, blockpos)` (line ~1104)
-Calculates how many hits it takes to break a block. Looks up the block's break type from `bedwars.ItemMeta`, finds the player's best tool for that type, and divides the block's health by the tool's damage.
+Calculates how many hits it takes to break a block:
+1. Gets the block's `breakType` from `bedwars.ItemMeta[block.Name].block.breakType`
+2. Finds the player's best tool for that type from `store.tools[breaktype]`
+3. Gets the tool's damage from `bedwars.ItemMeta[tool.itemType].breakBlock[breaktype]` (defaults to 2 if no tool)
+4. Divides the block's current health by the tool's damage
 
 ### `calculatePath(target, blockpos, method, angle, wallcheck)` (line ~1126)
-Pathfinding using **Dijkstra's algorithm** in 3D block space. Starting from `blockpos`, it explores neighboring blocks (in 6 directions: up/down/left/right/forward/back, each 3 studs apart). It finds the cheapest path from the outside air to the target block, where "cost" is determined by how many hits each block takes. Respects angle limits (only considers blocks within the player's facing angle). Returns the best entry position, cost, and the path table.
+Pathfinding using **Dijkstra's algorithm** in 3D block space:
+1. Starts from `blockpos` with cost 0
+2. Explores neighboring blocks in 6 directions (up/down/left/right/forward/back, each 3 studs apart via the `sides` table)
+3. Skips visited nodes, unbreakable blocks, `NoBreak` blocks, and the target block itself
+4. Skips blocks outside the `angle` limit (checks dot product of camera look vector vs direction to block)
+5. Cost of each block = `method(block, pos)` if provided, otherwise `getBlockHits(block, pos)` (number of hits to break)
+6. Tracks which positions are "air" (no block present) — these are potential entry points
+7. After exploring (up to 10,000 iterations), picks the air node with the lowest total cost
+8. If `wallcheck` is true, also requires the air node to be "minable" (has at least one neighbor that's either air or player-placed)
+9. Returns: `pos` (best entry point), `cost`, `path` (table mapping each node to its predecessor)
+10. Results are cached in `cache[blockpos]`
 
 ### `bedwars.breakBlock(block, effects, anim, customHealthbar, visualise, sort, angle, wallcheck)` (line ~1185)
-The core break function. Here's what it does step by step:
+The core break function. Parameters:
+- `block` — the target block Instance to break
+- `effects` — boolean, show health bar + break/hit particles
+- `anim` — boolean, play the arm swing animation
+- `customHealthbar` — function or nil, custom health bar callback (or falls back to game's default `bedwars.BlockBreaker.updateHealthbar`)
+- `visualise` — boolean, use visual hotbar switch (vs silent equip)
+- `sort` — function or nil, block sorting method for pathfinding cost
+- `angle` — number, max angle in degrees for pathfinding
+- `wallcheck` — boolean, require blocks to be externally exposed
 
-1. **Guard checks** — returns if player has `DenyBlockBreak` attribute, is dead, or InfiniteFly is enabled
-2. **Find entry point** — uses `calculatePath()` to find the optimal block to hit (the cheapest path through any surrounding defense to reach the target)
-3. **Range check** — aborts if the best entry point is >30 studs away
-4. **Auto tool** — if `visualise` is true, visually switches to the best tool for the block's break type via hotbar animation; otherwise silently equips it
-5. **Track health** — maintains `blockhealthbar` state to show accurate damage numbers
-6. **Send RPC** — fires `DamageBlock` to the server via `bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync()` with the block reference, hit position, and hit normal
-7. **Handle response** — on success, updates the health bar UI (either the game's default or a custom one), plays break/hit particle effects, and optionally plays the break animation
-8. **Return** — returns the hit position, path table, and target position (used for path visualization)
+Step by step:
+1. **Guard checks** — returns nil if player has `DenyBlockBreak` attribute, is dead, or `InfiniteFly` is enabled
+2. **Get contained positions** — for multi-part blocks (like beds), gets all block positions via the handler's `getContainedPositions()`
+3. **Find cheapest entry** — calls `calculatePath()` for each contained position, picks the one with lowest cost
+4. **Range check** — aborts if the best entry point is >30 studs from the player
+5. **Get block at entry** — calls `getPlacedBlock(pos)` to get the actual block to hit
+6. **Auto tool** — checks `bedwars.SwordController.lastAttack` to avoid switching during combat (0.4s cooldown). Gets the block's `breakType`, finds the best tool from `store.tools`, and either visually switches via `hotbarSwitch()` or silently via `switchItem()`
+7. **Track health** — maintains `blockhealthbar` state (`blockHealth` and `breakingBlockPosition`) for accurate damage tracking across multiple hits
+8. **Send RPC** — fires `DamageBlock` to the server:
+   ```lua
+   bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync({
+       blockRef = {blockPosition = dpos},
+       hitPosition = pos,
+       hitNormal = Vector3.FromNormalId(Enum.NormalId.Top)
+   })
+   ```
+9. **Handle response** — the `:andThen()` callback processes the server result:
+   - `'cancelled'` — sets `store.damageBlockFail = tick() + 1` (triggers 4.5s cooldown on next attempt)
+   - Otherwise — calculates damage dealt, calls the health bar function, updates tracked health
+   - If health reaches 0: plays break effect + cleans up health bar
+   - If health > 0: plays hit effect
+   - If `anim` is true: plays break animation for 0.3 seconds
+10. **Return** — returns `pos` (hit position), `path` (path table), `target` (original block position) when effects are enabled; nil otherwise
 
 ### `breakmethods` (line ~542)
-Sorting methods that determine which block to break first when pathfinding:
-- **Health** — fewest hits to break (calls `getBlockHits`)
-- **Distance** — closest to player horizontally (ignores Y axis)
+Sorting methods that determine pathfinding cost (which block to break through first):
+- **Health** — `getBlockHits(block, pos)` — fewest hits to break = lowest cost (breaks the weakest blocks first)
+- **Distance** — distance from player to block horizontally (ignores Y axis) — breaks closest blocks first
 
-### `sortmethods` (line ~512)
-These are for *entity* sorting (used by combat modules like Killaura), NOT for block breaking. Don't confuse these with `breakmethods`.
+### `getMousePosition()` (line ~14474)
+Gets the block position the player's mouse is pointing at:
+1. Calls `bedwars.BlockBreaker.clientManager:getBlockSelector():getMouseInfo(0)`
+2. If the mouse is on a block, returns `mouseinfo.target.blockRef.blockPosition * 3`
+3. If on a placement position, returns `mouseinfo.placementPosition * 3`
+4. Returns nil if nothing valid
 
----
-
-## Module 1: Breaker (line ~14348–14708)
-
-The original, simpler breaker. Tooltip: *"Break blocks around you automatically"*
-
-### How the Main Loop Works
-
-1. On enable, creates 30 invisible `Part` instances with `BoxHandleAdornment` children (used to visualize the pathfinding path)
-2. Sets up collections for: `bed`, `LuckyBlock`, `iron_ore_mesh_block`, `tesla-trap`, `beehive`, and `block` (custom list)
-3. Enters main loop: `repeat task.wait(1 / UpdateRate.Value) ... until not Breaker.Enabled`
-4. Each tick, if the player is alive:
-   - Tries to break beds first (if `Break Bed` is on)
-   - Then teslas, then hives, then custom list blocks, then lucky blocks, then iron ores
-   - Uses `attemptBreak()` which iterates the collection, checks range + breakability + team + shields, then calls `bedwars.breakBlock()`
-   - After breaking, waits either `BreakSpeed.Value` seconds or 0 seconds (if Instant Break) or 4.5 seconds (if server rejected the last break)
-5. On disable, destroys all the path visualization parts
-
-### `attemptBreak(tab, localPosition)` (line ~14499)
-For each block in the collection:
-- Checks distance < `Range.Value`
-- Checks `bedwars.BlockController:isBlockBreakable()`
-- Skips own blocks (unless `Self Break` is on) via `PlacedByUserId`
-- Skips blocks with active bed shields (`BedShieldEndTime` > server time)
-- Skips if `Limit to items` is on and player isn't holding a break-capable tool
-- Calls `bedwars.breakBlock()` with all the configured options
-- Visualizes the pathfinding result on the 30 adornment parts (blue = target, green = path, red = endpoint)
-
-### Settings
-
-| Setting | Type | Default | Range | What it does |
-|---------|------|---------|-------|-------------|
-| Break mode | Dropdown | Health | Health, Distance | How to sort/prioritize which block to break through first |
-| Break range | Slider | 30 | 1–30 studs | Max distance to target blocks |
-| Break speed | Slider | 0.25s | 0–0.3s | Delay between break attempts |
-| Max angle | Slider | 120 | 1–360 degrees | Only breaks blocks within this angle of your camera's look direction |
-| Update rate | Slider | 60hz | 1–120hz | How often the main loop ticks |
-| Custom | Text List | — | — | Custom block names to target (matched against block `.Name`) |
-| Break Bed | Toggle | ON | — | Target beds |
-| Break Tesla | Toggle | ON | — | Target tesla traps (enemy only) |
-| Break Hive | Toggle | ON | — | Target beehives (enemy only) |
-| Break Lucky Block | Toggle | ON | — | Target lucky blocks |
-| Break Iron Ore | Toggle | ON | — | Target iron ore |
-| Show Healthbar & Effects | Toggle | ON | — | Show break particles, hit effects, and health bar |
-| Custom Healthbar | Toggle | ON | — | Use custom floating health bar UI instead of game's default |
-| Animation | Toggle | OFF | — | Play the block-breaking arm animation |
-| Self Break | Toggle | OFF | — | Allow breaking your own team's blocks |
-| Instant Break | Toggle | OFF | — | Skip the break speed delay (0 delay unless server rejects, then 4.5s cooldown) |
-| Auto Tool | Toggle | OFF | — | Auto-switch to the best tool for the block type |
-| Break through blocks (Nuker) | Toggle | OFF | — | Ignores wall-check in pathfinding — breaks blocks even if they aren't externally exposed |
-| Closest break | Toggle | OFF | — | Uses mouse cursor position instead of Break mode sorting to pick the nearest block |
-| Limit to items | Toggle | OFF | — | Only breaks when holding a tool that has `breakBlock` in its ItemMeta |
-
-### Custom Health Bar UI (line ~14372)
-When `Custom Healthbar` is on, creates a `BillboardGui` floating above the block being broken:
-- Semi-transparent black background frame (160x50 px)
-- Block name label (from `bedwars.ItemMeta[block.Name].displayName`)
-- Animated progress bar that tweens its width and color based on remaining health percentage
-- Color goes from green (full) through yellow to red (almost broken) using HSV: `Color3.fromHSV(percent / 2.5, 0.89, 0.75)`
-- Auto-cleans up after 5 seconds if the block isn't re-hit
-- Uses Roact for rendering
+### `closetMethod(block)` (line ~14491)
+Alternative sorting method used when `Closest break` is enabled. Returns the distance from the mouse position (or player root if mouse has no target) to the block. Caches the mouse position for 0.01 seconds to avoid recalculating every call.
 
 ---
 
-## Module 2: Bed Breaking (line ~14710–15655)
+## The Breaker Module (line ~14348–14708)
 
-The advanced breaker. Tooltip: *"Advanced bed breaker with layer break, yeti breaker, block highlight and more"*
+Tooltip: *"Break blocks around you automatically"*
 
-This module has everything the original Breaker has, PLUS these advanced features:
+### Variable Declarations (line ~14349–14370)
+```
+Breaker       — the module object
+Mode          — break mode dropdown (Health/Distance)
+Range         — break range slider
+Angle         — max angle slider
+AutoTool      — auto tool toggle
+BreakSpeed    — delay between breaks slider
+UpdateRate    — loop tick rate slider
+Custom        — custom block name text list
+Bed           — break bed toggle
+Tesla         — break tesla toggle
+Hive          — break hive toggle
+LuckyBlock    — break lucky block toggle
+IronOre       — break iron ore toggle
+Effect        — show healthbar & effects toggle
+CustomHealth  — custom healthbar toggle
+Animation     — play animation toggle
+SelfBreak     — break own blocks toggle
+InstantBreak  — instant break toggle
+LimitItem     — limit to items toggle
+Nuker         — break through blocks toggle
+Closet        — closest break toggle
+customlist    — table of custom-targeted blocks
+parts         — table of path visualization parts
+```
 
-### Additional Features
+### Custom Health Bar UI (line ~14372–14470)
 
-#### Layer Break (line ~15557)
-When targeting a bed, instead of pathfinding through the cheapest blocks, it raycasts from the player to the bed and breaks the **first blocking block** along that straight line. This strips defenses layer by layer from the outside in, which looks more natural and is harder to detect.
+`customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)`
 
-`findPathBlock(targetPos, playerPos)` — walks along the direction vector from player to target in 3-stud steps, returns the first placed breakable block it finds (skipping blocks too close to the target).
+When `Custom Healthbar` is enabled, creates a floating UI above the block being broken using Roact:
 
-#### Yeti Breaker (line ~15549)
-Specifically targets **frozen blocks** placed by the Yeti kit. Hooks into `bedwars.KnitClient.Controllers.FreezeBlocksController.freezeBlocks` to track which block positions are frozen. When enabled, prioritizes breaking frozen blocks that are between the player and a bed.
+**Structure:**
+- Invisible anchored `Part` at the block's world position (query-ignored so raycasts pass through)
+- `BillboardGui` (249x102 offset size, 2.5 studs above block, max distance 40, always on top)
+  - `Frame` (160x50, black background at 50% transparency, 5px corner radius)
+    - `ImageLabel` — blur/glow background image from `fart/assets/new/blur.png`
+    - `TextLabel` (shadow) — block display name, black text, positioned at (13, 12)
+    - `TextLabel` (main) — block display name, theme text color darkened 16%, positioned at (12, 11)
+    - `Frame` (138x4, theme main color) — health bar background
+      - `Frame` (progress bar) — width = health percentage, color from HSV
 
-`hookFreezeController()` — replaces the game's freeze function with a wrapper that records frozen positions into `frozenBlockPositions`, then clears them after 8 seconds (freeze duration).
+**Health bar color formula:** `Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)`
+- At 100% health: green (hue ~0.4)
+- At 50% health: yellow (hue ~0.2)
+- At 0% health: red (hue 0)
 
-`findYetiPathBlock(bedPos, playerPos)` — walks from player to bed, finds frozen blocks that have another block behind them (confirming they're part of a wall, not isolated).
+**Behavior:**
+- If a new block is targeted, cleans up old health bar and creates a new one
+- Progress bar animates via `TweenService` (0.3 second tween)
+- Auto-cleans up after 5 seconds if no new hits land
+- Cleanup: unmounts Roact tree, destroys the adornee part
 
-#### Ragnar Breaker (line ~15553)
-When enabled and the player has the Berserker kit, automatically activates the `berserker_rage` ability before breaking. This increases break speed in-game.
+### `attemptBreak(tab, localPosition)` (line ~14499–14527)
 
-#### Vulnerability Check (line ~15623)
-Uses **BFS flood-fill** to analyze each enemy bed's defense. Starting from the bed position, it explores outward through air (non-blocked positions). If it can reach a position >12 studs away without crossing any placed block, the bed is "vulnerable" (has an exposed opening). Results are cached for 2 seconds.
+The per-collection break function. For each block `v` in the collection table:
 
-`isBedVulnerable(bed)` — counts nearby blocks (within 15 studs). If <4 blocks, it's undefended (not fake). Otherwise runs BFS through air positions. If any air path escapes 12 studs from the bed, an opening exists.
+1. **Range check** — `(v.Position - localPosition).Magnitude < Range.Value`
+2. **Breakability check** — `bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr)`
+3. **Self break check** — if `SelfBreak` is off, skips blocks where `PlacedByUserId == lplr.UserId`
+4. **Shield check** — skips blocks where `BedShieldEndTime` attribute > `workspace:GetServerTimeNow()`
+5. **Limit item check** — if `LimitItem` is on, skips unless `store.hand.tool` exists and its ItemMeta has `breakBlock`
+6. **Break** — increments `hit` counter, calls:
+   ```lua
+   bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled,
+       CustomHealth.Enabled and customHealthbar or nil,
+       AutoTool.Enabled,
+       Closet.Enabled and closetMethod or breakmethods[Mode.Value],
+       Angle.Value,
+       not Nuker.Enabled)
+   ```
+7. **Path visualization** — if `breakBlock` returns a path, iterates through the 30 visualization parts and positions them along the path:
+   - Blue = target block position
+   - Green = intermediate path blocks
+   - Red = entry point (where the actual hit happens)
+8. **Wait** — `task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)`
+   - Normal: waits `BreakSpeed.Value` seconds
+   - Instant Break ON + no server rejection: 0 seconds
+   - Instant Break ON + server rejected recently: 4.5 second cooldown
+9. **Returns true** if a block was broken (causes the main loop to `continue` to the next tick)
 
-#### Vulnerable Only (line ~15637)
-Only targets beds that pass the vulnerability check (have a detectable opening in their defense).
+### Main Loop (line ~14529–14603)
 
-#### Bed Scanner (line ~15644)
-Labels each enemy bed with a floating billboard: green "✓ EXPOSED" or red "✗ PROTECTED". Notifies the player when a bed's status changes. Runs on a 2.5-second update cycle.
+The `CreateModule` Function callback:
 
-#### Break Nearest (line ~15562)
-Two modes:
-- **Character** — breaks the closest block to your avatar
-- **Mouse** — raycasts from your mouse cursor and breaks the closest breakable block to where you're pointing
+**On enable (`callback == true`):**
+1. Creates 30 invisible parts with `BoxHandleAdornment` for path visualization
+2. Sets up 6 collections:
+   - `beds` — tagged `'bed'`
+   - `luckyblock` — tagged `'LuckyBlock'`
+   - `ironores` — tagged `'iron_ore_mesh_block'`
+   - `teslas` — tagged `'tesla-trap'`, custom filter: only adds if placer's team differs from local player's team (delayed 0.1s for attribute loading)
+   - `hives` — tagged `'beehive'`, same enemy-only filter as teslas
+   - `customlist` — tagged `'block'`, custom filter: only adds if block name is in `Custom.ListEnabled`
+3. Main loop runs at `1 / UpdateRate.Value` seconds per tick
+4. Each tick, tries collections in **priority order** (first match wins, then `continue`):
+   1. Beds (if `Bed.Enabled`)
+   2. Teslas (if `Tesla.Enabled`)
+   3. Hives (if `Hive.Enabled`)
+   4. Custom list (always, if not empty)
+   5. Lucky blocks (if `LuckyBlock.Enabled`)
+   6. Iron ores (if `IronOre.Enabled`)
+5. If nothing was broken, resets all 30 visualization parts to `Vector3.zero`
 
-#### Require Mouse Down (line ~15545)
-Only breaks blocks when the player is holding left click.
+**On disable (`callback == false`):**
+1. Destroys all children + the parts themselves
+2. Clears the `parts` table
 
-#### Block Highlight (line ~15584)
-Renders a `BoxHandleAdornment` around the block currently being broken. Color is configurable via a color slider.
+### Settings Creation (line ~14604–14707)
 
-#### Decoy Breaking (line ~15013)
-When about to break a bed that has no outer block on the straight-line path (hollow/open defense), first breaks a random **outer block** from the defense to make it look like the player was mining through normally, rather than the bed just vanishing.
-
-`findDecoyBlock(bed, playerPos)` — scans all placed blocks within 12 studs of the bed, scoring them by distance from bed minus distance from player. Picks the highest-scoring block (far from bed, close to player) as the decoy.
-
-#### Show Path (line ~15579)
-Visualizes the Dijkstra pathfinding result with colored box adornments (same as original Breaker).
-
-#### Teammate Caching (line ~14753)
-Caches teammate list every 2 seconds instead of checking on every block, reducing overhead. Used by `passesChecks()` to skip teammates' blocks.
-
-### Settings (Bed Breaking only, in addition to shared ones)
-
-| Setting | Type | Default | What it does |
-|---------|------|---------|-------------|
-| Break Pinata | Toggle | OFF | Target pinata blocks |
-| Break Crops | Toggle | OFF | Target pumpkin, carrot, watermelon crops |
-| Require Mouse Down | Toggle | OFF | Only break while holding left click |
-| Yeti Breaker | Toggle | OFF | Focus on frozen blocks from Yeti kit |
-| Ragnar | Toggle | OFF | Auto-use Berserker rage ability when breaking |
-| Layer Break | Toggle | ON | Break outer defense layers first (looks more legit) |
-| Break Nearest | Toggle | OFF | Always break closest block (by character or mouse) |
-| Nearest Mode | Dropdown | Character | Character position vs mouse cursor |
-| Show Path | Toggle | ON | Visualize pathfinding with colored boxes |
-| Block Highlight | Toggle | OFF | Highlight the block being broken |
-| Highlight Color | Color Slider | Yellow | Color for block highlight |
-| Vulnerability Check | Toggle | OFF | BFS flood-fill to detect exposed beds |
-| Vulnerable Only | Toggle | OFF | Skip beds with solid defenses |
-| Bed Scanner | Toggle | OFF | Label beds as EXPOSED or PROTECTED with notifications |
+| Setting | Type | API Call | Default | Config |
+|---------|------|----------|---------|--------|
+| Break mode | Dropdown | `CreateDropdown` | First method in `breakmethods` | List built from `breakmethods` keys |
+| Break range | Slider | `CreateSlider` | 30 | Min 1, Max 30, suffix "stud"/"studs" |
+| Break speed | Slider | `CreateSlider` | 0.25 | Min 0, Max 0.3, Decimal 100, suffix "seconds" |
+| Max angle | Slider | `CreateSlider` | 120 | Min 1, Max 360 |
+| Update rate | Slider | `CreateSlider` | 60 | Min 1, Max 120, suffix "hz" |
+| Custom | Text List | `CreateTextList` | — | On change: clears `customlist`, rebuilds from `store.blocks` matching `Custom.ListEnabled` |
+| Break Bed | Toggle | `CreateToggle` | true | — |
+| Break Tesla | Toggle | `CreateToggle` | true | — |
+| Break Hive | Toggle | `CreateToggle` | true | — |
+| Break Lucky Block | Toggle | `CreateToggle` | true | — |
+| Break Iron Ore | Toggle | `CreateToggle` | true | — |
+| Show Healthbar & Effects | Toggle | `CreateToggle` | true | On change: shows/hides Custom Healthbar sub-toggle |
+| Custom Healthbar | Toggle | `CreateToggle` | true | `Darker = true` (indented sub-option) |
+| Animation | Toggle | `CreateToggle` | false | — |
+| Self Break | Toggle | `CreateToggle` | false | — |
+| Instant Break | Toggle | `CreateToggle` | false | — |
+| Auto Tool | Toggle | `CreateToggle` | false | — |
+| Break through blocks | Toggle | `CreateToggle` | false | Tooltip: "Ignores blocks around bed defense, and check if the server validates where ur breaking" |
+| Closest break | Toggle | `CreateToggle` | false | Tooltip: "Uses ur mouse's position to get the closet block to you". On change: hides/shows Mode dropdown |
+| Limit to items | Toggle | `CreateToggle` | false | Tooltip: "Only breaks when tools are held" |
 
 ---
 
 ## Data Flow Summary
 
 ```
-Player enables Breaker/Bed Breaking
-    ↓
-collection() starts tracking tagged objects (beds, lucky blocks, etc.)
-    ↓
-Main loop ticks at UpdateRate hz
-    ↓
-For each tick:
-    1. Get player position
-    2. Iterate collections in priority order (beds first)
-    3. For each block: check range, breakability, team, shields
-    4. Call bedwars.breakBlock() on the first valid target
-        ↓
-        bedwars.breakBlock():
-            a. calculatePath() — Dijkstra through surrounding blocks
-            b. Find cheapest entry block to hit
-            c. Auto-switch to best tool (if enabled)
-            d. Fire DamageBlock RPC to server
-            e. On response: update health bar, play effects
-            f. Return path data for visualization
-        ↓
-    5. Wait BreakSpeed seconds (or 0 for instant)
-    6. Continue to next tick
+Player enables Breaker
+    |
+    v
+Creates 30 path visualization parts
+Sets up 6 CollectionService trackers (bed, LuckyBlock, iron_ore, tesla-trap, beehive, block)
+    |
+    v
+Main loop starts (ticks at UpdateRate hz)
+    |
+    v
+Each tick (if player is alive):
+    |
+    v
+Try collections in priority order: Beds > Teslas > Hives > Custom > Lucky Blocks > Iron Ores
+    |
+    v
+attemptBreak() for the first enabled collection with targets:
+    |-- Check range (< Break range studs)
+    |-- Check bedwars.BlockController:isBlockBreakable()
+    |-- Check team (skip own blocks unless Self Break)
+    |-- Check bed shield (skip if shield active)
+    |-- Check held item (skip if Limit to items + no tool)
+    |
+    v
+bedwars.breakBlock():
+    |-- Guard: skip if DenyBlockBreak / dead / InfiniteFly
+    |-- Get all block positions (multi-part blocks like beds)
+    |-- calculatePath() for each position (Dijkstra pathfinding)
+    |   |-- Explore 6 directions, 3 studs each
+    |   |-- Cost = getBlockHits() or custom sort method
+    |   |-- Respect angle limit
+    |   |-- Find cheapest air node (entry point)
+    |   |-- If wallcheck: require externally exposed
+    |-- Pick cheapest entry across all positions
+    |-- Range check (< 30 studs)
+    |-- Auto-switch to best tool for block's breakType
+    |-- Fire DamageBlock RPC to server
+    |-- On response:
+    |   |-- 'cancelled' -> set damageBlockFail cooldown
+    |   |-- success -> update health bar, play effects
+    |   |-- health <= 0 -> play break effect, clean up
+    |   |-- health > 0 -> play hit effect
+    |-- Return hit position + path for visualization
+    |
+    v
+Visualize path on 30 parts (blue=target, green=path, red=entry)
+    |
+    v
+Wait (BreakSpeed seconds / 0 for instant / 4.5s if server rejected)
+    |
+    v
+Continue to next tick
 ```
 
 ---
@@ -228,20 +309,27 @@ For each tick:
 ## Key Game APIs Referenced
 
 - `bedwars.BlockController` — block grid management (get block at position, check breakability, get world position)
-- `bedwars.BlockController:getStore()` — the block data store (block instances, health, attributes)
-- `bedwars.BlockController:getHandlerRegistry():getHandler(name)` — block type handlers (multi-position blocks like beds)
-- `bedwars.ItemMeta[name]` — metadata for every item/block (display name, break type, damage values, etc.)
-- `bedwars.BlockBreaker` — the game's native block-breaking controller
+- `bedwars.BlockController:getStore()` — the block data store (block instances at grid positions, health data via attributes)
+- `bedwars.BlockController:getStore():getBlockAt(blockPosition)` — get block instance at a grid position
+- `bedwars.BlockController:getStore():getBlockData(blockPosition)` — get block data (health attributes)
+- `bedwars.BlockController:getBlockPosition(worldPos)` — convert world position to grid position
+- `bedwars.BlockController:getWorldPosition(blockPos)` — convert grid position to world position
+- `bedwars.BlockController:isBlockBreakable(breakTable, player)` — check if a block can be broken (hooked at line ~1082 to add custom NoBreak logic)
+- `bedwars.BlockController:getHandlerRegistry():getHandler(name)` — block type handlers (multi-position blocks like beds have `getContainedPositions()`)
+- `bedwars.BlockController:getAnimationController():getAssetId(1)` — break animation asset
+- `bedwars.ItemMeta[name]` — metadata for every item/block: `.displayName`, `.block.breakType`, `.breakBlock[type]` (tool damage per break type), `.damage` (sword damage)
+- `bedwars.BlockBreaker` — the game's native block-breaking controller (has `.updateHealthbar()`, `.breakEffect`, `.healthbarMaid`)
+- `bedwars.BlockBreaker.clientManager:getBlockSelector():getMouseInfo(0)` — get what block the mouse is pointing at
 - `bedwars.ClientDamageBlock:Get('DamageBlock')` — the RPC to damage a block server-side
-- `bedwars.SwordController.lastAttack` — timestamp of last sword attack (used to avoid tool-switch during combat)
-- `bedwars.BlockPlacer` — for placing blocks
-- `bedwars.Roact` — React-like UI framework for the health bar
-- `bedwars.AnimationUtil` / `bedwars.ViewmodelController` — break animations
-- `bedwars.AbilityController` — kit abilities (Berserker rage)
-- `bedwars.AdetundeUtil` — Yeti/Adetunde kit utilities
+- `bedwars.SwordController.lastAttack` — timestamp of last sword attack (0.4s cooldown before tool switching)
+- `bedwars.Roact` — React-like UI framework for the custom health bar
+- `bedwars.AnimationUtil:playAnimation(player, assetId)` — play character animation
+- `bedwars.ViewmodelController:playAnimation(id)` — play first-person viewmodel animation
+- `bedwars.QueryUtil:setQueryIgnored(instance, true)` — exclude instance from raycasts
 - `collectionService` — Roblox CollectionService for tag-based object tracking
-- `store.blocks` — local cache of all placed blocks
-- `store.tools` — best tool per break type
-- `store.hand` — currently held item
-- `store.inventory` — player inventory
-- `store.damageBlockFail` — timestamp tracking server rejections
+- `store.blocks` — local cache of all placed blocks (populated elsewhere in the game file)
+- `store.tools` — best tool per break type (auto-tracked from inventory changes)
+- `store.hand` — currently held item (`.tool` = the tool instance)
+- `store.inventory` — player inventory (`.inventory.items` = table of items)
+- `store.damageBlockFail` — tick() timestamp of last server rejection (triggers 4.5s cooldown)
+- `store.blockPlacer` — BlockPlacer instance for placing blocks
