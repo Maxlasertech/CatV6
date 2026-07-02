@@ -15678,20 +15678,40 @@ run(function()
         losFilter.FilterDescendantsInstances = list
     end
 
+    local visProbes = {
+        Vector3.zero,
+        Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
+        Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
+        Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35),
+        Vector3.new(1.35, 1.35, 0), Vector3.new(-1.35, 1.35, 0),
+        Vector3.new(1.35, -1.35, 0), Vector3.new(-1.35, -1.35, 0),
+        Vector3.new(0, 1.35, 1.35), Vector3.new(0, -1.35, 1.35),
+        Vector3.new(0, 1.35, -1.35), Vector3.new(0, -1.35, -1.35),
+        Vector3.new(1.35, 0, 1.35), Vector3.new(-1.35, 0, 1.35),
+        Vector3.new(1.35, 0, -1.35), Vector3.new(-1.35, 0, -1.35),
+    }
+
     local function isVisible(worldPos)
         local eye = gameCamera.CFrame.Position
-        for _, off in {
-            Vector3.zero,
-            Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
-            Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
-            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
-        } do
+        for _, off in visProbes do
             local probe = worldPos + off
             local ray = probe - eye
             local hit = workspace:Raycast(eye, ray, losFilter)
             if not hit then return true end
             if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
             if hit.Instance and (hit.Instance.Position - worldPos).Magnitude < 2.5 then return true end
+        end
+        return false
+    end
+
+    local function bedContainedPositions(bed)
+        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
+        return handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+    end
+
+    local function isBedVisible(bed)
+        for _, cp in bedContainedPositions(bed) do
+            if isVisible(cp * 3) then return true end
         end
         return false
     end
@@ -15855,8 +15875,7 @@ run(function()
     end
 
     local function planAttack(bed, origin)
-        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
-        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        local contained = bedContainedPositions(bed)
         local best = {entry = nil, cost = math.huge, route = nil, anchor = nil}
         local useDistance = BreakMode and BreakMode.Value == 'Distance'
 
@@ -16031,7 +16050,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isVisible(bestBed.Position) then
+                    if isBedVisible(bestBed) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
