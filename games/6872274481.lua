@@ -15678,41 +15678,20 @@ run(function()
         losFilter.FilterDescendantsInstances = list
     end
 
-    local visProbes = {
-        Vector3.zero,
-        Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
-        Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
-        Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35),
-        Vector3.new(1.35, 1.35, 0), Vector3.new(-1.35, 1.35, 0),
-        Vector3.new(1.35, -1.35, 0), Vector3.new(-1.35, -1.35, 0),
-        Vector3.new(0, 1.35, 1.35), Vector3.new(0, -1.35, 1.35),
-        Vector3.new(0, 1.35, -1.35), Vector3.new(0, -1.35, -1.35),
-        Vector3.new(1.35, 0, 1.35), Vector3.new(-1.35, 0, 1.35),
-        Vector3.new(1.35, 0, -1.35), Vector3.new(-1.35, 0, -1.35),
-    }
-
     local function isVisible(worldPos)
-        if not entitylib.isAlive then return false end
-        local eye = entitylib.character.RootPart.Position
-        for _, off in visProbes do
+        local eye = gameCamera.CFrame.Position
+        for _, off in {
+            Vector3.zero,
+            Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
+            Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
+            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
+        } do
             local probe = worldPos + off
             local ray = probe - eye
             local hit = workspace:Raycast(eye, ray, losFilter)
             if not hit then return true end
             if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
             if hit.Instance and (hit.Instance.Position - worldPos).Magnitude < 2.5 then return true end
-        end
-        return false
-    end
-
-    local function bedContainedPositions(bed)
-        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
-        return handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-    end
-
-    local function isBedVisible(bed)
-        for _, cp in bedContainedPositions(bed) do
-            if isVisible(cp * 3) then return true end
         end
         return false
     end
@@ -15876,7 +15855,8 @@ run(function()
     end
 
     local function planAttack(bed, origin)
-        local contained = bedContainedPositions(bed)
+        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
+        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
         local best = {entry = nil, cost = math.huge, route = nil, anchor = nil}
         local useDistance = BreakMode and BreakMode.Value == 'Distance'
 
@@ -16051,7 +16031,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    if isVisible(bestBed.Position) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
@@ -16192,32 +16172,65 @@ run(function()
     				if entitylib.isAlive then
     					pcall(function()
     						if Collect.Enabled and (not LimitCollect.Enabled or store.hand.tool and store.hand.tool.Name == 'bee_net') then
-    							local localPosition = entitylib.character.RootPart.Position
+    							local root = store.rootpart or entitylib.character.RootPart
+    							local localPosition = root.Position
+    							local farBees = {}
     							for _, v in collectionService:GetTagged('bee') do
     								if v.PrimaryPart then
     									local dist = (localPosition - v.PrimaryPart.Position).Magnitude
-    									if dist <= CollectRange.Value then
-    										if dist > 22 then
-    											local root = store.rootpart or entitylib.character.RootPart
-    											local saved = root.CFrame
-    											root.Velocity = Vector3.zero
-    											root.CFrame = CFrame.new(v.PrimaryPart.Position)
-    											task.wait(0.3)
-    											bedwars.Client:Get('PickUpBee'):SendToServer({
-    												beeId = v:GetAttribute('BeeId'),
-    											})
-    											task.wait()
-    											root.CFrame = saved
-    										else
-    											bedwars.Client:Get('PickUpBee'):SendToServer({
-    												beeId = v:GetAttribute('BeeId'),
-    											})
-    										end
+    									if dist <= math.min(CollectRange.Value, 22) then
+    										bedwars.Client:Get('PickUpBee'):SendToServer({
+    											beeId = v:GetAttribute('BeeId'),
+    										})
     										if CollectDelay.Value > 0 then
     											task.wait(CollectDelay.Value)
     										end
+    									elseif dist <= CollectRange.Value then
+    										table.insert(farBees, v)
     									end
     								end
+    							end
+    							if #farBees > 0 and not store.rootpart and entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
+    								local realRoot = entitylib.character.HumanoidRootPart
+    								local savedParent = lplr.Character.Parent
+    								lplr.Character.Parent = replicatedStorage
+    								local fakeRoot = realRoot:Clone()
+    								fakeRoot.Parent = lplr.Character
+    								realRoot.Transparency = 1
+    								realRoot.Parent = workspace
+    								store.rootpart = realRoot
+    								lplr.Character.PrimaryPart = fakeRoot
+    								lplr.Character.Parent = savedParent
+    								pcall(function()
+    									bedwars.QueryUtil:setQueryIgnored(fakeRoot, true)
+    									bedwars.QueryUtil:setQueryIgnored(realRoot, true)
+    								end)
+
+    								for _, v in farBees do
+    									if not AutoBee.Enabled then break end
+    									realRoot.Velocity = Vector3.zero
+    									realRoot.CFrame = CFrame.new(v.PrimaryPart.Position)
+    									task.wait(0.15)
+    									bedwars.Client:Get('PickUpBee'):SendToServer({
+    										beeId = v:GetAttribute('BeeId'),
+    									})
+    									if CollectDelay.Value > 0 then
+    										task.wait(CollectDelay.Value)
+    									end
+    								end
+
+    								lplr.Character.Parent = replicatedStorage
+    								realRoot.Parent = lplr.Character
+    								if fakeRoot then
+    									realRoot.CFrame = fakeRoot.CFrame
+    									realRoot.Velocity = fakeRoot.Velocity
+    									fakeRoot:Destroy()
+    								end
+    								lplr.Character.PrimaryPart = realRoot
+    								lplr.Character.Parent = savedParent or workspace
+    								realRoot.CanCollide = true
+    								realRoot.Transparency = 1
+    								store.rootpart = nil
     							end
     						end
     						if Deposit.Enabled and getItem('bee') then
@@ -17378,7 +17391,9 @@ run(function()
         local objs = type(id) == 'table' and id or collection(id, AutoKit)
         repeat
             if entitylib.isAlive then
-                local localPosition = entitylib.character.RootPart.Position
+                local root = store.rootpart or entitylib.character.RootPart
+                local localPosition = root.Position
+                local farTargets = {}
                 for _, v in objs do
                     if InfiniteFly.Enabled or not AutoKit.Enabled then break end
                     local part = not v:IsA('Model') and v or v.PrimaryPart
@@ -17387,16 +17402,47 @@ run(function()
                         if dist <= range then
                             func(v)
                         elseif not Legit.Enabled and specific then
-                            local root = store.rootpart or entitylib.character.RootPart
-                            local saved = root.CFrame
-                            root.Velocity = Vector3.zero
-                            root.CFrame = CFrame.new(part.Position)
-                            task.wait(0.3)
-                            func(v)
-                            task.wait()
-                            root.CFrame = saved
+                            table.insert(farTargets, {obj = v, part = part})
                         end
                     end
+                end
+                if #farTargets > 0 and not store.rootpart and entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
+                    local realRoot = entitylib.character.HumanoidRootPart
+                    local savedParent = lplr.Character.Parent
+                    lplr.Character.Parent = replicatedStorage
+                    local fakeRoot = realRoot:Clone()
+                    fakeRoot.Parent = lplr.Character
+                    realRoot.Transparency = 1
+                    realRoot.Parent = workspace
+                    store.rootpart = realRoot
+                    lplr.Character.PrimaryPart = fakeRoot
+                    lplr.Character.Parent = savedParent
+                    pcall(function()
+                        bedwars.QueryUtil:setQueryIgnored(fakeRoot, true)
+                        bedwars.QueryUtil:setQueryIgnored(realRoot, true)
+                    end)
+
+                    for _, t in farTargets do
+                        if not AutoKit.Enabled then break end
+                        realRoot.Velocity = Vector3.zero
+                        realRoot.CFrame = CFrame.new(t.part.Position)
+                        task.wait(0.15)
+                        func(t.obj)
+                        task.wait(0.05)
+                    end
+
+                    lplr.Character.Parent = replicatedStorage
+                    realRoot.Parent = lplr.Character
+                    if fakeRoot then
+                        realRoot.CFrame = fakeRoot.CFrame
+                        realRoot.Velocity = fakeRoot.Velocity
+                        fakeRoot:Destroy()
+                    end
+                    lplr.Character.PrimaryPart = realRoot
+                    lplr.Character.Parent = savedParent or workspace
+                    realRoot.CanCollide = true
+                    realRoot.Transparency = 1
+                    store.rootpart = nil
                 end
             end
             task.wait(0.1)
