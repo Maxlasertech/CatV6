@@ -15656,7 +15656,7 @@ end)
 
 run(function()
     local KingDraco
-    local RangeSetting, SpeedSetting, TickRate
+    local RangeSetting, SpeedSetting, TickRate, BreakMode
     local ToolSwitch, ItemLimit, BreakSelf, QuickBreak
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
@@ -15687,9 +15687,6 @@ run(function()
             Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
         } do
             local probe = worldPos + off
-            local _, onScreen = gameCamera:WorldToViewportPoint(probe)
-            if not onScreen then continue end
-
             local ray = probe - eye
             local hit = workspace:Raycast(eye, ray, losFilter)
             if not hit then return true end
@@ -15857,10 +15854,11 @@ run(function()
         return true
     end
 
-    local function planAttack(bed)
+    local function planAttack(bed, origin)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
         local best = {entry = nil, cost = math.huge, route = nil, anchor = nil}
+        local useDistance = BreakMode and BreakMode.Value == 'Distance'
 
         for _, cp in contained do
             local anchor = cp * 3
@@ -15889,7 +15887,7 @@ run(function()
                         if not nb then exposed = true end
                         continue
                     end
-                    local h = getBlockHits(nb, np)
+                    local h = useDistance and (origin - Vector3.new(np.X, origin.Y, np.Z)).Magnitude or getBlockHits(nb, np)
                     local nc = pick[1] + h
                     if nc < (costs[np] or math.huge) then
                         costs[np] = nc
@@ -16041,7 +16039,7 @@ run(function()
                         continue
                     end
 
-                    local entry, route, anchor = planAttack(bestBed)
+                    local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
                         if entryBlock and isVisible(entry) then
@@ -16078,6 +16076,12 @@ run(function()
         Name = 'Tick rate',
         Min = 1, Max = 120, Default = 60,
         Suffix = 'hz'
+    })
+    BreakMode = KingDraco:CreateDropdown({
+        Name = 'Break mode',
+        List = {'Health', 'Distance'},
+        Default = 'Health',
+        Tooltip = 'Health = fewest hits first, Distance = closest blocks first'
     })
     EffectsOn = KingDraco:CreateToggle({Name = 'Effects', Default = true})
     HealthDisplay = KingDraco:CreateToggle({Name = 'Health display', Default = true, Darker = true})
