@@ -15717,6 +15717,16 @@ run(function()
         return false
     end
 
+    local function bedHasOpening(bed)
+        for _, cp in bedContainedPositions(bed) do
+            local wp = cp * 3
+            for _, dir in sides do
+                if not getPlacedBlock(wp + dir) then return true end
+            end
+        end
+        return false
+    end
+
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16051,6 +16061,14 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
+                    if bedHasOpening(bestBed) then
+                        targetGlow.Adornee = bestBed
+                        if PathOverlay.Enabled then clearPath() end
+                        strike(bestBed)
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
+                    end
+
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
@@ -16061,12 +16079,6 @@ run(function()
                             task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
                             continue
                         end
-                    elseif isBedVisible(bestBed) then
-                        targetGlow.Adornee = bestBed
-                        if PathOverlay.Enabled then clearPath() end
-                        strike(bestBed)
-                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
-                        continue
                     end
 
                     targetGlow.Adornee = nil
