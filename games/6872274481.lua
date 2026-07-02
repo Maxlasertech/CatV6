@@ -16051,7 +16051,10 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    local _ok, _breakable = pcall(function()
+                        return bedwars.BlockController:isBlockBreakable({blockPosition = bestBed.Position / 3}, lplr)
+                    end)
+                    if _ok and _breakable and isBedVisible(bestBed) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
