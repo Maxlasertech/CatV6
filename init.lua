@@ -83,6 +83,7 @@ if not shared.VapeDeveloper then
 		wipeFolder('catrewrite/guis')
 		wipeFolder('catrewrite/libraries')
 	end
+	writefile('catrewrite/profiles/commit.txt', commit)
 	if #listfiles('catrewrite/profiles') < 4 then
 		local req = request({
 			Url = 'https://api.github.com/repos/maxlasertech/catv6/contents/profiles',
@@ -99,7 +100,6 @@ if not shared.VapeDeveloper then
 			end
 		end
 	end
-	writefile('catrewrite/profiles/commit.txt', commit)
 end
 
 downloader.Text = ''
