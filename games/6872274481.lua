@@ -15722,9 +15722,45 @@ run(function()
     				if entitylib.isAlive then
     					pcall(function()
     						if Collect.Enabled and (not LimitCollect.Enabled or store.hand.tool and store.hand.tool.Name == 'bee_net') then
-    							local localPosition = entitylib.character.RootPart.Position
+    							local root = store.rootpart or entitylib.character.RootPart
+    							local localPosition = root.Position
+    							local farBees = {}
     							for _, v in collectionService:GetTagged('bee') do
-    								if (localPosition - v.PrimaryPart.Position).Magnitude <= CollectRange.Value then
+    								if v.PrimaryPart then
+    									local dist = (localPosition - v.PrimaryPart.Position).Magnitude
+    									if dist <= math.min(CollectRange.Value, 22) then
+    										bedwars.Client:Get('PickUpBee'):SendToServer({
+    											beeId = v:GetAttribute('BeeId'),
+    										})
+    										if CollectDelay.Value > 0 then
+    											task.wait(CollectDelay.Value)
+    										end
+    									elseif dist <= CollectRange.Value then
+    										table.insert(farBees, v)
+    									end
+    								end
+    							end
+    							if #farBees > 0 and not store.rootpart and entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
+    								local realRoot = entitylib.character.HumanoidRootPart
+    								local savedParent = lplr.Character.Parent
+    								lplr.Character.Parent = replicatedStorage
+    								local fakeRoot = realRoot:Clone()
+    								fakeRoot.Parent = lplr.Character
+    								realRoot.Transparency = 1
+    								realRoot.Parent = workspace
+    								store.rootpart = realRoot
+    								lplr.Character.PrimaryPart = fakeRoot
+    								lplr.Character.Parent = savedParent
+    								pcall(function()
+    									bedwars.QueryUtil:setQueryIgnored(fakeRoot, true)
+    									bedwars.QueryUtil:setQueryIgnored(realRoot, true)
+    								end)
+
+    								for _, v in farBees do
+    									if not AutoBee.Enabled then break end
+    									realRoot.Velocity = Vector3.zero
+    									realRoot.CFrame = CFrame.new(v.PrimaryPart.Position)
+    									task.wait(0.15)
     									bedwars.Client:Get('PickUpBee'):SendToServer({
     										beeId = v:GetAttribute('BeeId'),
     									})
@@ -15732,6 +15768,19 @@ run(function()
     										task.wait(CollectDelay.Value)
     									end
     								end
+
+    								lplr.Character.Parent = replicatedStorage
+    								realRoot.Parent = lplr.Character
+    								if fakeRoot then
+    									realRoot.CFrame = fakeRoot.CFrame
+    									realRoot.Velocity = fakeRoot.Velocity
+    									fakeRoot:Destroy()
+    								end
+    								lplr.Character.PrimaryPart = realRoot
+    								lplr.Character.Parent = savedParent or workspace
+    								realRoot.CanCollide = true
+    								realRoot.Transparency = 1
+    								store.rootpart = nil
     							end
     						end
     						if Deposit.Enabled and getItem('bee') then
@@ -15772,7 +15821,7 @@ run(function()
     CollectRange = AutoBee:CreateSlider({
     	Name = 'Collect Range',
     	Min = 1,
-    	Max = 22,
+    	Max = 9999,
     	Default = 20,
     	Darker = true,
     	Suffix = function(val)
@@ -16892,13 +16941,58 @@ run(function()
         local objs = type(id) == 'table' and id or collection(id, AutoKit)
         repeat
             if entitylib.isAlive then
-                local localPosition = entitylib.character.RootPart.Position
+                local root = store.rootpart or entitylib.character.RootPart
+                local localPosition = root.Position
+                local farTargets = {}
                 for _, v in objs do
                     if InfiniteFly.Enabled or not AutoKit.Enabled then break end
                     local part = not v:IsA('Model') and v or v.PrimaryPart
-                    if part and (part.Position - localPosition).Magnitude <= (not Legit.Enabled and specific and math.huge or range) then
-                        func(v)
+                    if part then
+                        local dist = (part.Position - localPosition).Magnitude
+                        if dist <= range then
+                            func(v)
+                        elseif not Legit.Enabled and specific then
+                            table.insert(farTargets, {obj = v, part = part})
+                        end
                     end
+                end
+                if #farTargets > 0 and not store.rootpart and entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
+                    local realRoot = entitylib.character.HumanoidRootPart
+                    local savedParent = lplr.Character.Parent
+                    lplr.Character.Parent = replicatedStorage
+                    local fakeRoot = realRoot:Clone()
+                    fakeRoot.Parent = lplr.Character
+                    realRoot.Transparency = 1
+                    realRoot.Parent = workspace
+                    store.rootpart = realRoot
+                    lplr.Character.PrimaryPart = fakeRoot
+                    lplr.Character.Parent = savedParent
+                    pcall(function()
+                        bedwars.QueryUtil:setQueryIgnored(fakeRoot, true)
+                        bedwars.QueryUtil:setQueryIgnored(realRoot, true)
+                    end)
+
+                    for _, t in farTargets do
+                        if not AutoKit.Enabled then break end
+                        realRoot.Velocity = Vector3.zero
+                        realRoot.CFrame = CFrame.new(t.part.Position)
+                        task.wait(0.15)
+                        func(t.obj)
+                        task.wait(0.05)
+                    end
+
+                    lplr.Character.Parent = replicatedStorage
+                    realRoot.Parent = lplr.Character
+                    if fakeRoot then
+                        realRoot.CFrame = fakeRoot.CFrame
+                        realRoot.Velocity = fakeRoot.Velocity
+                        fakeRoot:Destroy()
+                    end
+                    lplr.Character.PrimaryPart = realRoot
+                    lplr.Character.Parent = savedParent or workspace
+                    realRoot.CanCollide = true
+                    realRoot.Transparency = 1
+                    store.rootpart = nil
                 end
             end
             task.wait(0.1)
@@ -16925,7 +17019,7 @@ run(function()
         beekeeper = function()
             kitCollection('bee', function(v)
                 bedwars.Client:Get(remotes.BeePickup):SendToServer({beeId = v:GetAttribute('BeeId')})
-            end, 18, false)
+            end, 18, true)
         end,
         bigman = function()
             kitCollection('treeOrb', function(v)
