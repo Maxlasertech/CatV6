@@ -15692,7 +15692,8 @@ run(function()
     }
 
     local function isVisible(worldPos)
-        local eye = gameCamera.CFrame.Position
+        if not entitylib.isAlive then return false end
+        local eye = entitylib.character.RootPart.Position
         for _, off in visProbes do
             local probe = worldPos + off
             local ray = probe - eye
