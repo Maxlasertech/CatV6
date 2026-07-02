@@ -15654,6 +15654,420 @@ run(function()
     end)
 end)
 
+run(function()
+    local KingDraco
+    local Range
+    local BreakSpeed
+    local UpdateRate
+    local Angle
+    local Effect
+    local CustomHealth = {}
+    local Animation
+    local SelfBreak
+    local InstantBreak
+    local AutoTool
+    local LimitItem
+    local ShowPath
+    local LOSStrict
+    local parts = {}
+    local losRayParams
+
+    local function passesChecks(v)
+        if not SelfBreak.Enabled then
+            if v.Name == 'bed' then
+                local myTeam = lplr.Character and (lplr.Character:GetAttribute('Team') or lplr.Character:GetAttribute('TeamId'))
+                if myTeam and tonumber(v:GetAttribute('TeamId')) == tonumber(myTeam) then
+                    return false
+                end
+            end
+            local blockTeam = v:GetAttribute('Team') or v:GetAttribute('TeamId')
+            local myTeam = lplr.Character and (lplr.Character:GetAttribute('Team') or lplr.Character:GetAttribute('TeamId'))
+            if blockTeam and myTeam and tonumber(blockTeam) == tonumber(myTeam) then
+                return false
+            end
+            if v:GetAttribute('PlacedByUserId') == lplr.UserId then
+                return false
+            end
+        end
+        if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then
+            return false
+        end
+        if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
+            return false
+        end
+        return true
+    end
+
+    local function hasLineOfSight(targetPos)
+        if not losRayParams then
+            losRayParams = RaycastParams.new()
+            losRayParams.FilterType = Enum.RaycastFilterType.Include
+            losRayParams.RespectCanCollide = false
+        end
+
+        local blockStore = bedwars.BlockController:getStore()
+        local allBlocks = {}
+        for _, b in store.blocks do
+            if b and b.Parent then
+                table.insert(allBlocks, b)
+            end
+        end
+        losRayParams.FilterDescendantsInstances = allBlocks
+
+        local camPos = gameCamera.CFrame.Position
+        local dir = targetPos - camPos
+        local distance = dir.Magnitude
+        if distance < 0.1 then return true end
+
+        local result = workspace:Raycast(camPos, dir, losRayParams)
+        if not result then
+            return true
+        end
+
+        local hitDist = (result.Position - camPos).Magnitude
+        local targetDist = distance
+        return hitDist >= (targetDist - 1.5)
+    end
+
+    local function hasLOSToBlock(blockPos)
+        if not losRayParams then
+            losRayParams = RaycastParams.new()
+            losRayParams.FilterType = Enum.RaycastFilterType.Include
+            losRayParams.RespectCanCollide = false
+        end
+
+        local allBlocks = {}
+        for _, b in store.blocks do
+            if b and b.Parent then
+                table.insert(allBlocks, b)
+            end
+        end
+        losRayParams.FilterDescendantsInstances = allBlocks
+
+        local camPos = gameCamera.CFrame.Position
+        local offsets = {
+            Vector3.zero,
+            Vector3.new(1.4, 0, 0), Vector3.new(-1.4, 0, 0),
+            Vector3.new(0, 1.4, 0), Vector3.new(0, -1.4, 0),
+            Vector3.new(0, 0, 1.4), Vector3.new(0, 0, -1.4),
+        }
+
+        for _, offset in offsets do
+            local testPos = blockPos + offset
+            local dir = testPos - camPos
+            local distance = dir.Magnitude
+            if distance < 0.1 then return true end
+
+            local result = workspace:Raycast(camPos, dir, losRayParams)
+            if not result then
+                return true
+            end
+
+            local hitDist = (result.Position - camPos).Magnitude
+            if hitDist >= (distance - 1.5) then
+                return true
+            end
+
+            local hitBlock = result.Instance
+            if hitBlock and (hitBlock.Position - blockPos).Magnitude < 2.5 then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+        if block:GetAttribute('NoHealthbar') then return end
+        if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
+            self.healthbarMaid:DoCleaning()
+            self.healthbarBlockRef = blockRef
+            local create = bedwars.Roact.createElement
+            local percent = math.clamp(health / maxHealth, 0, 1)
+            local cleanCheck = true
+            local part = Instance.new('Part')
+            part.Size = Vector3.one
+            part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
+            part.Transparency = 1
+            part.Anchored = true
+            part.CanCollide = false
+            part.Parent = workspace
+            self.healthbarPart = part
+            bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+            local mounted = bedwars.Roact.mount(create('BillboardGui', {
+                Size = UDim2.fromOffset(249, 102),
+                StudsOffset = Vector3.new(0, 2.5, 0),
+                Adornee = part,
+                MaxDistance = 40,
+                AlwaysOnTop = true
+            }, {
+                create('Frame', {
+                    Size = UDim2.fromOffset(160, 50),
+                    Position = UDim2.fromOffset(44, 32),
+                    BackgroundColor3 = Color3.new(),
+                    BackgroundTransparency = 0.5
+                }, {
+                    create('UICorner', {CornerRadius = UDim.new(0, 5)}),
+                    create('ImageLabel', {
+                        Size = UDim2.new(1, 89, 1, 52),
+                        Position = UDim2.fromOffset(-48, -31),
+                        BackgroundTransparency = 1,
+                        Image = getcustomasset('newvape/assets/new/blur.png'),
+                        ScaleType = Enum.ScaleType.Slice,
+                        SliceCenter = Rect.new(52, 31, 261, 502)
+                    }),
+                    create('TextLabel', {
+                        Size = UDim2.fromOffset(145, 14),
+                        Position = UDim2.fromOffset(13, 12),
+                        BackgroundTransparency = 1,
+                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        TextColor3 = Color3.new(),
+                        TextScaled = true,
+                        Font = Enum.Font.Arial
+                    }),
+                    create('TextLabel', {
+                        Size = UDim2.fromOffset(145, 14),
+                        Position = UDim2.fromOffset(12, 11),
+                        BackgroundTransparency = 1,
+                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        TextColor3 = color.Dark(uipallet.Text, 0.16),
+                        TextScaled = true,
+                        Font = Enum.Font.Arial
+                    }),
+                    create('Frame', {
+                        Size = UDim2.fromOffset(138, 4),
+                        Position = UDim2.fromOffset(12, 32),
+                        BackgroundColor3 = uipallet.Main
+                    }, {
+                        create('UICorner', {CornerRadius = UDim.new(1, 0)}),
+                        create('Frame', {
+                            [bedwars.Roact.Ref] = self.healthbarProgressRef,
+                            Size = UDim2.fromScale(percent, 1),
+                            BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
+                        }, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
+                    })
+                })
+            }), part)
+            self.healthbarMaid:GiveTask(function()
+                cleanCheck = false
+                self.healthbarBlockRef = nil
+                bedwars.Roact.unmount(mounted)
+                if self.healthbarPart then
+                    self.healthbarPart:Destroy()
+                end
+                self.healthbarPart = nil
+            end)
+            bedwars.RuntimeLib.Promise.delay(5):andThen(function()
+                if cleanCheck then
+                    self.healthbarMaid:DoCleaning()
+                end
+            end)
+        end
+        local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
+        tweenService:Create(self.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
+            Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
+        }):Play()
+    end
+
+    local function wrappedHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+        if CustomHealth.Enabled then
+            customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+        end
+    end
+
+    local function doBreak(v)
+        local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, wrappedHealthbar, InstantBreak.Enabled or AutoTool.Enabled, nil, Angle.Value, true)
+        if path and ShowPath and ShowPath.Enabled then
+            local currentnode = target
+            for _, part in parts do
+                part.Position = currentnode or Vector3.zero
+                if currentnode then
+                    part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
+                end
+                currentnode = path[currentnode]
+            end
+        end
+        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
+        return true
+    end
+
+    local function findBestBed(beds, localPosition)
+        local best, bestDist = nil, math.huge
+        for _, v in beds do
+            if not v or not v.Parent then continue end
+            local dist = (v.Position - localPosition).Magnitude
+            if dist >= Range.Value or dist >= bestDist then continue end
+            if not passesChecks(v) then continue end
+            if not hasLineOfSight(v.Position) then continue end
+            best = v
+            bestDist = dist
+        end
+        return best
+    end
+
+    local function findBestDefenseBlock(bed, localPosition)
+        local bedPos = bed.Position
+        local best, bestCost = nil, math.huge
+
+        for _, v in store.blocks do
+            if not v or not v.Parent or v == bed then continue end
+            if v.Name == 'bed' then continue end
+            if v:GetAttribute('NoBreak') then continue end
+            local distFromBed = (v.Position - bedPos).Magnitude
+            if distFromBed > 12 then continue end
+            local distFromPlayer = (v.Position - localPosition).Magnitude
+            if distFromPlayer > Range.Value then continue end
+            if not passesChecks(v) then continue end
+            if not hasLOSToBlock(v.Position) then continue end
+
+            local blockPos = bedwars.BlockController:getBlockPosition(v.Position)
+            local ok, canBreak = pcall(function()
+                return bedwars.BlockController:isBlockBreakable({blockPosition = blockPos}, lplr)
+            end)
+            if not (ok and canBreak) then continue end
+
+            local hits = getBlockHits(v, v.Position)
+            local cost = hits + (distFromPlayer * 0.05)
+            if cost < bestCost then
+                bestCost = cost
+                best = v
+            end
+        end
+        return best
+    end
+
+    KingDraco = vape.Categories.Minigames:CreateModule({
+        Name = 'KingDraco',
+        Function = function(callback)
+            if callback then
+                for _ = 1, 20 do
+                    local part = Instance.new('Part')
+                    part.Anchored = true
+                    part.CanQuery = false
+                    part.CanCollide = false
+                    part.Transparency = 1
+                    part.Parent = gameCamera
+                    local highlight = Instance.new('BoxHandleAdornment')
+                    highlight.Size = Vector3.one
+                    highlight.AlwaysOnTop = true
+                    highlight.ZIndex = 1
+                    highlight.Transparency = 0.5
+                    highlight.Adornee = part
+                    highlight.Parent = part
+                    table.insert(parts, part)
+                end
+
+                local beds = collection('bed', KingDraco)
+
+                repeat
+                    task.wait(1 / UpdateRate.Value)
+                    if not KingDraco.Enabled then break end
+                    if entitylib.isAlive then
+                        local localPosition = entitylib.character.RootPart.Position
+                        local bed = findBestBed(beds, localPosition)
+
+                        if bed then
+                            if hasLineOfSight(bed.Position) then
+                                local directLOS = hasLOSToBlock(bed.Position)
+                                if directLOS then
+                                    doBreak(bed)
+                                    continue
+                                end
+                            end
+
+                            local defenseBlock = findBestDefenseBlock(bed, localPosition)
+                            if defenseBlock then
+                                if hasLOSToBlock(defenseBlock.Position) then
+                                    doBreak(defenseBlock)
+                                    continue
+                                end
+                            end
+                        end
+
+                        for _, v in parts do
+                            v.Position = Vector3.zero
+                        end
+                    end
+                until not KingDraco.Enabled
+            else
+                for _, v in parts do
+                    v:ClearAllChildren()
+                    v:Destroy()
+                end
+                table.clear(parts)
+            end
+        end,
+        Tooltip = 'Bed breaker with strict line-of-sight — only breaks what you can actually see from your camera'
+    })
+
+    Range = KingDraco:CreateSlider({
+        Name = 'Break range',
+        Min = 1,
+        Max = 30,
+        Default = 30,
+        Suffix = function(val)
+            return val == 1 and 'stud' or 'studs'
+        end
+    })
+    BreakSpeed = KingDraco:CreateSlider({
+        Name = 'Break speed',
+        Min = 0,
+        Max = 0.3,
+        Default = 0.25,
+        Decimal = 100,
+        Suffix = 'seconds'
+    })
+    Angle = KingDraco:CreateSlider({
+        Name = 'Max angle',
+        Min = 1,
+        Max = 360,
+        Default = 120
+    })
+    UpdateRate = KingDraco:CreateSlider({
+        Name = 'Update rate',
+        Min = 1,
+        Max = 120,
+        Default = 60,
+        Suffix = 'hz'
+    })
+    Effect = KingDraco:CreateToggle({
+        Name = 'Show Healthbar & Effects',
+        Function = function(callback)
+            if CustomHealth.Object then
+                CustomHealth.Object.Visible = callback
+            end
+        end,
+        Default = true
+    })
+    CustomHealth = KingDraco:CreateToggle({Name = 'Custom Healthbar', Default = true, Darker = true})
+    Animation = KingDraco:CreateToggle({Name = 'Animation'})
+    SelfBreak = KingDraco:CreateToggle({Name = 'Self Break'})
+    InstantBreak = KingDraco:CreateToggle({Name = 'Instant Break'})
+    AutoTool = KingDraco:CreateToggle({
+        Name = 'Auto Tool',
+        Tooltip = 'Automatically switches to the best tool for breaking blocks'
+    })
+    LimitItem = KingDraco:CreateToggle({
+        Name = 'Limit to items',
+        Tooltip = 'Only breaks when tools are held'
+    })
+    ShowPath = KingDraco:CreateToggle({
+        Name = 'Show Path',
+        Default = true,
+        Tooltip = 'Show path boxes when breaking blocks'
+    })
+
+    task.defer(function()
+        if CustomHealth and CustomHealth.Object then
+            CustomHealth.Object.Visible = Effect.Enabled
+        end
+    end)
+end)
+
 --[[
     Kits
 ]]
