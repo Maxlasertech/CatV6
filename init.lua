@@ -93,7 +93,7 @@ if not shared.VapeDeveloper then
 			if body and typeof(body) == 'table' then
 				for _, v in body do
 					if v.type == 'file' then
-						pcall(downloadFile, 'catrewrite/'.. ({v.path:gsub(' ', '%20')})[1])
+						pcall(downloadFile, 'catrewrite/'.. ({v.path:gsub(' ', '%%20')})[1])
 					end
 				end
 			end
