@@ -240,12 +240,6 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 	local p, q, r = targetVelocity.X, targetVelocity.Y, targetVelocity.Z
 	local h, j, k = disp.X, disp.Y, disp.Z
 	local l = -.5 * gravity
-
-	local f = workspace:Raycast(targetPos, Vector3.new(0, -playerHeight - 0.5, 0), params)
-	if f ~= nil and q <= 0.1 then
-		q = -(targetPos.Y - f.Position.Y)
-	end
-
 	--attemped gravity calculation, may return to it in the future.
 	if math.abs(q) > 0.01 and playerGravity and playerGravity > 0 then
 		local estTime = (disp.Magnitude / projectileSpeed)
@@ -275,22 +269,20 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 		2*j*q + 2*h*p + 2*k*r,
 		j*j + h*h + k*k
 	)
-
 	if solutions then
-		local bestT = math.huge
-		for _, v in solutions do
-			if v > 0 and v < bestT then
-				bestT = v
+		local posRoots = table.create(2)
+		for _, v in solutions do --filter out the negative roots
+			if v > 0 then
+				table.insert(posRoots, v)
 			end
 		end
-	
-		if bestT < math.huge then
-			local t = bestT
-			local d = (h + p * t) / t
-			local e = (j + q * t - l * t * t) / t
-			local f2 = (k + r * t) / t
-			local aimDir = Vector3.new(d, e, f2).Unit
-			return origin + Vector3.new(d, e, f2), aimDir, t
+		posRoots[1] = posRoots[1]
+		if posRoots[1] then
+			local t = posRoots[1]
+			local d = (h + p*t)/t
+			local e = (j + q*t - l*t*t)/t
+			local f = (k + r*t)/t
+			return origin + Vector3.new(d, e, f)
 		end
 	elseif gravity == 0 then
 		local t = (disp.Magnitude / projectileSpeed)
@@ -299,6 +291,7 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 		local f = (k + r*t)/t
 		return origin + Vector3.new(d, e, f)
 	end
+
 end
 
 return module

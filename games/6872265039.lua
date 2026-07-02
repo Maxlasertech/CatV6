@@ -182,19 +182,3 @@ run(function()
         Tooltip = 'Automatically opens lucky crates, piston inspired!'
     })
 end)
-
-run(function()
-    local Claim = bedwars.Client:Get('ClaimAchievementRewards')
-    
-    vape.Categories.Minigames:CreateModule({
-        Name = 'Infinite Rewards',
-        Function = function(callback)
-            if callback then
-                for i in bedwars.AchievementId do
-                    Claim:SendToServer({id = i:lower()})
-                end
-            end
-        end,
-        Tooltip = 'Automatically claims all rewards ingame.'
-    })
-end)

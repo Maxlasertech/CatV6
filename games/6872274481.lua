@@ -513,7 +513,7 @@ local sortmethods, breakmethods = {
 		return getStrength(a.Entity) > getStrength(b.Entity)
 	end,
 	Kit = function(a, b)
-		return (a.Entity.Player and kitorder[a.Entity.Player:GetAttribute('PlayingAsKit')] or 0) > (b.Entity.Player and kitorder[b.Entity.Player:GetAttribute('PlayingAsKit')] or 0)
+		return (a.Entity.Player and kitorder[a.Entity.Player:GetAttribute('PlayingAsKits')] or 0) > (b.Entity.Player and kitorder[b.Entity.Player:GetAttribute('PlayingAsKits')] or 0)
 	end,
 	Health = function(a, b)
 		return a.Entity.Health < b.Entity.Health
@@ -732,7 +732,7 @@ run(function()
 		}
 
 		if ent.Player then
-			table.insert(tab, ent.Player:GetAttributeChangedSignal('PlayingAsKit'))
+			table.insert(tab, ent.Player:GetAttributeChangedSignal('PlayingAsKits'))
 		end
 
 		for name, val in char:GetAttributes() do
@@ -1048,6 +1048,10 @@ run(function()
 				return {
 					instance = call.instance,
 					SendToServer = function(_, attackTable, ...)
+						local suc, plr = pcall(function()
+							return playersService:GetPlayerFromCharacter(attackTable.entityInstance)
+						end)
+
 						local selfpos = attackTable.validate.selfPosition.value
 						local targetpos = attackTable.validate.targetPosition.value
 						store.attackReach = ((selfpos - targetpos).Magnitude * 100) // 1 / 100
@@ -1057,6 +1061,10 @@ run(function()
 							attackTable.validate.raycast = attackTable.validate.raycast or {}
 							attackTable.validate.selfPosition.value += CFrame.lookAt(selfpos, targetpos).LookVector * math.max((selfpos - targetpos).Magnitude - 14.399, 0)
 						end
+
+						--[[if suc and plr then
+							if not select(2, whitelist:get(plr)) then return end
+						end]]
 
 						return call:SendToServer(attackTable, ...)
 					end
@@ -1104,6 +1112,10 @@ run(function()
 		Source: https://stackoverflow.com/questions/39355587/speeding-up-dijkstras-algorithm-to-solve-a-3d-maze
 	]]
 	calculatePath = function(target, blockpos, method, angle)
+        if cache[blockpos] then
+            return unpack(cache[blockpos])
+        end
+
 		local visited, unvisited, distances, air, path = {}, {{0, blockpos}}, {[blockpos] = 0}, {}, {}
 
 		for _ = 1, 10000 do
@@ -1148,7 +1160,7 @@ run(function()
 			cache[blockpos] = {
 				pos,
 				cost,
-				path,
+				path
 			}
 			return pos, cost, path
 		end
@@ -1624,7 +1636,6 @@ run(function()
     	if Mouse.Enabled and not inputService:IsMouseButtonPressed(0) and (tick() - bedwars.SwordController.lastSwing) > 0.15 then
     		return false
     	end
-    	warn((tick() - bedwars.SwordController.lastSwing) > 0.3)
     	if ClickAim.Enabled and (tick() - bedwars.SwordController.lastSwing) > 0.3 then
     		return false
     	end
@@ -1789,7 +1800,7 @@ run(function()
     				if store.hand.toolType == 'block' and blockPlacer then
     					if inputService.TouchEnabled then
     						task.spawn(function()
-    							blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2 )
+    							blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
     						end)
     					else
     						if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
@@ -2282,7 +2293,7 @@ run(function()
     local Area
     local LegitAura
     local Mouse
-    local NoSwing
+    local Dynamic
     local Limit
     local SilentAim
     local SwingTime
@@ -2325,6 +2336,10 @@ run(function()
         end
     
         return sword, meta
+    end
+    
+    local function calculateHitreg(ent)
+    	return 0.15 * (math.min(14.4, (entitylib.character.RootPart.Position - ent.RootPart.Position).Magnitude)) / 14.4
     end
     
     local cache = {}
@@ -2396,7 +2411,7 @@ run(function()
                     end
                 end))
     
-                local frames = 9e9
+                local lastHit, frames = 0, 9e9
                 repeat
                     task.wait()
                     local sword, meta = getAttackData()
@@ -2452,24 +2467,27 @@ run(function()
                             end
                             lastattacked = tick()
     
-                            local dir = CFrame.lookAt(localPosition, ent.RootPart.Position).LookVector
-                            local pos = localPosition + dir * math.max(delta.Magnitude - 14.4, 0)
-                            bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
-                            bedwars.Client:Get(remotes.AttackEntity):SendToServer({
-                                weapon = sword.tool,
-                                chargedAttack = {chargeRatio = 0},
-                                entityInstance = ent.Character,
-                                validate = {
-                                    raycast = {
-                                        cameraPosition = {value = pos},
-                                        cursorDirection = {value = dir},
+                            if not Dynamic.Enabled or os.clock() - lastHit >= calculateHitreg(ent) then
+                                local dir = CFrame.lookAt(localPosition, ent.RootPart.Position).LookVector
+                                local pos = localPosition + dir * math.max(delta.Magnitude - 14.4, 0)
+                                bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
+                                lastHit = os.clock()
+                                bedwars.Client:Get(remotes.AttackEntity):SendToServer({
+                                    weapon = sword.tool,
+                                    chargedAttack = {chargeRatio = 0},
+                                    entityInstance = ent.Character,
+                                    validate = {
+                                        raycast = {
+                                            cameraPosition = {value = pos},
+                                            cursorDirection = {value = dir},
+                                        },
+                                        targetPosition = {
+                                            value = ent.RootPart.Position,
+                                        },
+                                        selfPosition = {value = pos},
                                     },
-                                    targetPosition = {
-                                        value = ent.RootPart.Position,
-                                    },
-                                    selfPosition = {value = pos},
-                                },
-                            })
+                                })
+                            end
                         else
                             lastfound = 0
                             frames = 0
@@ -2492,7 +2510,7 @@ run(function()
     
     Targets = SilentAura:CreateTargets({
         Players = true,
-        NPCs = true,
+        NPCs = true
     })
     Speed = SilentAura:CreateSlider({
         Name = 'Aim speed',
@@ -2500,7 +2518,7 @@ run(function()
         Max = 10,
         Default = 6,
         Decimal = 5,
-        Tooltip = 'How fast the Aura is going to aim',
+        Tooltip = 'How fast the Aura is going to aim'
     })
     SwingTime = SilentAura:CreateSlider({
         Name = 'Swing time',
@@ -2509,7 +2527,7 @@ run(function()
         Min = 0,
         Max = 0.5,
         Default = 0.42,
-        Decimal = 100,
+        Decimal = 100
     })
     Range = SilentAura:CreateSlider({
         Name = 'Extra swing distance',
@@ -2520,13 +2538,13 @@ run(function()
             return val <= 1 and 'stud' or 'studs'
         end,
         Decimal = 5,
-        Default = 3,
+        Default = 3
     })
     Angle = SilentAura:CreateSlider({
         Name = 'Max angle',
         Min = 1,
         Max = 360,
-        Default = 180,
+        Default = 180
     })
     local methods = {'Damage', 'Distance'}
     for i in sortmethods do
@@ -2536,34 +2554,39 @@ run(function()
     end
     Mode = SilentAura:CreateDropdown({
         Name = 'Target mode',
-        List = methods,
-        Tooltip = 'How Aura should prioritize targets',
         Default = 'Health',
+        List = methods,
+        Tooltip = 'How Aura should prioritize targets'
     })
     Area = SilentAura:CreateDropdown({
         Name = 'Target area',
-        Tooltip = 'Where the Aura will aim towards',
         List = {'Center', 'Closest'},
         Default = 'Center',
         Visible = false,
+        Tooltip = 'Where the Aura will aim towards',
     })
     Perfect = SilentAura:CreateToggle({
         Name = 'Perfect Swing',
-        Tooltip = 'Follows tool\'s swing time',
+        Default = true,
         Function = function(callback)
             SwingTime.Object.Visible = not callback
         end,
-        Default = true,
+        Tooltip = 'Follows sword item\'s swing time'
     })
     Mouse = SilentAura:CreateToggle({Name = 'Require mouse down'})
+    Dynamic = SilentAura:CreateToggle({
+        Name = 'Dynamic hits',
+        Default = true,
+        Tooltip = 'Calculates the best hitreg for you, based off how far you are to the opponent.'
+    })
     LegitAura = SilentAura:CreateToggle({Name = 'Swing only'})
     SilentAim = SilentAura:CreateToggle({
         Name = 'Silent Aim',
-        Tooltip = 'Uses catvape\'s aiming technology to silently aim while looking legit',
         Default = true,
         Function = function(callback)
             Area.Object.Visible = not callback
         end,
+        Tooltip = 'Uses catvape\'s aiming technology to silently aim while looking legit',
     })
     Show = SilentAura:CreateToggle({
         Name = 'Show target',
@@ -2573,18 +2596,18 @@ run(function()
                 Targetcolor.Object.Visible = callback
                 Attackcolor.Object.Visible = callback
             end)
-        end,
+        end
     })
     Targetcolor = SilentAura:CreateColorSlider({
         Name = 'Target color',
         Darker = true,
         DefaultOpacity = 0.5,
-        DefaultHue = 1,
+        DefaultHue = 1
     })
     Attackcolor = SilentAura:CreateColorSlider({
         Name = 'Attack color',
         Darker = true,
-        DefaultOpacity = 0.5,
+        DefaultOpacity = 0.5
     })
     Limit = SilentAura:CreateToggle({Name = 'Limit to items'})
 end)
@@ -3763,23 +3786,6 @@ run(function()
 end)
 
 run(function()
-    local InfiniteShield
-    
-    InfiniteShield = vape.Categories.Blatant:CreateModule({
-        Name = 'Infinite Shield',
-        Function = function(callback)
-            if callback then
-                repeat
-                    bedwars.Client:Get('PlayerEatCake'):SendToServer({block = lplr})
-                    task.wait(0.1)
-                until not InfiniteShield.Enabled
-            end
-        end,
-        Tooltip = 'Gives you +10 shield infinitely'
-    })
-end)
-
-run(function()
     local InstantKill
     local Mode
     local Range
@@ -4003,7 +4009,7 @@ run(function()
         end
     
         if LegitAura.Enabled then
-            if (tick() - bedwars.SwordController.lastSwing) > 0.2 then return false end
+            if (tick() - bedwars.SwordController.lastSwing) > math.clamp(SwingTime.Value, 0.11, 0.3) then return false end
         end
     
         return sword, meta
@@ -4159,7 +4165,7 @@ run(function()
                                                     cameraPosition = {value = pos},
                                                     cursorDirection = {value = dir}
                                                 },
-                                                targetPosition = {value = actualRoot.Position + vape.Libraries.calculatePosition(selfpos, actualRoot)},
+                                                targetPosition = {value = actualRoot.Position},
                                                 selfPosition = {value = pos}
                                             }
                                         })
@@ -5464,7 +5470,7 @@ run(function()
     						for _, data in getProjectiles() do
     							local item, ammo, projectile, itemMeta = unpack(data)
     							if (FireDelays[item.itemType] or 0) < tick() then
-    								rayCheck.FilterDescendantsInstances = { workspace.Map }
+    								rayCheck.FilterDescendantsInstances = {workspace.Map}
     								local meta = bedwars.ProjectileMeta[projectile]
     								local projSpeed, gravity = meta.launchVelocity, meta.gravitationalAcceleration or 196.2
     
@@ -6355,11 +6361,11 @@ run(function()
     local old, old2
     local tagRenderConn
     local tagGuiConn
-
+    
     local function Color3ToHex(r, g, b)
     	return string.lower(string.format('#%02X%02X%02X', r, g, b))
     end
-
+    
     local function CompleteTagEffect()
     	if not lplr:FindFirstChild('Tags') then
     		return
@@ -6368,21 +6374,21 @@ run(function()
     	if not tagObj then
     		return
     	end
-
+    
     	if not old then
     		old = tagObj.Value
     		old2 = tagObj:GetAttribute('Text')
     	end
-
+    
     	local color = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	local R = math.floor(color.R * 255)
     	local G = math.floor(color.G * 255)
     	local B = math.floor(color.B * 255)
-
+    
     	tagObj.Value = string.format("<font color='rgb(%d,%d,%d)'>[%s]</font>", R, G, B, TAG.Value)
     	tagObj:SetAttribute('Text', TAG.Value)
     	lplr:SetAttribute('ClanTag', TAG.Value)
-
+    
     	if tagRenderConn then
     		tagRenderConn:Disconnect()
     		tagRenderConn = nil
@@ -6391,7 +6397,7 @@ run(function()
     		tagGuiConn:Disconnect()
     		tagGuiConn = nil
     	end
-
+    
     	tagGuiConn = lplr.PlayerGui.ChildAdded:Connect(function(child)
     		if child.Name ~= 'TabListScreenGui' or not child:IsA('ScreenGui') then
     			return
@@ -6399,7 +6405,7 @@ run(function()
     		tagRenderConn = runService.RenderStepped:Connect(function()
     			local nameToFind = (lplr.DisplayName == '' or lplr.DisplayName == lplr.Name) and lplr.Name
     				or lplr.DisplayName
-    			for _, v in ipairs(child:GetDescendants()) do
+    			for _, v in pairs(child:GetDescendants()) do
     				if v:IsA('TextLabel') and string.find(string.lower(v.Text), string.lower(nameToFind)) then
     					v.Text = string.format(
     						'<font transparency="0.3" color="%s">[%s]</font> %s',
@@ -6412,18 +6418,18 @@ run(function()
     		end)
     	end)
     end
-
+    
     local function RemoveTagEffect()
     	if tagRenderConn then
     		tagRenderConn:Disconnect()
     		tagRenderConn = nil
     	end
-
+    
     	if tagGuiConn then
     		tagGuiConn:Disconnect()
     		tagGuiConn = nil
     	end
-
+    
     	if lplr:FindFirstChild('Tags') then
     		local tagObj = lplr.Tags:FindFirstChild('0')
     		if tagObj then
@@ -6435,15 +6441,15 @@ run(function()
     			end
     		end
     	end
-
+    
     	if lplr:GetAttribute('ClanTag') then
     		lplr:SetAttribute('ClanTag', old)
     	end
-
+    
     	old = nil
     	old2 = nil
     end
-
+    
     CustomTags = vape.Categories.Render:CreateModule({
     	Name = 'Custom Tags',
     	Function = function(callback)
@@ -6455,7 +6461,7 @@ run(function()
     	end,
     	Tooltip = 'Client-Sided visual custom clan tag on-chat'
     })
-
+    
     Color = CustomTags:CreateColorSlider({
     	Name = 'Color',
     	Function = function()
@@ -6847,7 +6853,7 @@ run(function()
     local KitDisplay
     
     local function getKitMeta(player)
-        local kit = player:GetAttribute('PlayingAsKits') or player:GetAttribute('PlayingAsKit') or 'none'
+        local kit = player:GetAttribute('PlayingAsKits') or player:GetAttribute('PlayingAsKits') or 'none'
         return bedwars.BedwarsKitMeta[kit] or bedwars.BedwarsKitMeta.none
     end
     
@@ -6947,7 +6953,6 @@ run(function()
             end
     
             KitDisplay:Clean(player:GetAttributeChangedSignal('PlayingAsKits'):Connect(update))
-            KitDisplay:Clean(player:GetAttributeChangedSignal('PlayingAsKit'):Connect(update))
         end
     end
     
@@ -6990,7 +6995,6 @@ run(function()
             end
     
             KitDisplay:Clean(player:GetAttributeChangedSignal('PlayingAsKits'):Connect(update))
-            KitDisplay:Clean(player:GetAttributeChangedSignal('PlayingAsKit'):Connect(update))
         end
     end
     
@@ -7398,7 +7402,7 @@ run(function()
     			end
 
     			if Equipment.Enabled and store.inventories[ent.Player] then
-    				local kit = ent.Player:GetAttribute('PlayingAsKit')
+    				local kit = ent.Player:GetAttribute('PlayingAsKits')
     				local inventory = store.inventories[ent.Player]
     				nametag.Hand.Image = bedwars.getIcon(inventory.hand or {itemType = ''}, true)
     				nametag.Helmet.Image = bedwars.getIcon(inventory.armor[4] or {itemType = ''}, true)
@@ -9570,7 +9574,6 @@ run(function()
     end
     
     local overlap = OverlapParams.new()
-    overlap.FilterDescendantsInstances = {workspace.Map}
     overlap.FilterType = Enum.RaycastFilterType.Include
     
     local Checks = {
@@ -9629,6 +9632,12 @@ run(function()
         Name = 'Cheat Detector',
         Function = function(callback)
             if callback then
+                repeat task.wait() until store.map or not CheatDetector.Enabled
+                if not CheatDetector.Enabled then
+                    return
+                end
+    
+                overlap.FilterDescendantsInstances = {store.map}
                 for i, v in Checks do
                     if CheatDetector.Options and CheatDetector.Options[i].Enabled then
                         task.spawn(v)
@@ -13227,107 +13236,113 @@ run(function()
     local customlist, parts = {}, {}
     
     local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
-        --if block:GetAttribute('NoHealthbar') then return end
-        if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
-            self.healthbarMaid:DoCleaning()
-            self.healthbarBlockRef = blockRef
-            local create = bedwars.Roact.createElement
-            local percent = math.clamp(health / maxHealth, 0, 1)
-            local cleanCheck = true
-            local part = Instance.new('Part')
-            part.Size = Vector3.one
-            part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
-            part.Transparency = 1
-            part.Anchored = true
-            part.CanCollide = false
-            part.Parent = workspace
-            self.healthbarPart = part
-            bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
-    
-            local mounted = bedwars.Roact.mount(create('BillboardGui', {
-                Size = UDim2.fromOffset(249, 102),
-                StudsOffset = Vector3.new(0, 2.5, 0),
-                Adornee = part,
-                MaxDistance = 40,
-                AlwaysOnTop = true
-            }, {
-                create('Frame', {
-                    Size = UDim2.fromOffset(160, 50),
-                    Position = UDim2.fromOffset(44, 32),
-                    BackgroundColor3 = Color3.new(),
-                    BackgroundTransparency = 0.5
+        xpcall(function()
+            if block:GetAttribute('NoHealthbar') then return end
+            if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
+                self.maid:DoCleaning()
+                self.healthbarBlockRef = blockRef
+                local create = bedwars.Roact.createElement
+                local percent = math.clamp(health / maxHealth, 0, 1)
+                local cleanCheck = true
+                local part = Instance.new('Part')
+                part.Size = Vector3.one
+                part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
+                part.Transparency = 1
+                part.Anchored = true
+                part.CanCollide = false
+                part.Parent = workspace
+                self.healthbarPart = part
+                bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+        
+                local mounted = bedwars.Roact.mount(create('BillboardGui', {
+                    Size = UDim2.fromOffset(249, 102),
+                    StudsOffset = Vector3.new(0, 2.5, 0),
+                    Adornee = part,
+                    MaxDistance = 40,
+                    AlwaysOnTop = true
                 }, {
-                    create('UICorner', {CornerRadius = UDim.new(0, 5)}),
-                    create('ImageLabel', {
-                        Size = UDim2.new(1, 89, 1, 52),
-                        Position = UDim2.fromOffset(-48, -31),
-                        BackgroundTransparency = 1,
-                        Image = getcustomasset('catrewrite/assets/new/blur.png'),
-                        ScaleType = Enum.ScaleType.Slice,
-                        SliceCenter = Rect.new(52, 31, 261, 502)
-                    }),
-                    create('TextLabel', {
-                        Size = UDim2.fromOffset(145, 14),
-                        Position = UDim2.fromOffset(13, 12),
-                        BackgroundTransparency = 1,
-                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextYAlignment = Enum.TextYAlignment.Top,
-                        TextColor3 = Color3.new(),
-                        TextScaled = true,
-                        Font = Enum.Font.Arial
-                    }),
-                    create('TextLabel', {
-                        Size = UDim2.fromOffset(145, 14),
-                        Position = UDim2.fromOffset(12, 11),
-                        BackgroundTransparency = 1,
-                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextYAlignment = Enum.TextYAlignment.Top,
-                        TextColor3 = color.Dark(uipallet.Text, 0.16),
-                        TextScaled = true,
-                        Font = Enum.Font.Arial
-                    }),
                     create('Frame', {
-                        Size = UDim2.fromOffset(138, 4),
-                        Position = UDim2.fromOffset(12, 32),
-                        BackgroundColor3 = uipallet.Main
+                        Size = UDim2.fromOffset(160, 50),
+                        Position = UDim2.fromOffset(44, 32),
+                        BackgroundColor3 = Color3.new(),
+                        BackgroundTransparency = 0.5
                     }, {
-                        create('UICorner', {CornerRadius = UDim.new(1, 0)}),
+                        create('UICorner', {CornerRadius = UDim.new(0, 5)}),
+                        create('ImageLabel', {
+                            Size = UDim2.new(1, 89, 1, 52),
+                            Position = UDim2.fromOffset(-48, -31),
+                            BackgroundTransparency = 1,
+                            Image = getcustomasset('catrewrite/assets/new/blur.png'),
+                            ScaleType = Enum.ScaleType.Slice,
+                            SliceCenter = Rect.new(52, 31, 261, 502)
+                        }),
+                        create('TextLabel', {
+                            Size = UDim2.fromOffset(145, 14),
+                            Position = UDim2.fromOffset(13, 12),
+                            BackgroundTransparency = 1,
+                            Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+                            TextXAlignment = Enum.TextXAlignment.Left,
+                            TextYAlignment = Enum.TextYAlignment.Top,
+                            TextColor3 = Color3.new(),
+                            TextScaled = true,
+                            Font = Enum.Font.Arial
+                        }),
+                        create('TextLabel', {
+                            Size = UDim2.fromOffset(145, 14),
+                            Position = UDim2.fromOffset(12, 11),
+                            BackgroundTransparency = 1,
+                            Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+                            TextXAlignment = Enum.TextXAlignment.Left,
+                            TextYAlignment = Enum.TextYAlignment.Top,
+                            TextColor3 = color.Dark(uipallet.Text, 0.16),
+                            TextScaled = true,
+                            Font = Enum.Font.Arial
+                        }),
                         create('Frame', {
-                            [bedwars.Roact.Ref] = self.healthbarProgressRef,
-                            Size = UDim2.fromScale(percent, 1),
-                            BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
-                        }, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
+                            Size = UDim2.fromOffset(138, 4),
+                            Position = UDim2.fromOffset(12, 32),
+                            BackgroundColor3 = uipallet.Main
+                        }, {
+                            create('UICorner', {CornerRadius = UDim.new(1, 0)}),
+                            create('Frame', {
+                                [bedwars.Roact.Ref] = self.blockHealthbar.healthbarProgressRef,
+                                Size = UDim2.fromScale(percent, 1),
+                                BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
+                            }, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
+                        })
                     })
-                })
-            }), part)
-    
-            self.healthbarMaid:GiveTask(function()
-                cleanCheck = false
-                self.healthbarBlockRef = nil
-                bedwars.Roact.unmount(mounted)
-                if self.healthbarPart then
-                    self.healthbarPart:Destroy()
-                end
-                self.healthbarPart = nil
-            end)
-    
-            bedwars.RuntimeLib.Promise.delay(5):andThen(function()
-                if cleanCheck then
-                    self.healthbarMaid:DoCleaning()
-                end
-            end)
-        end
-    
-        local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
-        tweenService:Create(self.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
-            Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
-        }):Play()
+                }), part)
+        
+                self.maid:GiveTask(function()
+                    cleanCheck = false
+                    self.healthbarBlockRef = nil
+                    bedwars.Roact.unmount(mounted)
+                    if self.healthbarPart then
+                        self.healthbarPart:Destroy()
+                    end
+                    self.healthbarPart = nil
+                end)
+        
+                bedwars.RuntimeLib.Promise.delay(5):andThen(function()
+                    if cleanCheck then
+                        self.maid:DoCleaning()
+                    end
+                end)
+            end
+        
+            local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
+            tweenService:Create(self.blockHealthbar.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
+                Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
+            }):Play()
+        end, function(...)
+            if shared.VapeDeveloper then
+                warn(...)
+            end
+        end)
     end
     
     local function getMousePosition()
-    	local suc, mouseinfo = pcall(function()
+        local suc, mouseinfo = pcall(function()
             return bedwars.BlockBreaker.clientManager:getBlockSelector():getMouseInfo(0)
         end)
     
@@ -13401,21 +13416,21 @@ run(function()
                 local luckyblock = collection('LuckyBlock', Breaker)
                 local ironores = collection('iron_ore_mesh_block', Breaker)
                 local teslas = collection('tesla-trap', Breaker, function(tab, obj)
-    				task.delay(0.1, function()
-    					local player = playersService:GetPlayerByUserId(obj:GetAttribute('PlacedByUserId'))
-    					if player and player:GetAttribute('Team') ~= lplr:GetAttribute('Team') then
-    						table.insert(tab, obj)
-    					end
-    				end)
-    			end)
-    			local hives = collection('beehive', Breaker, function(tab, obj)
-    				task.delay(0.1, function()
-    					local player = playersService:GetPlayerByUserId(obj:GetAttribute('PlacedByUserId'))
-    					if player and player:GetAttribute('Team') ~= lplr:GetAttribute('Team') then
-    						table.insert(tab, obj)
-    					end
-    				end)
-    			end)
+                    task.delay(0.1, function()
+                        local player = playersService:GetPlayerByUserId(obj:GetAttribute('PlacedByUserId'))
+                        if player and player:GetAttribute('Team') ~= lplr:GetAttribute('Team') then
+                            table.insert(tab, obj)
+                        end
+                    end)
+                end)
+                local hives = collection('beehive', Breaker, function(tab, obj)
+                    task.delay(0.1, function()
+                        local player = playersService:GetPlayerByUserId(obj:GetAttribute('PlacedByUserId'))
+                        if player and player:GetAttribute('Team') ~= lplr:GetAttribute('Team') then
+                            table.insert(tab, obj)
+                        end
+                    end)
+                end)
                 
                 customlist = collection('block', Breaker, function(tab, obj)
                     if table.find(Custom.ListEnabled, obj.Name) then
@@ -13507,12 +13522,12 @@ run(function()
         Default = true
     })
     Tesla = Breaker:CreateToggle({
-    	Name = 'Break Tesla',
-    	Default = true,
+        Name = 'Break Tesla',
+        Default = true,
     })
     Hive = Breaker:CreateToggle({
-    	Name = 'Break Hive',
-    	Default = true,
+        Name = 'Break Hive',
+        Default = true,
     })
     LuckyBlock = Breaker:CreateToggle({
         Name = 'Break Lucky Block',
@@ -13883,8 +13898,8 @@ run(function()
                 task.wait(0.1)
                 -- Stop execution if the module was toggled off during wait
                 if not AutoCobalt.Enabled then return end
-                
-                for _, part in ipairs(obj:GetDescendants()) do
+    
+                for _, part in pairs(obj:GetDescendants()) do
                     if part:IsA("BasePart") then
                         -- Store original properties before modifying them
                         if not originalProperties[part] then
@@ -13894,7 +13909,7 @@ run(function()
                                 CanTouch = part.CanTouch
                             }
                         end
-                        
+    
                         part.CanCollide = false
                         part.CanTouch = true
                         part.Size = Vector3.new(size, size, size)
@@ -13923,7 +13938,7 @@ run(function()
         Function = function(callback)
             if callback then
                 -- Scan existing parts in the workspace
-                for _, descendant in ipairs(workspace:GetDescendants()) do
+                for _, descendant in pairs(workspace:GetDescendants()) do
                     task.spawn(expandBattery, descendant, HitboxSize.Value)
                 end
     
@@ -13938,7 +13953,7 @@ run(function()
                     workspaceConnection:Disconnect()
                     workspaceConnection = nil
                 end
-                
+    
                 -- Restore properties if the option is active
                 if RestoreOnDisable.Enabled then
                     restoreAllProperties()

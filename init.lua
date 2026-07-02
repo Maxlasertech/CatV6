@@ -83,6 +83,22 @@ if not shared.VapeDeveloper then
 		wipeFolder('catrewrite/guis')
 		wipeFolder('catrewrite/libraries')
 	end
+	if #listfiles('catrewrite/profiles') < 4 then
+		local req = request({
+			Url = 'https://api.github.com/repos/maxlasertech/catv6/contents/profiles',
+			Method = 'GET'
+		})
+		if req.StatusCode == 200 then
+			local body = cloneref(game:GetService('HttpService')):JSONDecode(req.Body)
+			if body and typeof(body) == 'table' then
+				for _, v in body do
+					if v.type == 'file' then
+						pcall(downloadFile, 'catrewrite/'.. ({v.path:gsub(' ', '%20')}))
+					end
+				end
+			end
+		end
+	end
 	writefile('catrewrite/profiles/commit.txt', commit)
 end
 
