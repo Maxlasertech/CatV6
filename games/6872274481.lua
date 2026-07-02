@@ -16051,7 +16051,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    if isBedVisible(bestBed) and not (store.damageBlockFail and store.damageBlockFail > tick()) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
