@@ -15656,416 +15656,448 @@ end)
 
 run(function()
     local KingDraco
-    local Range
-    local BreakSpeed
-    local UpdateRate
-    local Angle
-    local Effect
-    local CustomHealth = {}
-    local Animation
-    local SelfBreak
-    local InstantBreak
-    local AutoTool
-    local LimitItem
-    local ShowPath
-    local LOSStrict
-    local parts = {}
-    local losRayParams
+    local RangeSetting, SpeedSetting, TickRate
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak
+    local EffectsOn, HealthDisplay, Anim, PathOverlay
 
-    local function passesChecks(v)
-        if not SelfBreak.Enabled then
-            if v.Name == 'bed' then
-                local myTeam = lplr.Character and (lplr.Character:GetAttribute('Team') or lplr.Character:GetAttribute('TeamId'))
-                if myTeam and tonumber(v:GetAttribute('TeamId')) == tonumber(myTeam) then
-                    return false
-                end
-            end
-            local blockTeam = v:GetAttribute('Team') or v:GetAttribute('TeamId')
-            local myTeam = lplr.Character and (lplr.Character:GetAttribute('Team') or lplr.Character:GetAttribute('TeamId'))
-            if blockTeam and myTeam and tonumber(blockTeam) == tonumber(myTeam) then
-                return false
-            end
-            if v:GetAttribute('PlacedByUserId') == lplr.UserId then
-                return false
-            end
+    local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
+    local targetGlow, bedGlow
+    local pathParts = {}
+    local losFilter
+
+    local function refreshFilter()
+        if not losFilter then
+            losFilter = RaycastParams.new()
+            losFilter.FilterType = Enum.RaycastFilterType.Include
+            losFilter.RespectCanCollide = false
         end
-        if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then
-            return false
+        local list = {}
+        for _, b in store.blocks do
+            if b and b.Parent then table.insert(list, b) end
         end
-        if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
-            return false
-        end
-        return true
+        losFilter.FilterDescendantsInstances = list
     end
 
-    local function hasLineOfSight(targetPos)
-        if not losRayParams then
-            losRayParams = RaycastParams.new()
-            losRayParams.FilterType = Enum.RaycastFilterType.Include
-            losRayParams.RespectCanCollide = false
-        end
-
-        local blockStore = bedwars.BlockController:getStore()
-        local allBlocks = {}
-        for _, b in store.blocks do
-            if b and b.Parent then
-                table.insert(allBlocks, b)
-            end
-        end
-        losRayParams.FilterDescendantsInstances = allBlocks
-
-        local camPos = gameCamera.CFrame.Position
-        local dir = targetPos - camPos
-        local distance = dir.Magnitude
-        if distance < 0.1 then return true end
-
-        local result = workspace:Raycast(camPos, dir, losRayParams)
-        if not result then
-            return true
-        end
-
-        local hitDist = (result.Position - camPos).Magnitude
-        local targetDist = distance
-        return hitDist >= (targetDist - 1.5)
-    end
-
-    local function hasLOSToBlock(blockPos)
-        if not losRayParams then
-            losRayParams = RaycastParams.new()
-            losRayParams.FilterType = Enum.RaycastFilterType.Include
-            losRayParams.RespectCanCollide = false
-        end
-
-        local allBlocks = {}
-        for _, b in store.blocks do
-            if b and b.Parent then
-                table.insert(allBlocks, b)
-            end
-        end
-        losRayParams.FilterDescendantsInstances = allBlocks
-
-        local camPos = gameCamera.CFrame.Position
-        local offsets = {
+    local function isVisible(worldPos)
+        local eye = gameCamera.CFrame.Position
+        for _, off in {
             Vector3.zero,
-            Vector3.new(1.4, 0, 0), Vector3.new(-1.4, 0, 0),
-            Vector3.new(0, 1.4, 0), Vector3.new(0, -1.4, 0),
-            Vector3.new(0, 0, 1.4), Vector3.new(0, 0, -1.4),
-        }
+            Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
+            Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
+            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
+        } do
+            local probe = worldPos + off
+            local _, onScreen = gameCamera:WorldToViewportPoint(probe)
+            if not onScreen then continue end
 
-        for _, offset in offsets do
-            local testPos = blockPos + offset
-            local dir = testPos - camPos
-            local distance = dir.Magnitude
-            if distance < 0.1 then return true end
-
-            local result = workspace:Raycast(camPos, dir, losRayParams)
-            if not result then
-                return true
-            end
-
-            local hitDist = (result.Position - camPos).Magnitude
-            if hitDist >= (distance - 1.5) then
-                return true
-            end
-
-            local hitBlock = result.Instance
-            if hitBlock and (hitBlock.Position - blockPos).Magnitude < 2.5 then
-                return true
-            end
+            local ray = probe - eye
+            local hit = workspace:Raycast(eye, ray, losFilter)
+            if not hit then return true end
+            if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
+            if hit.Instance and (hit.Instance.Position - worldPos).Magnitude < 2.5 then return true end
         end
-
         return false
     end
 
-    local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
-        if block:GetAttribute('NoHealthbar') then return end
-        if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
-            self.healthbarMaid:DoCleaning()
-            self.healthbarBlockRef = blockRef
-            local create = bedwars.Roact.createElement
-            local percent = math.clamp(health / maxHealth, 0, 1)
-            local cleanCheck = true
-            local part = Instance.new('Part')
-            part.Size = Vector3.one
-            part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
-            part.Transparency = 1
-            part.Anchored = true
-            part.CanCollide = false
-            part.Parent = workspace
-            self.healthbarPart = part
-            bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
-            local mounted = bedwars.Roact.mount(create('BillboardGui', {
-                Size = UDim2.fromOffset(249, 102),
-                StudsOffset = Vector3.new(0, 2.5, 0),
-                Adornee = part,
-                MaxDistance = 40,
-                AlwaysOnTop = true
-            }, {
-                create('Frame', {
-                    Size = UDim2.fromOffset(160, 50),
-                    Position = UDim2.fromOffset(44, 32),
-                    BackgroundColor3 = Color3.new(),
-                    BackgroundTransparency = 0.5
-                }, {
-                    create('UICorner', {CornerRadius = UDim.new(0, 5)}),
-                    create('ImageLabel', {
-                        Size = UDim2.new(1, 89, 1, 52),
-                        Position = UDim2.fromOffset(-48, -31),
-                        BackgroundTransparency = 1,
-                        Image = getcustomasset('newvape/assets/new/blur.png'),
-                        ScaleType = Enum.ScaleType.Slice,
-                        SliceCenter = Rect.new(52, 31, 261, 502)
-                    }),
-                    create('TextLabel', {
-                        Size = UDim2.fromOffset(145, 14),
-                        Position = UDim2.fromOffset(13, 12),
-                        BackgroundTransparency = 1,
-                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextYAlignment = Enum.TextYAlignment.Top,
-                        TextColor3 = Color3.new(),
-                        TextScaled = true,
-                        Font = Enum.Font.Arial
-                    }),
-                    create('TextLabel', {
-                        Size = UDim2.fromOffset(145, 14),
-                        Position = UDim2.fromOffset(12, 11),
-                        BackgroundTransparency = 1,
-                        Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextYAlignment = Enum.TextYAlignment.Top,
-                        TextColor3 = color.Dark(uipallet.Text, 0.16),
-                        TextScaled = true,
-                        Font = Enum.Font.Arial
-                    }),
-                    create('Frame', {
-                        Size = UDim2.fromOffset(138, 4),
-                        Position = UDim2.fromOffset(12, 32),
-                        BackgroundColor3 = uipallet.Main
-                    }, {
-                        create('UICorner', {CornerRadius = UDim.new(1, 0)}),
-                        create('Frame', {
-                            [bedwars.Roact.Ref] = self.healthbarProgressRef,
-                            Size = UDim2.fromScale(percent, 1),
-                            BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
-                        }, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
-                    })
-                })
-            }), part)
-            self.healthbarMaid:GiveTask(function()
-                cleanCheck = false
-                self.healthbarBlockRef = nil
-                bedwars.Roact.unmount(mounted)
-                if self.healthbarPart then
-                    self.healthbarPart:Destroy()
-                end
-                self.healthbarPart = nil
-            end)
-            bedwars.RuntimeLib.Promise.delay(5):andThen(function()
-                if cleanCheck then
-                    self.healthbarMaid:DoCleaning()
-                end
-            end)
+    local function eligible(block)
+        if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
+        if not BreakSelf.Enabled then
+            local myTeam = lplr.Character and (lplr.Character:GetAttribute('Team') or lplr.Character:GetAttribute('TeamId'))
+            if block.Name == 'bed' and myTeam and tonumber(block:GetAttribute('TeamId')) == tonumber(myTeam) then return false end
+            local bTeam = block:GetAttribute('Team') or block:GetAttribute('TeamId')
+            if bTeam and myTeam and tonumber(bTeam) == tonumber(myTeam) then return false end
+            if block:GetAttribute('PlacedByUserId') == lplr.UserId then return false end
         end
-        local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
-        tweenService:Create(self.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
-            Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
-        }):Play()
-    end
-
-    local function wrappedHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
-        if CustomHealth.Enabled then
-            customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+        if ItemLimit.Enabled then
+            local handMeta = store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name]
+            if not (handMeta and handMeta.breakBlock) then return false end
         end
-    end
-
-    local function doBreak(v)
-        local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, wrappedHealthbar, InstantBreak.Enabled or AutoTool.Enabled, nil, Angle.Value, true)
-        if path and ShowPath and ShowPath.Enabled then
-            local currentnode = target
-            for _, part in parts do
-                part.Position = currentnode or Vector3.zero
-                if currentnode then
-                    part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
-                end
-                currentnode = path[currentnode]
-            end
-        end
-        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
         return true
     end
 
-    local function findBestBed(beds, localPosition)
-        local best, bestDist = nil, math.huge
-        for _, v in beds do
-            if not v or not v.Parent then continue end
-            local dist = (v.Position - localPosition).Magnitude
-            if dist >= Range.Value or dist >= bestDist then continue end
-            if not passesChecks(v) then continue end
-            if not hasLineOfSight(v.Position) then continue end
-            best = v
-            bestDist = dist
-        end
-        return best
+    local function equipFor(block)
+        if not ToolSwitch.Enabled then return end
+        if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) <= 0.4 then return end
+        local meta = bedwars.ItemMeta[block.Name]
+        if not meta or not meta.block then return end
+        local tool = store.tools[meta.block.breakType]
+        if tool then switchItem(tool.tool) end
     end
 
-    local function findBestDefenseBlock(bed, localPosition)
-        local bedPos = bed.Position
-        local best, bestCost = nil, math.huge
+    local function readHP(block, gridPos)
+        local data = bedwars.BlockController:getStore():getBlockData(gridPos)
+        return data and (data:GetAttribute('1') or data:GetAttribute('Health')) or block:GetAttribute('Health') or block:GetAttribute('MaxHealth') or 0
+    end
 
-        for _, v in store.blocks do
-            if not v or not v.Parent or v == bed then continue end
-            if v.Name == 'bed' then continue end
-            if v:GetAttribute('NoBreak') then continue end
-            local distFromBed = (v.Position - bedPos).Magnitude
-            if distFromBed > 12 then continue end
-            local distFromPlayer = (v.Position - localPosition).Magnitude
-            if distFromPlayer > Range.Value then continue end
-            if not passesChecks(v) then continue end
-            if not hasLOSToBlock(v.Position) then continue end
+    local function spawnBar(block)
+        if hp.gui then hp.gui:Destroy() end
 
-            local blockPos = bedwars.BlockController:getBlockPosition(v.Position)
-            local ok, canBreak = pcall(function()
-                return bedwars.BlockController:isBlockBreakable({blockPosition = blockPos}, lplr)
-            end)
-            if not (ok and canBreak) then continue end
+        local bb = Instance.new('BillboardGui')
+        bb.Size = UDim2.fromOffset(120, 22)
+        bb.StudsOffset = Vector3.new(0, 3, 0)
+        bb.AlwaysOnTop = true
+        bb.MaxDistance = 40
+        bb.Adornee = block
 
-            local hits = getBlockHits(v, v.Position)
-            local cost = hits + (distFromPlayer * 0.05)
-            if cost < bestCost then
-                bestCost = cost
-                best = v
+        local label = Instance.new('TextLabel')
+        label.Size = UDim2.new(1, 0, 0, 13)
+        label.BackgroundTransparency = 1
+        label.Text = (bedwars.ItemMeta[block.Name] and bedwars.ItemMeta[block.Name].displayName) or block.Name
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextStrokeTransparency = 0.3
+        label.TextStrokeColor3 = Color3.new()
+        label.TextSize = 12
+        label.Font = Enum.Font.GothamBold
+        label.Parent = bb
+
+        local track = Instance.new('Frame')
+        track.Size = UDim2.new(1, 0, 0, 5)
+        track.Position = UDim2.new(0, 0, 0, 15)
+        track.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        track.BackgroundTransparency = 0.15
+        track.BorderSizePixel = 0
+        track.Parent = bb
+        local tc = Instance.new('UICorner')
+        tc.CornerRadius = UDim.new(1, 0)
+        tc.Parent = track
+        local ts = Instance.new('UIStroke')
+        ts.Thickness = 1
+        ts.Color = Color3.fromRGB(55, 55, 55)
+        ts.Parent = track
+
+        local fill = Instance.new('Frame')
+        fill.Size = UDim2.fromScale(1, 1)
+        fill.BackgroundColor3 = Color3.fromRGB(80, 220, 80)
+        fill.BorderSizePixel = 0
+        fill.Parent = track
+        local fc = Instance.new('UICorner')
+        fc.CornerRadius = UDim.new(1, 0)
+        fc.Parent = fill
+
+        bb.Parent = gameCamera
+        hp.gui = bb
+        hp.fill = fill
+        hp.block = block
+        hp.current = -1
+        hp.max = -1
+    end
+
+    local function tweenBar(pct)
+        if not hp.fill or not hp.fill.Parent then return end
+        local c = math.clamp(pct, 0, 1)
+        tweenService:Create(hp.fill, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+            Size = UDim2.fromScale(c, 1),
+            BackgroundColor3 = Color3.fromHSV(c / 3, 0.85, 0.9)
+        }):Play()
+    end
+
+    local function killBar()
+        if hp.gui then
+            hp.gui:Destroy()
+            hp.gui = nil
+            hp.fill = nil
+            hp.block = nil
+            hp.current = -1
+        end
+    end
+
+    local function strike(block)
+        if lplr:GetAttribute('DenyBlockBreak') or not entitylib.isAlive or InfiniteFly.Enabled then return false end
+
+        local gridPos = bedwars.BlockController:getBlockPosition(block.Position)
+        equipFor(block)
+
+        local curHP = readHP(block, gridPos)
+        local maxHP = block:GetAttribute('MaxHealth') or curHP
+        if HealthDisplay.Enabled and hp.block ~= block then
+            spawnBar(block)
+        end
+        if hp.block == block and hp.current == -1 then
+            hp.current = curHP
+            hp.max = maxHP
+        end
+
+        bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync({
+            blockRef = {blockPosition = gridPos},
+            hitPosition = block.Position,
+            hitNormal = Vector3.FromNormalId(Enum.NormalId.Top)
+        }):andThen(function(result)
+            if not result then return end
+            if result == 'cancelled' then
+                store.damageBlockFail = tick() + 1
+                return
+            end
+
+            if EffectsOn.Enabled then
+                local afterHP = readHP(block, gridPos)
+                local dmg = hp.current - (result == 'destroyed' and 0 or afterHP)
+                hp.current = math.max(hp.current - dmg, 0)
+
+                if hp.max > 0 then
+                    tweenBar(hp.current / hp.max)
+                end
+
+                if hp.current <= 0 then
+                    pcall(function() bedwars.BlockBreaker.breakEffect:playBreak(block.Name, gridPos, lplr) end)
+                    killBar()
+                else
+                    pcall(function() bedwars.BlockBreaker.breakEffect:playHit(block.Name, gridPos, lplr) end)
+                end
+            end
+
+            if Anim.Enabled then
+                task.spawn(function()
+                    local a = bedwars.AnimationUtil:playAnimation(lplr, bedwars.BlockController:getAnimationController():getAssetId(1))
+                    bedwars.ViewmodelController:playAnimation(15)
+                    task.wait(0.3)
+                    if a then a:Stop() a:Destroy() end
+                end)
+            end
+        end)
+        return true
+    end
+
+    local function planAttack(bed)
+        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
+        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        local best = {entry = nil, cost = math.huge, route = nil, anchor = nil}
+
+        for _, cp in contained do
+            local anchor = cp * 3
+            local seen = {}
+            local frontier = {{0, anchor}}
+            local costs = {}
+            costs[anchor] = 0
+            local prev = {}
+
+            for _ = 1, 5000 do
+                local pick, pickI = nil, nil
+                for i, f in frontier do
+                    if not seen[f[2]] and (not pick or f[1] < pick[1]) then
+                        pick, pickI = f, i
+                    end
+                end
+                if not pick then break end
+                seen[pick[2]] = true
+
+                local exposed = false
+                for _, dir in sides do
+                    local np = pick[2] + dir
+                    if seen[np] then continue end
+                    local nb = getPlacedBlock(np)
+                    if not nb or nb:GetAttribute('NoBreak') or nb == bed then
+                        if not nb then exposed = true end
+                        continue
+                    end
+                    local h = getBlockHits(nb, np)
+                    local nc = pick[1] + h
+                    if nc < (costs[np] or math.huge) then
+                        costs[np] = nc
+                        prev[np] = pick[2]
+                        table.insert(frontier, {nc, np})
+                    end
+                end
+
+                if exposed and pick[2] ~= anchor and pick[1] < best.cost then
+                    if isVisible(pick[2]) then
+                        local route = {}
+                        local cur = pick[2]
+                        while cur and cur ~= anchor do
+                            table.insert(route, cur)
+                            cur = prev[cur]
+                        end
+                        best.entry = pick[2]
+                        best.cost = pick[1]
+                        best.route = route
+                        best.anchor = anchor
+                    end
+                end
             end
         end
-        return best
+
+        return best.entry, best.route, best.anchor
+    end
+
+    local function drawPath(route, entry, anchor)
+        local need = (route and #route or 0) + 2
+        while #pathParts < need do
+            local p = Instance.new('Part')
+            p.Anchored = true
+            p.CanQuery = false
+            p.CanCollide = false
+            p.Transparency = 1
+            p.Size = Vector3.new(3, 3, 3)
+            p.Parent = gameCamera
+            local box = Instance.new('SelectionBox')
+            box.Name = 'Box'
+            box.LineThickness = 0.04
+            box.SurfaceTransparency = 0.75
+            box.Adornee = p
+            box.Parent = p
+            table.insert(pathParts, p)
+        end
+
+        local idx = 1
+        if entry and idx <= #pathParts then
+            pathParts[idx].Position = entry
+            pathParts[idx].Box.Color3 = Color3.fromRGB(255, 50, 50)
+            pathParts[idx].Box.SurfaceColor3 = Color3.fromRGB(255, 50, 50)
+            idx += 1
+        end
+        if route then
+            for _, pos in route do
+                if pos == entry then continue end
+                if idx > #pathParts then break end
+                pathParts[idx].Position = pos
+                pathParts[idx].Box.Color3 = Color3.fromRGB(50, 255, 50)
+                pathParts[idx].Box.SurfaceColor3 = Color3.fromRGB(50, 255, 50)
+                idx += 1
+            end
+        end
+        if anchor and idx <= #pathParts then
+            pathParts[idx].Position = anchor
+            pathParts[idx].Box.Color3 = Color3.fromRGB(50, 80, 255)
+            pathParts[idx].Box.SurfaceColor3 = Color3.fromRGB(50, 80, 255)
+            idx += 1
+        end
+        for i = idx, #pathParts do
+            pathParts[i].Position = Vector3.new(0, -9999, 0)
+        end
+    end
+
+    local function clearPath()
+        for _, p in pathParts do
+            p.Position = Vector3.new(0, -9999, 0)
+        end
+    end
+
+    local function fullCleanup()
+        killBar()
+        for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
+        table.clear(pathParts)
+        if targetGlow then targetGlow:Destroy() targetGlow = nil end
+        if bedGlow then bedGlow:Destroy() bedGlow = nil end
     end
 
     KingDraco = vape.Categories.Minigames:CreateModule({
         Name = 'KingDraco',
         Function = function(callback)
             if callback then
-                for _ = 1, 20 do
-                    local part = Instance.new('Part')
-                    part.Anchored = true
-                    part.CanQuery = false
-                    part.CanCollide = false
-                    part.Transparency = 1
-                    part.Parent = gameCamera
-                    local highlight = Instance.new('BoxHandleAdornment')
-                    highlight.Size = Vector3.one
-                    highlight.AlwaysOnTop = true
-                    highlight.ZIndex = 1
-                    highlight.Transparency = 0.5
-                    highlight.Adornee = part
-                    highlight.Parent = part
-                    table.insert(parts, part)
-                end
+                targetGlow = Instance.new('Highlight')
+                targetGlow.FillTransparency = 0.75
+                targetGlow.OutlineTransparency = 0
+                targetGlow.FillColor = Color3.fromRGB(255, 80, 80)
+                targetGlow.OutlineColor = Color3.fromRGB(255, 200, 200)
+                targetGlow.Parent = gameCamera
+
+                bedGlow = Instance.new('Highlight')
+                bedGlow.FillTransparency = 0.85
+                bedGlow.OutlineTransparency = 0.3
+                bedGlow.FillColor = Color3.fromRGB(80, 80, 255)
+                bedGlow.OutlineColor = Color3.fromRGB(180, 180, 255)
+                bedGlow.Parent = gameCamera
 
                 local beds = collection('bed', KingDraco)
 
                 repeat
-                    task.wait(1 / UpdateRate.Value)
+                    task.wait(1 / TickRate.Value)
                     if not KingDraco.Enabled then break end
-                    if entitylib.isAlive then
-                        local localPosition = entitylib.character.RootPart.Position
-                        local bed = findBestBed(beds, localPosition)
+                    if not entitylib.isAlive then
+                        clearPath()
+                        killBar()
+                        targetGlow.Adornee = nil
+                        bedGlow.Adornee = nil
+                        continue
+                    end
 
-                        if bed then
-                            if hasLineOfSight(bed.Position) then
-                                local directLOS = hasLOSToBlock(bed.Position)
-                                if directLOS then
-                                    doBreak(bed)
-                                    continue
-                                end
-                            end
+                    local origin = entitylib.character.RootPart.Position
+                    refreshFilter()
 
-                            local defenseBlock = findBestDefenseBlock(bed, localPosition)
-                            if defenseBlock then
-                                if hasLOSToBlock(defenseBlock.Position) then
-                                    doBreak(defenseBlock)
-                                    continue
-                                end
-                            end
-                        end
-
-                        for _, v in parts do
-                            v.Position = Vector3.zero
+                    local bestBed, bestDist = nil, math.huge
+                    for _, b in beds do
+                        if not b or not b.Parent then continue end
+                        if not eligible(b) then continue end
+                        local d = (b.Position - origin).Magnitude
+                        if d < RangeSetting.Value and d < bestDist then
+                            bestBed, bestDist = b, d
                         end
                     end
+
+                    if not bestBed then
+                        clearPath()
+                        killBar()
+                        targetGlow.Adornee = nil
+                        bedGlow.Adornee = nil
+                        continue
+                    end
+
+                    bedGlow.Adornee = bestBed
+
+                    if isVisible(bestBed.Position) then
+                        targetGlow.Adornee = bestBed
+                        if PathOverlay.Enabled then clearPath() end
+                        strike(bestBed)
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
+                    end
+
+                    local entry, route, anchor = planAttack(bestBed)
+                    if entry then
+                        local entryBlock = getPlacedBlock(entry)
+                        if entryBlock and isVisible(entry) then
+                            targetGlow.Adornee = entryBlock
+                            if PathOverlay.Enabled then drawPath(route, entry, anchor) end
+                            strike(entryBlock)
+                            task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                            continue
+                        end
+                    end
+
+                    targetGlow.Adornee = nil
+                    clearPath()
+                    killBar()
                 until not KingDraco.Enabled
             else
-                for _, v in parts do
-                    v:ClearAllChildren()
-                    v:Destroy()
-                end
-                table.clear(parts)
+                fullCleanup()
             end
         end,
-        Tooltip = 'Bed breaker with strict line-of-sight — only breaks what you can actually see from your camera'
+        Tooltip = 'Camera-aware bed breaker — only breaks blocks visible from your camera, never through walls'
     })
 
-    Range = KingDraco:CreateSlider({
-        Name = 'Break range',
-        Min = 1,
-        Max = 30,
-        Default = 30,
-        Suffix = function(val)
-            return val == 1 and 'stud' or 'studs'
-        end
+    RangeSetting = KingDraco:CreateSlider({
+        Name = 'Range',
+        Min = 1, Max = 30, Default = 30,
+        Suffix = function(val) return val == 1 and 'stud' or 'studs' end
     })
-    BreakSpeed = KingDraco:CreateSlider({
-        Name = 'Break speed',
-        Min = 0,
-        Max = 0.3,
-        Default = 0.25,
-        Decimal = 100,
+    SpeedSetting = KingDraco:CreateSlider({
+        Name = 'Break delay',
+        Min = 0, Max = 0.3, Default = 0.25, Decimal = 100,
         Suffix = 'seconds'
     })
-    Angle = KingDraco:CreateSlider({
-        Name = 'Max angle',
-        Min = 1,
-        Max = 360,
-        Default = 120
-    })
-    UpdateRate = KingDraco:CreateSlider({
-        Name = 'Update rate',
-        Min = 1,
-        Max = 120,
-        Default = 60,
+    TickRate = KingDraco:CreateSlider({
+        Name = 'Tick rate',
+        Min = 1, Max = 120, Default = 60,
         Suffix = 'hz'
     })
-    Effect = KingDraco:CreateToggle({
-        Name = 'Show Healthbar & Effects',
-        Function = function(callback)
-            if CustomHealth.Object then
-                CustomHealth.Object.Visible = callback
-            end
-        end,
-        Default = true
-    })
-    CustomHealth = KingDraco:CreateToggle({Name = 'Custom Healthbar', Default = true, Darker = true})
-    Animation = KingDraco:CreateToggle({Name = 'Animation'})
-    SelfBreak = KingDraco:CreateToggle({Name = 'Self Break'})
-    InstantBreak = KingDraco:CreateToggle({Name = 'Instant Break'})
-    AutoTool = KingDraco:CreateToggle({
-        Name = 'Auto Tool',
-        Tooltip = 'Automatically switches to the best tool for breaking blocks'
-    })
-    LimitItem = KingDraco:CreateToggle({
-        Name = 'Limit to items',
-        Tooltip = 'Only breaks when tools are held'
-    })
-    ShowPath = KingDraco:CreateToggle({
-        Name = 'Show Path',
+    EffectsOn = KingDraco:CreateToggle({Name = 'Effects', Default = true})
+    HealthDisplay = KingDraco:CreateToggle({Name = 'Health display', Default = true, Darker = true})
+    Anim = KingDraco:CreateToggle({Name = 'Break animation'})
+    PathOverlay = KingDraco:CreateToggle({
+        Name = 'Path overlay',
         Default = true,
-        Tooltip = 'Show path boxes when breaking blocks'
+        Tooltip = 'Shows the planned break path: red = entry, green = route, blue = bed'
     })
-
-    task.defer(function()
-        if CustomHealth and CustomHealth.Object then
-            CustomHealth.Object.Visible = Effect.Enabled
-        end
-    end)
+    ToolSwitch = KingDraco:CreateToggle({
+        Name = 'Auto tool',
+        Default = true,
+        Tooltip = 'Equips the best tool for each block type before breaking'
+    })
+    BreakSelf = KingDraco:CreateToggle({Name = 'Self break'})
+    QuickBreak = KingDraco:CreateToggle({Name = 'Instant break'})
+    ItemLimit = KingDraco:CreateToggle({
+        Name = 'Limit to items',
+        Tooltip = 'Only breaks when holding a tool'
+    })
 end)
 
 --[[
