@@ -15717,16 +15717,6 @@ run(function()
         return false
     end
 
-    local function bedHasOpening(bed)
-        for _, cp in bedContainedPositions(bed) do
-            local wp = cp * 3
-            for _, dir in sides do
-                if not getPlacedBlock(wp + dir) then return true end
-            end
-        end
-        return false
-    end
-
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16061,7 +16051,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if bedHasOpening(bestBed) then
+                    if isBedVisible(bestBed) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
