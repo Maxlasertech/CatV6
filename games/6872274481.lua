@@ -16051,14 +16051,6 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
-                        targetGlow.Adornee = bestBed
-                        if PathOverlay.Enabled then clearPath() end
-                        strike(bestBed)
-                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
-                        continue
-                    end
-
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
@@ -16069,6 +16061,12 @@ run(function()
                             task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
                             continue
                         end
+                    elseif isBedVisible(bestBed) then
+                        targetGlow.Adornee = bestBed
+                        if PathOverlay.Enabled then clearPath() end
+                        strike(bestBed)
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
                     end
 
                     targetGlow.Adornee = nil
