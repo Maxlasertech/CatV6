@@ -15700,6 +15700,8 @@ run(function()
         local root = entitylib.character and entitylib.character.RootPart
         if not root then return false end
         local start = roundPos(root.Position)
+        local bedCenter = bed.Position
+        local startDist = (start - bedCenter).Magnitude
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
         local bedCells = {}
@@ -15719,8 +15721,9 @@ run(function()
                 local key = next.X .. '_' .. next.Y .. '_' .. next.Z
                 if bedCells[key] then return true end
                 if visited[key] then continue end
+                if (next - bedCenter).Magnitude > (pos - bedCenter).Magnitude + 1 then continue end
                 visited[key] = true
-                if (next - start).Magnitude > 9 then continue end
+                if (next - start).Magnitude > startDist + 3 then continue end
                 local block = getPlacedBlock(next)
                 if not block then
                     table.insert(queue, next)
