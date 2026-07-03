@@ -14669,17 +14669,22 @@ run(function()
         return (cache - block.Position).Magnitude
     end
     
-    local function hasBedDefense(bed)
+    local function getNearestDefenseBlock(bed, localPosition)
         local bedPos = bed.Position
+        local best, bestDist = nil, math.huge
         for _, v in store.blocks do
             if v and v.Parent and v ~= bed then
                 local diff = v.Position - bedPos
                 if diff.Magnitude <= 5 and diff.Y >= 0 then
-                    return true
+                    local dist = (v.Position - localPosition).Magnitude
+                    if dist < bestDist and dist < Range.Value then
+                        best = v
+                        bestDist = dist
+                    end
                 end
             end
         end
-        return false
+        return best
     end
 
     local function attemptBreak(tab, localPosition, isBed)
@@ -14689,7 +14694,15 @@ run(function()
                 if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
-                if isBed and BreakthroughBlock and BreakthroughBlock.Enabled and hasBedDefense(v) then continue end
+                if isBed and BreakthroughBlock and BreakthroughBlock.Enabled then
+                    local defenseBlock = getNearestDefenseBlock(v, localPosition)
+                    if defenseBlock then
+                        hit += 1
+                        bedwars.breakBlock(defenseBlock, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
+                        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
+                        return true
+                    end
+                end
     
                 hit += 1
                 local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
