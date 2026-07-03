@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 13
+local VERSION = 14
 local run = function(func)
 	func()
 end
@@ -14563,7 +14563,6 @@ run(function()
     local SelfBreak
     local InstantBreak
     local LimitItem
-    local BreakthroughBlock
     local Closet
     local customlist, parts = {}, {}
     
@@ -14694,43 +14693,13 @@ run(function()
         return (cache - block.Position).Magnitude
     end
     
-    local breakerRayParams
-    local function getBlockingDefense(bed, localPosition)
-        if not breakerRayParams then
-            breakerRayParams = RaycastParams.new()
-            breakerRayParams.FilterType = Enum.RaycastFilterType.Include
-            breakerRayParams.RespectCanCollide = false
-        end
-        local list = {}
-        for _, b in store.blocks do
-            if b and b.Parent then table.insert(list, b) end
-        end
-        breakerRayParams.FilterDescendantsInstances = list
-        local ray = bed.Position - localPosition
-        local result = workspace:Raycast(localPosition, ray, breakerRayParams)
-        if not result then return nil end
-        if result.Instance and result.Instance ~= bed and (result.Instance.Position - bed.Position).Magnitude <= 5 then
-            return result.Instance
-        end
-        return nil
-    end
-
-    local function attemptBreak(tab, localPosition, isBed)
+    local function attemptBreak(tab, localPosition)
         if not tab then return end
         for _, v in tab do
             if (v.Position - localPosition).Magnitude < Range.Value and bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr) then
                 if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
-                if isBed and BreakthroughBlock and BreakthroughBlock.Enabled then
-                    local blocker = getBlockingDefense(v, localPosition)
-                    if blocker then
-                        hit += 1
-                        bedwars.breakBlock(blocker, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
-                        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
-                        return true
-                    end
-                end
     
                 hit += 1
                 local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
@@ -14807,7 +14776,7 @@ run(function()
                     if entitylib.isAlive then
                         local localPosition = entitylib.character.RootPart.Position
     
-                        if attemptBreak(Bed.Enabled and beds, localPosition, true) then continue end
+                        if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
                         if attemptBreak(Tesla.Enabled and teslas, localPosition) then continue end
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
                         if attemptBreak(customlist, localPosition) then continue end
@@ -14918,11 +14887,6 @@ run(function()
     SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
     InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
-    BreakthroughBlock = Breaker:CreateToggle({
-        Name = 'Breakthrough block',
-        Default = true,
-        Tooltip = 'Skips beds that have defense blocks around them'
-    })
     Closet =  Breaker:CreateToggle({
         Name = 'Closest break',
         Tooltip = 'Uses ur mouse\'s position to get the closet block to you',
