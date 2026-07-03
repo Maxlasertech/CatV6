@@ -14669,22 +14669,25 @@ run(function()
         return (cache - block.Position).Magnitude
     end
     
-    local function getNearestDefenseBlock(bed, localPosition)
-        local bedPos = bed.Position
-        local best, bestDist = nil, math.huge
-        for _, v in store.blocks do
-            if v and v.Parent and v ~= bed then
-                local diff = v.Position - bedPos
-                if diff.Magnitude <= 5 and diff.Y >= 0 then
-                    local dist = (v.Position - localPosition).Magnitude
-                    if dist < bestDist and dist < Range.Value then
-                        best = v
-                        bestDist = dist
-                    end
-                end
-            end
+    local breakerRayParams
+    local function getBlockingDefense(bed, localPosition)
+        if not breakerRayParams then
+            breakerRayParams = RaycastParams.new()
+            breakerRayParams.FilterType = Enum.RaycastFilterType.Include
+            breakerRayParams.RespectCanCollide = false
         end
-        return best
+        local list = {}
+        for _, b in store.blocks do
+            if b and b.Parent then table.insert(list, b) end
+        end
+        breakerRayParams.FilterDescendantsInstances = list
+        local ray = bed.Position - localPosition
+        local result = workspace:Raycast(localPosition, ray, breakerRayParams)
+        if not result then return nil end
+        if result.Instance and result.Instance ~= bed and (result.Instance.Position - bed.Position).Magnitude <= 5 then
+            return result.Instance
+        end
+        return nil
     end
 
     local function attemptBreak(tab, localPosition, isBed)
@@ -14695,10 +14698,10 @@ run(function()
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
                 if isBed and BreakthroughBlock and BreakthroughBlock.Enabled then
-                    local defenseBlock = getNearestDefenseBlock(v, localPosition)
-                    if defenseBlock then
+                    local blocker = getBlockingDefense(v, localPosition)
+                    if blocker then
                         hit += 1
-                        bedwars.breakBlock(defenseBlock, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
+                        bedwars.breakBlock(blocker, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
                         task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
                         return true
                     end
