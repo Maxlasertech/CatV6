@@ -15697,35 +15697,23 @@ run(function()
     end
 
     local function isBedVisible(bed)
+        local root = entitylib.character and entitylib.character.RootPart
+        if not root then return false end
+        local charPos = root.Position
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        local exposed = false
         for _, cp in contained do
             local wp = cp * 3
             for _, dir in sides do
                 if not getPlacedBlock(wp + dir) then
-                    exposed = true
-                    break
+                    local face = wp + dir * 0.5
+                    local ray = face - charPos
+                    local hit = workspace:Raycast(charPos, ray, losFilter)
+                    if not hit then return true end
+                    if (hit.Position - charPos).Magnitude >= ray.Magnitude - 1.5 then return true end
+                    if hit.Instance and (hit.Instance.Position - wp).Magnitude < 2.5 then return true end
                 end
             end
-            if exposed then break end
-        end
-        if not exposed then return false end
-        if AngleSetting.Value >= 360 then return true end
-        if AngleSetting.Value > 0 then
-            local look = gameCamera.CFrame.LookVector
-            local eye = gameCamera.CFrame.Position
-            local halfAngle = math.rad(AngleSetting.Value / 2)
-            for _, cp in contained do
-                local dir = (cp * 3 - eye).Unit
-                if math.acos(math.clamp(look:Dot(dir), -1, 1)) <= halfAngle then
-                    return true
-                end
-            end
-            return false
-        end
-        for _, cp in contained do
-            if isVisible(cp * 3) then return true end
         end
         return false
     end
