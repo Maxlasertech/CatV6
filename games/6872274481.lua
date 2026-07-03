@@ -15684,13 +15684,7 @@ run(function()
             Vector3.zero,
             Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
             Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
-            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35),
-            Vector3.new(1.8, 0, 0), Vector3.new(-1.8, 0, 0),
-            Vector3.new(0, 0, 1.8), Vector3.new(0, 0, -1.8),
-            Vector3.new(1.8, 0, 1.8), Vector3.new(1.8, 0, -1.8),
-            Vector3.new(-1.8, 0, 1.8), Vector3.new(-1.8, 0, -1.8),
-            Vector3.new(1.8, -1.35, 0), Vector3.new(-1.8, -1.35, 0),
-            Vector3.new(0, -1.35, 1.8), Vector3.new(0, -1.35, -1.8)
+            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
         } do
             local probe = worldPos + off
             local ray = probe - eye
@@ -15705,8 +15699,20 @@ run(function()
     local function isBedVisible(bed)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        local eye = gameCamera.CFrame.Position
         for _, cp in contained do
-            if isVisible(cp * 3) then return true end
+            local wp = cp * 3
+            if isVisible(wp) then return true end
+            for _, dir in sides do
+                if not getPlacedBlock(wp + dir) then
+                    local face = wp + dir * 0.5
+                    local ray = face - eye
+                    local hit = workspace:Raycast(eye, ray, losFilter)
+                    if not hit then return true end
+                    if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
+                    if hit.Instance and (hit.Instance.Position - wp).Magnitude < 2.5 then return true end
+                end
+            end
         end
         return false
     end
