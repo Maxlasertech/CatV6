@@ -15656,7 +15656,7 @@ end)
 
 run(function()
     local KingDraco
-    local RangeSetting, SpeedSetting, TickRate, BreakMode
+    local RangeSetting, SpeedSetting, TickRate, BreakMode, AngleSetting
     local ToolSwitch, ItemLimit, BreakSelf, QuickBreak
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
@@ -15697,22 +15697,23 @@ run(function()
     end
 
     local function isBedVisible(bed)
+        if AngleSetting.Value >= 360 then return true end
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        local eye = gameCamera.CFrame.Position
-        for _, cp in contained do
-            local wp = cp * 3
-            if isVisible(wp) then return true end
-            for _, dir in sides do
-                if not getPlacedBlock(wp + dir) then
-                    local face = wp + dir * 0.5
-                    local ray = face - eye
-                    local hit = workspace:Raycast(eye, ray, losFilter)
-                    if not hit then return true end
-                    if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
-                    if hit.Instance and (hit.Instance.Position - wp).Magnitude < 2.5 then return true end
+        if AngleSetting.Value > 0 then
+            local look = gameCamera.CFrame.LookVector
+            local eye = gameCamera.CFrame.Position
+            local halfAngle = math.rad(AngleSetting.Value / 2)
+            for _, cp in contained do
+                local dir = (cp * 3 - eye).Unit
+                if math.acos(math.clamp(look:Dot(dir), -1, 1)) <= halfAngle then
+                    return true
                 end
             end
+            return false
+        end
+        for _, cp in contained do
+            if isVisible(cp * 3) then return true end
         end
         return false
     end
@@ -16103,6 +16104,12 @@ run(function()
         List = {'Health', 'Distance'},
         Default = 'Health',
         Tooltip = 'Health = fewest hits first, Distance = closest blocks first'
+    })
+    AngleSetting = KingDraco:CreateSlider({
+        Name = 'Bed angle',
+        Min = 0, Max = 360, Default = 360,
+        Suffix = '°',
+        Tooltip = '360 = break bed from any angle, 0 = camera raycast only'
     })
     EffectsOn = KingDraco:CreateToggle({Name = 'Effects', Default = true})
     HealthDisplay = KingDraco:CreateToggle({Name = 'Health display', Default = true, Darker = true})
