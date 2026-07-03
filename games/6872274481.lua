@@ -1983,31 +1983,63 @@ run(function()
         return id
     end
 
+    local function findShopCards(parent, results)
+        results = results or {}
+        for _, child in parent:GetChildren() do
+            local itemType = child.Name:match('^(.+)_ShopItemCard$')
+            if itemType then
+                table.insert(results, {element = child, itemType = itemType})
+            end
+            if #child:GetChildren() > 0 then
+                findShopCards(child, results)
+            end
+        end
+        return results
+    end
+
     local function getHoveredItem(touchPos)
-        local mousepos = touchPos or (inputService:GetMouseLocation() - guiService:GetGuiInset())
-        log('getHoveredItem pos:', mousepos.X, mousepos.Y)
-        local guiObjects = lplr.PlayerGui:GetGuiObjectsAtPosition(mousepos.X, mousepos.Y)
+        local screenPos = touchPos or (inputService:GetMouseLocation() - guiService:GetGuiInset())
+        log('getHoveredItem pos:', screenPos.X, screenPos.Y)
+
+        local guiObjects = lplr.PlayerGui:GetGuiObjectsAtPosition(screenPos.X, screenPos.Y)
         log('GUI objects at position:', #guiObjects)
         for i, v in guiObjects do
-            local chain = {}
             local obj = v
-            while obj and obj ~= lplr.PlayerGui do
-                table.insert(chain, obj.Name..'('..obj.ClassName..')')
-                obj = obj.Parent
-            end
-            log('obj['..i..'] chain:', table.concat(chain, ' > '))
-
-            obj = v
             while obj and obj ~= lplr.PlayerGui do
                 local itemType = obj.Name:match('^(.+)_ShopItemCard$')
                 if itemType then
-                    log('found item:', itemType)
+                    log('found item (walk-up):', itemType)
                     return itemType
                 end
                 obj = obj.Parent
             end
         end
-        log('no ShopItemCard found')
+
+        log('walk-up failed, scanning shop GUI for ShopItemCards...')
+        local cards = findShopCards(lplr.PlayerGui)
+        log('found', #cards, 'ShopItemCard elements total')
+        local inset = guiService:GetGuiInset()
+        for _, card in cards do
+            local el = card.element
+            local abs = el.AbsolutePosition
+            local sz = el.AbsoluteSize
+            local minX, minY = abs.X, abs.Y
+            local maxX, maxY = abs.X + sz.X, abs.Y + sz.Y
+            local checkX = screenPos.X + inset.X
+            local checkY = screenPos.Y + inset.Y
+            if checkX >= minX and checkX <= maxX and checkY >= minY and checkY <= maxY then
+                log('found item (bounds):', card.itemType, '| pos:', minX, minY, 'size:', sz.X, sz.Y)
+                return card.itemType
+            end
+        end
+
+        for _, card in cards do
+            local el = card.element
+            local abs = el.AbsolutePosition
+            local sz = el.AbsoluteSize
+            log('card:', card.itemType, '| absPos:', abs.X, abs.Y, '| absSize:', sz.X, sz.Y)
+        end
+        log('no ShopItemCard matched touch position')
     end
 
     local function canBuy(item)
@@ -2087,7 +2119,7 @@ run(function()
                     log('shop open:', shopOpen)
                     if not shopOpen then return end
 
-                    local touchPos = input.UserInputType == Enum.UserInputType.Touch and (Vector2.new(input.Position.X, input.Position.Y) - guiService:GetGuiInset()) or nil
+                    local touchPos = input.UserInputType == Enum.UserInputType.Touch and Vector2.new(input.Position.X, input.Position.Y) or nil
                     log('touchPos:', touchPos and (touchPos.X..','..touchPos.Y) or 'nil (using mouse)')
                     local itemType = getHoveredItem(touchPos)
                     log('hovered item:', itemType or 'NONE')
