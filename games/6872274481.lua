@@ -14639,12 +14639,14 @@ run(function()
         return (cache - block.Position).Magnitude
     end
     
+    local down = Vector3.new(0, -3, 0)
     local function hasBedDefense(bed)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
         for _, cp in contained do
             local worldPos = cp * 3
             for _, side in sides do
+                if side == down then continue end
                 local block = getPlacedBlock(worldPos + side)
                 if block and block ~= bed then return true end
             end
