@@ -15720,7 +15720,7 @@ run(function()
                 if bedCells[key] then return true end
                 if visited[key] then continue end
                 visited[key] = true
-                if (next - start).Magnitude > 18 then continue end
+                if (next - start).Magnitude > 9 then continue end
                 local block = getPlacedBlock(next)
                 if not block then
                     table.insert(queue, next)
