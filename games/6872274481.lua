@@ -14509,6 +14509,7 @@ run(function()
     local InstantBreak
     local LimitItem
     local Nuker
+    local BreakthroughBlock
     local Closet
     local customlist, parts = {}, {}
     
@@ -14639,13 +14640,27 @@ run(function()
         return (cache - block.Position).Magnitude
     end
     
-    local function attemptBreak(tab, localPosition)
+    local function hasBedDefense(bed)
+        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
+        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        for _, cp in contained do
+            local worldPos = cp * 3
+            for _, side in sides do
+                local block = getPlacedBlock(worldPos + side)
+                if block and block ~= bed then return true end
+            end
+        end
+        return false
+    end
+
+    local function attemptBreak(tab, localPosition, isBed)
         if not tab then return end
         for _, v in tab do
             if (v.Position - localPosition).Magnitude < Range.Value and bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr) then
                 if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
+                if isBed and BreakthroughBlock and BreakthroughBlock.Enabled and hasBedDefense(v) then continue end
     
                 hit += 1
                 local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, not Nuker.Enabled)
@@ -14722,7 +14737,7 @@ run(function()
                     if entitylib.isAlive then
                         local localPosition = entitylib.character.RootPart.Position
     
-                        if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
+                        if attemptBreak(Bed.Enabled and beds, localPosition, true) then continue end
                         if attemptBreak(Tesla.Enabled and teslas, localPosition) then continue end
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
                         if attemptBreak(customlist, localPosition) then continue end
@@ -14834,8 +14849,12 @@ run(function()
     InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
     Nuker = Breaker:CreateToggle({
-        Name = 'Break through blocks', 
+        Name = 'Break through blocks',
         Tooltip = 'Ignores blocks around bed defense, and check if the server validates where ur breaking'
+    })
+    BreakthroughBlock = Breaker:CreateToggle({
+        Name = 'Breakthrough block',
+        Tooltip = 'Skips beds that have defense blocks around them'
     })
     Closet =  Breaker:CreateToggle({
         Name = 'Closest break',
