@@ -15699,17 +15699,10 @@ run(function()
     local function isBedVisible(bed)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        local reachDirs = {
-            Vector3.new(3, 0, 0), Vector3.new(-3, 0, 0),
-            Vector3.new(0, 0, 3), Vector3.new(0, 0, -3),
-            Vector3.new(3, 0, 3), Vector3.new(3, 0, -3),
-            Vector3.new(-3, 0, 3), Vector3.new(-3, 0, -3),
-            Vector3.new(0, -3, 0)
-        }
         local exposed = false
         for _, cp in contained do
             local wp = cp * 3
-            for _, dir in reachDirs do
+            for _, dir in sides do
                 if not getPlacedBlock(wp + dir) then
                     exposed = true
                     break
