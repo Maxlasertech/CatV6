@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 15
+local VERSION = 16
 local run = function(func)
 	func()
 end
@@ -424,7 +424,7 @@ local loadMessages = {
 	'we all gay only that not',
 	'auto 5ft 4',
 }
-notif('Loaded', loadMessages[math.random(#loadMessages)] .. ' | Update ' .. VERSION, 5, 'info')
+notif('Loaded', loadMessages[math.random(#loadMessages)] .. ' | Update ' .. VERSION, 90, 'info')
 
 local function removeTags(str)
 	str = str:gsub('<br%s*/>', '\n')
