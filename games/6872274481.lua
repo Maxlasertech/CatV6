@@ -15656,7 +15656,7 @@ end)
 
 run(function()
     local KingDraco
-    local RangeSetting, SpeedSetting, TickRate, BreakMode, AngleSetting
+    local RangeSetting, SpeedSetting, TickRate, BreakMode
     local ToolSwitch, ItemLimit, BreakSelf, QuickBreak
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
@@ -15697,38 +15697,10 @@ run(function()
     end
 
     local function isBedVisible(bed)
-        local root = entitylib.character and entitylib.character.RootPart
-        if not root then return false end
-        local start = roundPos(root.Position)
-        local bedCenter = bed.Position
-        local startDist = (start - bedCenter).Magnitude
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        local bedCells = {}
         for _, cp in contained do
-            local wp = cp * 3
-            bedCells[wp.X .. '_' .. wp.Y .. '_' .. wp.Z] = true
-        end
-        local visited = {}
-        local queue = {start}
-        visited[start.X .. '_' .. start.Y .. '_' .. start.Z] = true
-        local qi = 1
-        while qi <= #queue and qi <= 800 do
-            local pos = queue[qi]
-            qi += 1
-            for _, dir in sides do
-                local next = pos + dir
-                local key = next.X .. '_' .. next.Y .. '_' .. next.Z
-                if bedCells[key] then return true end
-                if visited[key] then continue end
-                if (next - bedCenter).Magnitude > (pos - bedCenter).Magnitude + 1 then continue end
-                visited[key] = true
-                if (next - start).Magnitude > startDist + 3 then continue end
-                local block = getPlacedBlock(next)
-                if not block then
-                    table.insert(queue, next)
-                end
-            end
+            if isVisible(cp * 3) then return true end
         end
         return false
     end
@@ -16121,12 +16093,6 @@ run(function()
         List = {'Health', 'Distance'},
         Default = 'Health',
         Tooltip = 'Health = fewest hits first, Distance = closest blocks first'
-    })
-    AngleSetting = KingDraco:CreateSlider({
-        Name = 'Bed angle',
-        Min = 0, Max = 360, Default = 360,
-        Suffix = '°',
-        Tooltip = '360 = break bed from any angle, 0 = camera raycast only'
     })
     EffectsOn = KingDraco:CreateToggle({Name = 'Effects', Default = true})
     HealthDisplay = KingDraco:CreateToggle({Name = 'Health display', Default = true, Darker = true})
