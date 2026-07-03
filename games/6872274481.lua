@@ -15680,20 +15680,18 @@ run(function()
 
     local function isVisible(worldPos)
         local eye = gameCamera.CFrame.Position
-        for _, off in {
-            Vector3.zero,
-            Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
-            Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
-            Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
-        } do
-            local probe = worldPos + off
-            local ray = probe - eye
-            local hit = workspace:Raycast(eye, ray, losFilter)
-            if not hit then return true end
-            if (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then return true end
-            if hit.Instance and (hit.Instance.Position - worldPos).Magnitude < 2.5 then return true end
+        local fullRay = worldPos - eye
+        local dist = fullRay.Magnitude
+        if dist < 0.1 then return true end
+        local dir = fullRay.Unit
+        for t = 1.5, dist - 1.5, 1.5 do
+            local sample = eye + dir * t
+            local block = getPlacedBlock(sample)
+            if block and (block.Position - worldPos).Magnitude > 2.5 then
+                return false
+            end
         end
-        return false
+        return true
     end
 
     local function eligible(block)
