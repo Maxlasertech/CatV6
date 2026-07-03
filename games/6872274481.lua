@@ -15697,9 +15697,21 @@ run(function()
     end
 
     local function isBedVisible(bed)
-        if AngleSetting.Value >= 360 then return true end
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        local exposed = false
+        for _, cp in contained do
+            local wp = cp * 3
+            for _, dir in sides do
+                if not getPlacedBlock(wp + dir) then
+                    exposed = true
+                    break
+                end
+            end
+            if exposed then break end
+        end
+        if not exposed then return false end
+        if AngleSetting.Value >= 360 then return true end
         if AngleSetting.Value > 0 then
             local look = gameCamera.CFrame.LookVector
             local eye = gameCamera.CFrame.Position
