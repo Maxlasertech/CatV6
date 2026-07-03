@@ -6105,13 +6105,33 @@ mainapi:Clean(friends.ColorUpdate)
 --[[
 	Profiles
 ]]
-mainapi:CreateCategoryList({
+local profiles = mainapi:CreateCategoryList({
 	Name = 'Profiles',
 	Icon = getcustomasset('fart/assets/new/profilesicon.png'),
 	Size = UDim2.fromOffset(17, 10),
 	Position = UDim2.fromOffset(12, 16),
 	Placeholder = 'Type name',
 	Profiles = true
+})
+local json = profiles:CreateTextBox({
+	Name = 'JSON Config',
+	Placeholder = '[]'
+})
+profiles:CreateButton({
+	Name = 'Import json',
+	Function = function()
+		local success, result = pcall(function()
+			return httpService:JSONDecode(json.Value)
+		end)
+		if success and result then
+			local awesome = `imported ({#mainapi.Profiles + 1})`
+			table.insert(mainapi.Profiles, {Name = awesome, Bind = {}})
+			mainapi:Save(awesome)
+			writefile('fart/profiles/'..awesome..mainapi.Place..'.txt', result.config)
+			writefile('fart/profiles/'..game.GameId..'.gui.txt', result.gui)
+			mainapi:Load(true, awesome)
+		end
+	end
 })
 
 --[[
@@ -6159,6 +6179,21 @@ general:CreateButton({
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Vape'
+})
+general:CreateButton({
+	Name = 'Export to JSON',
+	Function = function()
+		local tab = {}
+		if isfile('fart/profiles/'..mainapi.Profile..mainapi.Place..'.txt') then
+			tab.config = readfile('fart/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		end
+		if isfile('fart/profiles/'..game.GameId..'.gui.txt') then
+			tab.gui = readfile('fart/profiles/'..game.GameId..'.gui.txt')
+		end
+		tab.game = tostring(mainapi.Place or 'universal'.. game.PlaceId)
+		setclipboard(httpService:JSONEncode(tab))
+	end,
+	Tooltip = 'Converts ur config to json format'
 })
 general:CreateButton({
 	Name = 'Self destruct',
