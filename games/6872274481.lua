@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 14
+local VERSION = 15
 local run = function(func)
 	func()
 end
@@ -14563,6 +14563,7 @@ run(function()
     local SelfBreak
     local InstantBreak
     local LimitItem
+    local Nuker
     local Closet
     local customlist, parts = {}, {}
     
@@ -14702,7 +14703,7 @@ run(function()
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
     
                 hit += 1
-                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
+                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, not Nuker.Enabled)
                 if path then
                     local currentnode = target
                     for _, part in parts do
@@ -14887,6 +14888,10 @@ run(function()
     SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
     InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
+    Nuker = Breaker:CreateToggle({
+        Name = 'Break through blocks',
+        Tooltip = 'Ignores blocks around bed defense, and check if the server validates where ur breaking'
+    })
     Closet =  Breaker:CreateToggle({
         Name = 'Closest break',
         Tooltip = 'Uses ur mouse\'s position to get the closet block to you',
