@@ -14538,7 +14538,6 @@ run(function()
     local SelfBreak
     local InstantBreak
     local LimitItem
-    local Nuker
     local BreakthroughBlock
     local Closet
     local customlist, parts = {}, {}
@@ -14693,7 +14692,7 @@ run(function()
                 if isBed and BreakthroughBlock and BreakthroughBlock.Enabled and hasBedDefense(v) then continue end
     
                 hit += 1
-                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, not Nuker.Enabled)
+                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, true)
                 if path then
                     local currentnode = target
                     for _, part in parts do
@@ -14878,10 +14877,6 @@ run(function()
     SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
     InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
-    Nuker = Breaker:CreateToggle({
-        Name = 'Break through blocks',
-        Tooltip = 'Ignores blocks around bed defense, and check if the server validates where ur breaking'
-    })
     BreakthroughBlock = Breaker:CreateToggle({
         Name = 'Breakthrough block',
         Default = true,
