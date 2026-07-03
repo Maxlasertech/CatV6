@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 11
+local VERSION = 13
 local run = function(func)
 	func()
 end
@@ -399,7 +399,32 @@ local function isTarget(plr)
 end
 
 local function notif(...) return vape:CreateNotification(...) end
-notif('Loaded', 'Update ' .. VERSION, 5, 'info')
+local loadMessages = {
+	'king auto the best',
+	'manny blantant',
+	'king ben don\'t cheat',
+	'king draco worst solo q',
+	'kolipoo is the best',
+	'we love kolipoo',
+	'i love money',
+	'draco dookie',
+	'bby boo',
+	'manny here',
+	'ta daaa',
+	'hahaha',
+	'ready to cheat',
+	'hello 👋',
+	'love is beautiful',
+	'kemby',
+	'mannyalt',
+	'manny is gay',
+	'osoi',
+	'why you cheating',
+	'yall know manny gay right',
+	'we all gay only that not',
+	'auto 5ft 4',
+}
+notif('Loaded', loadMessages[math.random(#loadMessages)] .. ' | Update ' .. VERSION, 5, 'info')
 
 local function removeTags(str)
 	str = str:gsub('<br%s*/>', '\n')
