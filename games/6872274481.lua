@@ -14509,7 +14509,6 @@ run(function()
     local InstantBreak
     local LimitItem
     local Nuker
-    local BreakthroughBlock
     local Closet
     local customlist, parts = {}, {}
     
@@ -14660,7 +14659,7 @@ run(function()
                 if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
-                if isBed and BreakthroughBlock and BreakthroughBlock.Enabled and hasBedDefense(v) then continue end
+                if isBed and not Nuker.Enabled and hasBedDefense(v) then continue end
     
                 hit += 1
                 local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closet.Enabled and closetMethod or breakmethods[Mode.Value], Angle.Value, not Nuker.Enabled)
@@ -14850,11 +14849,7 @@ run(function()
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
     Nuker = Breaker:CreateToggle({
         Name = 'Break through blocks',
-        Tooltip = 'Ignores blocks around bed defense, and check if the server validates where ur breaking'
-    })
-    BreakthroughBlock = Breaker:CreateToggle({
-        Name = 'Breakthrough block',
-        Tooltip = 'Skips beds that have defense blocks around them'
+        Tooltip = 'When enabled, breaks through bed defense. When disabled, skips beds with defense blocks around them.'
     })
     Closet =  Breaker:CreateToggle({
         Name = 'Closest break',
