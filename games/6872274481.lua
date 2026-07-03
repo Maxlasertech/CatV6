@@ -1942,36 +1942,9 @@ run(function()
 
     local holding = false
     local clickThread
-    local debugLog = {}
-
-    local function log(...)
-        local parts = {}
-        for i = 1, select('#', ...) do
-            table.insert(parts, tostring(select(i, ...)))
-        end
-        local msg = '[ShopClicker] '..table.concat(parts, ' ')
-        table.insert(debugLog, os.clock()..': '..msg)
-        if #debugLog > 500 then table.remove(debugLog, 1) end
-        warn(msg)
-    end
-
-    local function copyLogs()
-        if setclipboard then
-            setclipboard(table.concat(debugLog, '\n'))
-            warn('[ShopClicker] Logs copied to clipboard! ('..#debugLog..' lines)')
-        else
-            warn('[ShopClicker] setclipboard not available')
-        end
-    end
-
-    inputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.F4 then
-            copyLogs()
-        end
-    end)
 
     local function getShopId()
-        if not entitylib.isAlive then log('not alive') return nil end
+        if not entitylib.isAlive then return nil end
         local localPosition = entitylib.character.RootPart.Position
         local id
         for _, v in store.shop do
@@ -1979,7 +1952,6 @@ run(function()
                 id = v.Id
             end
         end
-        if not id then log('no shop NPC within 20 studs') end
         return id
     end
 
@@ -1999,80 +1971,56 @@ run(function()
 
     local function getHoveredItem(touchPos)
         local screenPos = touchPos or (inputService:GetMouseLocation() - guiService:GetGuiInset())
-        log('getHoveredItem pos:', screenPos.X, screenPos.Y)
 
         local guiObjects = lplr.PlayerGui:GetGuiObjectsAtPosition(screenPos.X, screenPos.Y)
-        log('GUI objects at position:', #guiObjects)
-        for i, v in guiObjects do
+        for _, v in guiObjects do
             local obj = v
             while obj and obj ~= lplr.PlayerGui do
                 local itemType = obj.Name:match('^(.+)_ShopItemCard$')
                 if itemType then
-                    log('found item (walk-up):', itemType)
                     return itemType
                 end
                 obj = obj.Parent
             end
         end
 
-        log('walk-up failed, scanning shop GUI for ShopItemCards...')
         local cards = findShopCards(lplr.PlayerGui)
-        log('found', #cards, 'ShopItemCard elements total')
         local inset = guiService:GetGuiInset()
         for _, card in cards do
             local el = card.element
             local abs = el.AbsolutePosition
             local sz = el.AbsoluteSize
-            local minX, minY = abs.X, abs.Y
-            local maxX, maxY = abs.X + sz.X, abs.Y + sz.Y
             local checkX = screenPos.X + inset.X
             local checkY = screenPos.Y + inset.Y
-            if checkX >= minX and checkX <= maxX and checkY >= minY and checkY <= maxY then
-                log('found item (bounds):', card.itemType, '| pos:', minX, minY, 'size:', sz.X, sz.Y)
+            if checkX >= abs.X and checkX <= abs.X + sz.X and checkY >= abs.Y and checkY <= abs.Y + sz.Y then
                 return card.itemType
             end
         end
-
-        for _, card in cards do
-            local el = card.element
-            local abs = el.AbsolutePosition
-            local sz = el.AbsoluteSize
-            log('card:', card.itemType, '| absPos:', abs.X, abs.Y, '| absSize:', sz.X, sz.Y)
-        end
-        log('no ShopItemCard matched touch position')
     end
 
     local function canBuy(item)
-        if item.ignoredByKit and table.find(item.ignoredByKit, store.equippedKit or '') then log('canBuy false: ignoredByKit') return false end
-        if item.lockedByForge or item.disabled then log('canBuy false: locked/disabled') return false end
+        if item.ignoredByKit and table.find(item.ignoredByKit, store.equippedKit or '') then return false end
+        if item.lockedByForge or item.disabled then return false end
         if item.require and item.require.teamUpgrade then
             if (bedwars.Store:getState().Bedwars.teamUpgrades[item.require.teamUpgrade.upgradeId] or -1) < item.require.teamUpgrade.lowestTierIndex then
-                log('canBuy false: teamUpgrade requirement not met')
                 return false
             end
         end
         local currency = getItem(item.currency)
-        local hasEnough = (currency and currency.amount or 0) >= item.price
-        log('canBuy:', item.itemType, '| currency:', item.currency, '| have:', currency and currency.amount or 0, '| need:', item.price, '| result:', hasEnough)
-        return hasEnough
+        return (currency and currency.amount or 0) >= item.price
     end
 
     local function purchase(itemType, shopId)
-        log('purchase called:', itemType, 'shopId:', shopId)
-        if bedwars.BedwarsShopController.alreadyPurchasedMap[itemType] ~= nil then log('already purchased (tiered):', itemType) return end
-        if not bedwars.ItemMeta[itemType] then log('no ItemMeta for:', itemType) return end
-        if not bedwars.ItemMeta[itemType].block then log('not a block item:', itemType) return end
+        if bedwars.BedwarsShopController.alreadyPurchasedMap[itemType] ~= nil then return end
+        if not bedwars.ItemMeta[itemType] or not bedwars.ItemMeta[itemType].block then return end
 
         local item = bedwars.Shop.getShopItem(itemType, lplr, {shopId = shopId})
-        if not item then log('getShopItem returned nil for:', itemType) return end
-        if not canBuy(item) then log('canBuy failed for:', itemType) return end
+        if not item or not canBuy(item) then return end
 
-        log('sending purchase request for:', itemType)
         bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
             shopItem = item,
             shopId = shopId
         }):andThen(function(suc)
-            log('purchase result:', itemType, '=', suc)
             if not suc then return end
             bedwars.SoundManager:playSound(bedwars.SoundList.BEDWARS_PURCHASE_ITEM)
             bedwars.Store:dispatch({
@@ -2086,22 +2034,17 @@ run(function()
     end
 
     local function startClicking(itemType)
-        log('startClicking:', itemType)
         if clickThread then
             task.cancel(clickThread)
         end
         clickThread = task.spawn(function()
             repeat
-                local shopOpen = bedwars.AppController:isAppOpen('BedwarsItemShopApp')
-                local shopLoaded = store.shopLoaded
-                local shopId = shopOpen and shopLoaded and getShopId()
-                log('loop | shopOpen:', shopOpen, '| shopLoaded:', shopLoaded, '| shopId:', shopId)
+                local shopId = bedwars.AppController:isAppOpen('BedwarsItemShopApp') and store.shopLoaded and getShopId()
                 if shopId then
                     purchase(itemType, shopId)
                 end
                 task.wait(1 / CPS.Value)
             until not holding
-            log('stopped clicking (released)')
             clickThread = nil
         end)
     end
@@ -2110,27 +2053,17 @@ run(function()
         Name = 'Shop Clicker',
         Function = function(callback)
             if callback then
-                log('MODULE ENABLED | TouchEnabled:', inputService.TouchEnabled)
-
                 ShopQuickBuy:Clean(inputService.InputBegan:Connect(function(input)
-                    log('InputBegan:', input.UserInputType.Name)
                     if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
-                    local shopOpen = bedwars.AppController:isAppOpen('BedwarsItemShopApp')
-                    log('shop open:', shopOpen)
-                    if not shopOpen then return end
+                    if not bedwars.AppController:isAppOpen('BedwarsItemShopApp') then return end
 
                     local touchPos = input.UserInputType == Enum.UserInputType.Touch and Vector2.new(input.Position.X, input.Position.Y) or nil
-                    log('touchPos:', touchPos and (touchPos.X..','..touchPos.Y) or 'nil (using mouse)')
                     local itemType = getHoveredItem(touchPos)
-                    log('hovered item:', itemType or 'NONE')
                     if not itemType then return end
 
                     holding = true
-                    log('holding, waiting', HoldDelay.Value, 'seconds...')
                     task.delay(HoldDelay.Value, function()
-                        local recheck = getHoveredItem(touchPos)
-                        log('after delay recheck:', recheck, '| still holding:', holding)
-                        if holding and recheck == itemType then
+                        if holding and getHoveredItem(touchPos) == itemType then
                             startClicking(itemType)
                         end
                     end)
@@ -2138,14 +2071,12 @@ run(function()
 
                 ShopQuickBuy:Clean(inputService.InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        log('InputEnded - released')
                         holding = false
                     end
                 end))
 
                 ShopQuickBuy:Clean(inputService.InputChanged:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.Touch and input.UserInputState == Enum.UserInputState.Cancel then
-                        log('Touch cancelled')
                         holding = false
                     end
                 end))
