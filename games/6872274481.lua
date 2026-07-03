@@ -1989,8 +1989,15 @@ run(function()
         local guiObjects = lplr.PlayerGui:GetGuiObjectsAtPosition(mousepos.X, mousepos.Y)
         log('GUI objects at position:', #guiObjects)
         for i, v in guiObjects do
-            log('obj['..i..']:', v.Name, v.ClassName)
+            local chain = {}
             local obj = v
+            while obj and obj ~= lplr.PlayerGui do
+                table.insert(chain, obj.Name..'('..obj.ClassName..')')
+                obj = obj.Parent
+            end
+            log('obj['..i..'] chain:', table.concat(chain, ' > '))
+
+            obj = v
             while obj and obj ~= lplr.PlayerGui do
                 local itemType = obj.Name:match('^(.+)_ShopItemCard$')
                 if itemType then
