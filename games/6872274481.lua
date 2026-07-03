@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 16
+local VERSION = 17
 local run = function(func)
 	func()
 end
@@ -15893,15 +15893,6 @@ run(function()
         return false
     end
 
-    local function isBedVisible(bed)
-        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
-        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        for _, cp in contained do
-            if isVisible(cp * 3) then return true end
-        end
-        return false
-    end
-
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16237,14 +16228,12 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    if isVisible(bestBed.Position) then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        if store.damageBlockFail <= tick() then
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            continue
-                        end
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
