@@ -1942,9 +1942,36 @@ run(function()
 
     local holding = false
     local clickThread
+    local debugLog = {}
+
+    local function log(...)
+        local parts = {}
+        for i = 1, select('#', ...) do
+            table.insert(parts, tostring(select(i, ...)))
+        end
+        local msg = '[ShopClicker] '..table.concat(parts, ' ')
+        table.insert(debugLog, os.clock()..': '..msg)
+        if #debugLog > 500 then table.remove(debugLog, 1) end
+        warn(msg)
+    end
+
+    local function copyLogs()
+        if setclipboard then
+            setclipboard(table.concat(debugLog, '\n'))
+            warn('[ShopClicker] Logs copied to clipboard! ('..#debugLog..' lines)')
+        else
+            warn('[ShopClicker] setclipboard not available')
+        end
+    end
+
+    inputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.F4 then
+            copyLogs()
+        end
+    end)
 
     local function getShopId()
-        if not entitylib.isAlive then warn('[ShopClicker] not alive') return nil end
+        if not entitylib.isAlive then log('not alive') return nil end
         local localPosition = entitylib.character.RootPart.Position
         local id
         for _, v in store.shop do
@@ -1952,61 +1979,61 @@ run(function()
                 id = v.Id
             end
         end
-        if not id then warn('[ShopClicker] no shop NPC within 20 studs') end
+        if not id then log('no shop NPC within 20 studs') end
         return id
     end
 
     local function getHoveredItem(touchPos)
         local mousepos = touchPos or (inputService:GetMouseLocation() - guiService:GetGuiInset())
-        warn('[ShopClicker] getHoveredItem pos:', mousepos.X, mousepos.Y)
+        log('getHoveredItem pos:', mousepos.X, mousepos.Y)
         local guiObjects = lplr.PlayerGui:GetGuiObjectsAtPosition(mousepos.X, mousepos.Y)
-        warn('[ShopClicker] GUI objects at position:', #guiObjects)
+        log('GUI objects at position:', #guiObjects)
         for i, v in guiObjects do
-            warn('[ShopClicker] obj['..i..']:', v.Name, v.ClassName)
+            log('obj['..i..']:', v.Name, v.ClassName)
             local obj = v
             while obj and obj ~= lplr.PlayerGui do
                 local itemType = obj.Name:match('^(.+)_ShopItemCard$')
                 if itemType then
-                    warn('[ShopClicker] found item:', itemType)
+                    log('found item:', itemType)
                     return itemType
                 end
                 obj = obj.Parent
             end
         end
-        warn('[ShopClicker] no ShopItemCard found')
+        log('no ShopItemCard found')
     end
 
     local function canBuy(item)
-        if item.ignoredByKit and table.find(item.ignoredByKit, store.equippedKit or '') then warn('[ShopClicker] canBuy false: ignoredByKit') return false end
-        if item.lockedByForge or item.disabled then warn('[ShopClicker] canBuy false: locked/disabled') return false end
+        if item.ignoredByKit and table.find(item.ignoredByKit, store.equippedKit or '') then log('canBuy false: ignoredByKit') return false end
+        if item.lockedByForge or item.disabled then log('canBuy false: locked/disabled') return false end
         if item.require and item.require.teamUpgrade then
             if (bedwars.Store:getState().Bedwars.teamUpgrades[item.require.teamUpgrade.upgradeId] or -1) < item.require.teamUpgrade.lowestTierIndex then
-                warn('[ShopClicker] canBuy false: teamUpgrade requirement not met')
+                log('canBuy false: teamUpgrade requirement not met')
                 return false
             end
         end
         local currency = getItem(item.currency)
         local hasEnough = (currency and currency.amount or 0) >= item.price
-        warn('[ShopClicker] canBuy:', item.itemType, '| currency:', item.currency, '| have:', currency and currency.amount or 0, '| need:', item.price, '| result:', hasEnough)
+        log('canBuy:', item.itemType, '| currency:', item.currency, '| have:', currency and currency.amount or 0, '| need:', item.price, '| result:', hasEnough)
         return hasEnough
     end
 
     local function purchase(itemType, shopId)
-        warn('[ShopClicker] purchase called:', itemType, 'shopId:', shopId)
-        if bedwars.BedwarsShopController.alreadyPurchasedMap[itemType] ~= nil then warn('[ShopClicker] already purchased (tiered):', itemType) return end
-        if not bedwars.ItemMeta[itemType] then warn('[ShopClicker] no ItemMeta for:', itemType) return end
-        if not bedwars.ItemMeta[itemType].block then warn('[ShopClicker] not a block item:', itemType) return end
+        log('purchase called:', itemType, 'shopId:', shopId)
+        if bedwars.BedwarsShopController.alreadyPurchasedMap[itemType] ~= nil then log('already purchased (tiered):', itemType) return end
+        if not bedwars.ItemMeta[itemType] then log('no ItemMeta for:', itemType) return end
+        if not bedwars.ItemMeta[itemType].block then log('not a block item:', itemType) return end
 
         local item = bedwars.Shop.getShopItem(itemType, lplr, {shopId = shopId})
-        if not item then warn('[ShopClicker] getShopItem returned nil for:', itemType) return end
-        if not canBuy(item) then warn('[ShopClicker] canBuy failed for:', itemType) return end
+        if not item then log('getShopItem returned nil for:', itemType) return end
+        if not canBuy(item) then log('canBuy failed for:', itemType) return end
 
-        warn('[ShopClicker] sending purchase request for:', itemType)
+        log('sending purchase request for:', itemType)
         bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
             shopItem = item,
             shopId = shopId
         }):andThen(function(suc)
-            warn('[ShopClicker] purchase result:', itemType, '=', suc)
+            log('purchase result:', itemType, '=', suc)
             if not suc then return end
             bedwars.SoundManager:playSound(bedwars.SoundList.BEDWARS_PURCHASE_ITEM)
             bedwars.Store:dispatch({
@@ -2020,7 +2047,7 @@ run(function()
     end
 
     local function startClicking(itemType)
-        warn('[ShopClicker] startClicking:', itemType)
+        log('startClicking:', itemType)
         if clickThread then
             task.cancel(clickThread)
         end
@@ -2029,13 +2056,13 @@ run(function()
                 local shopOpen = bedwars.AppController:isAppOpen('BedwarsItemShopApp')
                 local shopLoaded = store.shopLoaded
                 local shopId = shopOpen and shopLoaded and getShopId()
-                warn('[ShopClicker] loop | shopOpen:', shopOpen, '| shopLoaded:', shopLoaded, '| shopId:', shopId)
+                log('loop | shopOpen:', shopOpen, '| shopLoaded:', shopLoaded, '| shopId:', shopId)
                 if shopId then
                     purchase(itemType, shopId)
                 end
                 task.wait(1 / CPS.Value)
             until not holding
-            warn('[ShopClicker] stopped clicking (released)')
+            log('stopped clicking (released)')
             clickThread = nil
         end)
     end
@@ -2044,24 +2071,26 @@ run(function()
         Name = 'Shop Clicker',
         Function = function(callback)
             if callback then
+                log('MODULE ENABLED | TouchEnabled:', inputService.TouchEnabled)
+
                 ShopQuickBuy:Clean(inputService.InputBegan:Connect(function(input)
-                    warn('[ShopClicker] InputBegan:', input.UserInputType.Name, '| TouchEnabled:', inputService.TouchEnabled)
+                    log('InputBegan:', input.UserInputType.Name)
                     if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
                     local shopOpen = bedwars.AppController:isAppOpen('BedwarsItemShopApp')
-                    warn('[ShopClicker] shop open:', shopOpen)
+                    log('shop open:', shopOpen)
                     if not shopOpen then return end
 
                     local touchPos = input.UserInputType == Enum.UserInputType.Touch and (Vector2.new(input.Position.X, input.Position.Y) - guiService:GetGuiInset()) or nil
-                    warn('[ShopClicker] touchPos:', touchPos and (touchPos.X..','..touchPos.Y) or 'nil (using mouse)')
+                    log('touchPos:', touchPos and (touchPos.X..','..touchPos.Y) or 'nil (using mouse)')
                     local itemType = getHoveredItem(touchPos)
-                    warn('[ShopClicker] hovered item:', itemType or 'NONE')
+                    log('hovered item:', itemType or 'NONE')
                     if not itemType then return end
 
                     holding = true
-                    warn('[ShopClicker] holding, waiting', HoldDelay.Value, 'seconds...')
+                    log('holding, waiting', HoldDelay.Value, 'seconds...')
                     task.delay(HoldDelay.Value, function()
                         local recheck = getHoveredItem(touchPos)
-                        warn('[ShopClicker] after delay recheck:', recheck, '| still holding:', holding)
+                        log('after delay recheck:', recheck, '| still holding:', holding)
                         if holding and recheck == itemType then
                             startClicking(itemType)
                         end
@@ -2070,14 +2099,14 @@ run(function()
 
                 ShopQuickBuy:Clean(inputService.InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        warn('[ShopClicker] InputEnded - released')
+                        log('InputEnded - released')
                         holding = false
                     end
                 end))
 
                 ShopQuickBuy:Clean(inputService.InputChanged:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.Touch and input.UserInputState == Enum.UserInputState.Cancel then
-                        warn('[ShopClicker] Touch cancelled')
+                        log('Touch cancelled')
                         holding = false
                     end
                 end))
