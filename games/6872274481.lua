@@ -16216,17 +16216,10 @@ run(function()
     						if Collect.Enabled and (not LimitCollect.Enabled or store.hand.tool and store.hand.tool.Name == 'bee_net') then
     							local localPosition = entitylib.character.RootPart.Position
     							for _, v in collectionService:GetTagged('bee') do
-    								if v.PrimaryPart and (localPosition - v.PrimaryPart.Position).Magnitude <= CollectRange.Value then
-    									pcall(function()
-    										local ctrl = bedwars.BeeNetController or Knit.Controllers.BeeNetController
-    										if ctrl and ctrl.trigger then
-    											ctrl:trigger(v)
-    										else
-    											bedwars.Client:Get('PickUpBee'):SendToServer({
-    												beeId = v:GetAttribute('BeeId'),
-    											})
-    										end
-    									end)
+    								if (localPosition - v.PrimaryPart.Position).Magnitude <= CollectRange.Value then
+    									bedwars.Client:Get('PickUpBee'):SendToServer({
+    										beeId = v:GetAttribute('BeeId'),
+    									})
     									if CollectDelay.Value > 0 then
     										task.wait(CollectDelay.Value)
     									end
@@ -16271,7 +16264,7 @@ run(function()
     CollectRange = AutoBee:CreateSlider({
     	Name = 'Collect Range',
     	Min = 1,
-    	Max = 9999,
+    	Max = 22,
     	Default = 20,
     	Darker = true,
     	Suffix = function(val)
@@ -17422,30 +17415,9 @@ run(function()
             until not AutoKit.Enabled
         end,
         beekeeper = function()
-            local ctrl = bedwars.BeeNetController or Knit.Controllers.BeeNetController
-            if not Legit.Enabled and ctrl and ctrl.trigger then
-                local oldTrigger = ctrl.trigger
-                ctrl.trigger = function(self, ...)
-                    local args = {...}
-                    local beeArg = args[1]
-                    if beeArg then
-                        pcall(oldTrigger, self, beeArg)
-                    end
-                end
-                AutoKit:Clean(function()
-                    ctrl.trigger = oldTrigger
-                end)
-            end
             kitCollection('bee', function(v)
-                if not Legit.Enabled then
-                    pcall(function()
-                        local ctrl2 = bedwars.BeeNetController or Knit.Controllers.BeeNetController
-                        ctrl2:trigger(v)
-                    end)
-                else
-                    bedwars.Client:Get(remotes.BeePickup):SendToServer({beeId = v:GetAttribute('BeeId')})
-                end
-            end, 18, true)
+                bedwars.Client:Get(remotes.BeePickup):SendToServer({beeId = v:GetAttribute('BeeId')})
+            end, 18, false)
         end,
         bigman = function()
             kitCollection('treeOrb', function(v)
