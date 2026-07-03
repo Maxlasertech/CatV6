@@ -15699,19 +15699,31 @@ run(function()
     local function isBedVisible(bed)
         local root = entitylib.character and entitylib.character.RootPart
         if not root then return false end
-        local charPos = root.Position
+        local start = roundPos(root.Position)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        local bedCells = {}
         for _, cp in contained do
             local wp = cp * 3
+            bedCells[wp.X .. '_' .. wp.Y .. '_' .. wp.Z] = true
+        end
+        local visited = {}
+        local queue = {start}
+        visited[start.X .. '_' .. start.Y .. '_' .. start.Z] = true
+        local qi = 1
+        while qi <= #queue and qi <= 800 do
+            local pos = queue[qi]
+            qi += 1
             for _, dir in sides do
-                if not getPlacedBlock(wp + dir) then
-                    local face = wp + dir * 0.5
-                    local ray = face - charPos
-                    local hit = workspace:Raycast(charPos, ray, losFilter)
-                    if not hit then return true end
-                    if (hit.Position - charPos).Magnitude >= ray.Magnitude - 1.5 then return true end
-                    if hit.Instance and (hit.Instance.Position - wp).Magnitude < 2.5 then return true end
+                local next = pos + dir
+                local key = next.X .. '_' .. next.Y .. '_' .. next.Z
+                if bedCells[key] then return true end
+                if visited[key] then continue end
+                visited[key] = true
+                if (next - start).Magnitude > 18 then continue end
+                local block = getPlacedBlock(next)
+                if not block then
+                    table.insert(queue, next)
                 end
             end
         end
