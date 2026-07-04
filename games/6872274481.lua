@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 30
+local VERSION = 31
 local run = function(func)
 	func()
 end
@@ -16268,7 +16268,7 @@ run(function()
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
                     end
 
-                    if bedVis then
+                    if bedVis and store.damageBlockFail <= tick() then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
@@ -16287,9 +16287,16 @@ run(function()
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike defense') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
+                    elseif bedVis then
+                        targetGlow.Adornee = bestBed
+                        strike(bestBed)
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (no defense found)') end
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
                     else
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
                     end
