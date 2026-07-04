@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 24
+local VERSION = 25
 local run = function(func)
 	func()
 end
@@ -15901,18 +15901,6 @@ run(function()
         return false
     end
 
-    local function findBlocker(worldPos)
-        local eye = gameCamera.CFrame.Position
-        local ray = worldPos - eye
-        local hit = workspace:Raycast(eye, ray, losFilter)
-        if hit and hit.Instance and hit.Instance.Parent then
-            if (hit.Position - eye).Magnitude < ray.Magnitude - 1.5 then
-                return hit.Instance
-            end
-        end
-        return nil
-    end
-
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16284,12 +16272,11 @@ run(function()
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        if store.damageBlockFail <= tick() then
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed OK') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            continue
+                        if DebugMode and DebugMode.Enabled then
+                            dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick()))
                         end
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] server cancelled -> checking defense') end
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
@@ -16306,15 +16293,7 @@ run(function()
                             continue
                         end
                     else
-                        local blocker = findBlocker(bestBed.Position)
-                        if blocker and blocker.Name ~= 'bed' then
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] blocker=' .. blocker.Name .. ' at ' .. tostring(blocker.Position)) end
-                            targetGlow.Adornee = blocker
-                            strike(blocker)
-                            task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
-                            continue
-                        end
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] no entry, no blocker') end
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] planAttack found no entry') end
                     end
 
                     targetGlow.Adornee = nil
