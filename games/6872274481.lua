@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 26
+local VERSION = 27
 local run = function(func)
 	func()
 end
@@ -16268,16 +16268,13 @@ run(function()
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
                     end
 
-                    if bedVis then
+                    if bedVis and store.damageBlockFail <= tick() then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        if store.damageBlockFail <= tick() then
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed OK') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            continue
-                        end
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] server cancelled -> checking defense') end
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick())) end
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
@@ -16299,7 +16296,7 @@ run(function()
                         task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                         continue
                     else
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] planAttack found no entry') end
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
                     end
 
                     targetGlow.Adornee = nil
