@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 18
+local VERSION = 19
 local run = function(func)
 	func()
 end
@@ -16241,8 +16241,10 @@ run(function()
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
-                        continue
+                        if store.damageBlockFail <= tick() then
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            continue
+                        end
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
