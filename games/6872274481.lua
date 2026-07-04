@@ -1245,21 +1245,10 @@ run(function()
 				blockhealthbar.breakingBlockPosition = dpos
 			end
 
-			local dir = entitylib.character.RootPart.Position - pos
-			local ax, ay, az = math.abs(dir.X), math.abs(dir.Y), math.abs(dir.Z)
-			local hitNormal
-			if ay >= ax and ay >= az then
-				hitNormal = Vector3.new(0, dir.Y > 0 and 1 or -1, 0)
-			elseif ax >= az then
-				hitNormal = Vector3.new(dir.X > 0 and 1 or -1, 0, 0)
-			else
-				hitNormal = Vector3.new(0, 0, dir.Z > 0 and 1 or -1)
-			end
-
 			bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync({
 				blockRef = {blockPosition = dpos},
-				hitPosition = pos + hitNormal * 1.5,
-				hitNormal = hitNormal
+				hitPosition = pos,
+				hitNormal = Vector3.FromNormalId(Enum.NormalId.Top)
 			}):andThen(function(result)
 				if result then
 					if result == 'cancelled' then
