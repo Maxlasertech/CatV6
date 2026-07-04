@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 25
+local VERSION = 26
 local run = function(func)
 	func()
 end
@@ -16272,18 +16272,19 @@ run(function()
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        if DebugMode and DebugMode.Enabled then
-                            dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick()))
+                        if store.damageBlockFail <= tick() then
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed OK') end
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            continue
                         end
-                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
-                        continue
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] server cancelled -> checking defense') end
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
                         if DebugMode and DebugMode.Enabled then
-                            dbg('[KD] planAttack entry=' .. tostring(entry) .. ' block=' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
+                            dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
                         end
                         if entryBlock and isVisible(entry) then
                             targetGlow.Adornee = entryBlock
@@ -16292,6 +16293,11 @@ run(function()
                             task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
                             continue
                         end
+                    elseif bedVis and store.damageBlockFail > tick() then
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] no defense, fallback breakBlock') end
+                        bedwars.breakBlock(bestBed.Position, false)
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
                     else
                         if DebugMode and DebugMode.Enabled then dbg('[KD] planAttack found no entry') end
                     end
