@@ -2317,25 +2317,9 @@ run(function()
 end)
 
 run(function()
-    local weaponCfg
-    pcall(function()
-        local swc = bedwars.SwordController
-        for _, fn in {swc.sendServerRequest, swc.swingSwordAtMouse, swc.swingSwordInRegion, swc.isClickingTooFast} do
-            if type(fn) ~= 'function' then continue end
-            for i = 1, 40 do
-                local ok, _, val = pcall(debug.getupvalue, fn, i)
-                if not ok then break end
-                if type(val) ~= 'table' then continue end
-                local ok2, weapon = pcall(function() return val.Weapon end)
-                if not ok2 or type(weapon) ~= 'table' then continue end
-                local ok3 = pcall(function() return weapon.respectAttackOverride end)
-                if ok3 then weaponCfg = val; return end
-            end
-        end
-    end)
-
+    local runService = cloneref(game:GetService('RunService'))
     local oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
-    local stunConn, charConn, syncConn
+    local heartbeatConn, stunConn, charConn
 
     local function connectStunClear(char)
         if stunConn then stunConn:Disconnect(); stunConn = nil end
@@ -2353,9 +2337,6 @@ run(function()
         Function = function(callback)
             if callback then
                 bedwars.SwordController.isClickingTooFast = function(self, ...)
-                    if weaponCfg then
-                        pcall(function() weaponCfg.Weapon.respectAttackOverride = false end)
-                    end
                     self.lastSwing = os.clock()
                     return false
                 end
@@ -2363,21 +2344,23 @@ run(function()
                 charConn = lplr.CharacterAdded:Connect(function(char)
                     connectStunClear(char)
                 end)
-                pcall(function()
-                    local sync = bedwars.ClientSync
-                    if sync and type(sync.SwordSwing) == 'table' and type(sync.SwordSwing.setPriority) == 'function' then
-                        syncConn = sync.SwordSwing:setPriority(1):Connect(function()
-                            if weaponCfg then
-                                pcall(function() weaponCfg.Weapon.respectAttackOverride = false end)
-                            end
-                        end)
+                heartbeatConn = runService.Heartbeat:Connect(function()
+                    local swc = bedwars.SwordController
+                    if swc.disableSwingState then
+                        swc.disableSwingState = false
+                    end
+                    if lplr.Character then
+                        local stun = lplr.Character:GetAttribute('StunnedUntilTime')
+                        if stun and stun > workspace:GetServerTimeNow() then
+                            pcall(function() lplr.Character:SetAttribute('StunnedUntilTime', 0) end)
+                        end
                     end
                 end)
             else
                 bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
+                if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
                 if stunConn then stunConn:Disconnect(); stunConn = nil end
                 if charConn then charConn:Disconnect(); charConn = nil end
-                if syncConn then pcall(function() syncConn:Disconnect() end); syncConn = nil end
             end
         end,
         Tooltip = 'Remove the attack delay after using any ability'
@@ -11408,6 +11391,8 @@ run(function()
                         local now = workspace:GetServerTimeNow()
                         add('lastSwing: ' .. string.format('%.3f', os.clock() - (swc.lastSwing or 0)) .. 's ago')
                         add('lastAttack: ' .. string.format('%.3f', now - (swc.lastAttack or 0)) .. 's ago')
+                        add('disableSwingState: ' .. tostring(swc.disableSwingState))
+                        add('enabled: ' .. tostring(swc.enabled))
                     end)
                     if lplr.Character then
                         local stun = lplr.Character:GetAttribute('StunnedUntilTime') or 0
