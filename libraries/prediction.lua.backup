@@ -6,46 +6,6 @@ local module = {}
 local eps = 1e-9
 local cloneref = cloneref or function(ref) return ref end
 local tweenService = cloneref(game:GetService('TweenService'))
-
-local velocityHistory = {}
-local HISTORY_SIZE = 8
-
-function module.GetSmoothedVelocity(target, rawVelocity)
-	local id = target:GetDebugId()
-	if not velocityHistory[id] then
-		velocityHistory[id] = { samples = {}, index = 0 }
-	end
-	local entry = velocityHistory[id]
-	entry.index = (entry.index % HISTORY_SIZE) + 1
-	entry.samples[entry.index] = rawVelocity
-
-	local count = math.min(#entry.samples, HISTORY_SIZE)
-	if count < 3 then
-		return rawVelocity
-	end
-
-	local sum = Vector3.zero
-	for i = 1, count do
-		sum = sum + entry.samples[i]
-	end
-	local avg = sum / count
-
-	local variance = 0
-	for i = 1, count do
-		local diff = entry.samples[i] - avg
-		variance = variance + diff.X * diff.X + diff.Z * diff.Z
-	end
-	variance = variance / count
-
-	local speed = rawVelocity.Magnitude
-	local threshold = speed * speed * 0.15
-	if variance < threshold then
-		return rawVelocity
-	end
-
-	local blend = math.clamp(variance / (speed * speed + 1), 0, 0.8)
-	return rawVelocity:Lerp(avg, blend)
-end
 local function isZero(d)
 	return (d > -eps and d < eps)
 end
@@ -275,55 +235,36 @@ function module.SpawnArcTracer(origin, aimDirection, projectileSpeed, gravity, t
     end
 	task.delay(custom.Lifetime, model.Destroy, model)
 end
-function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, targetVelocity, playerGravity, playerHeight, playerJump, params, targetRoot)
-	if targetRoot then
-		targetVelocity = module.GetSmoothedVelocity(targetRoot, targetVelocity)
-	end
-
+function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, targetVelocity, playerGravity, playerHeight, playerJump, params)
 	local disp = targetPos - origin
 	local p, q, r = targetVelocity.X, targetVelocity.Y, targetVelocity.Z
 	local h, j, k = disp.X, disp.Y, disp.Z
 	local l = -.5 * gravity
 
-	local ground = workspace:Raycast(targetPos, Vector3.new(0, -playerHeight - 2, 0), params)
-	if ground and q <= 0.1 then
-		q = -(targetPos.Y - ground.Position.Y)
+	local f = workspace:Raycast(targetPos, Vector3.new(0, -playerHeight - 0.5, 0), params)
+	if f ~= nil and q <= 0.1 then
+		q = -(targetPos.Y - f.Position.Y)
 	end
 
-	if playerGravity and playerGravity > 0 and (q > 0.01 or (targetVelocity.Y > 0.01 and playerJump and playerJump > 0)) then
-		local estTime = disp.Magnitude / projectileSpeed
-		local futureY = targetPos.Y + targetVelocity.Y * estTime - 0.5 * playerGravity * estTime * estTime
-		local groundCheck = workspace:Raycast(
-			Vector3.new(targetPos.X + targetVelocity.X * estTime, futureY + playerHeight, targetPos.Z + targetVelocity.Z * estTime),
-			Vector3.new(0, -(math.abs(futureY - targetPos.Y) + playerHeight + 2), 0),
-			params
-		)
-		if groundCheck then
-			local landY = groundCheck.Position.Y
-			if landY > futureY then
-				local a = 0.5 * playerGravity
-				local b = -targetVelocity.Y
-				local c = -(targetPos.Y - landY)
-				local disc = b * b - 4 * a * c
-				if disc >= 0 then
-					local landTime = (b + math.sqrt(disc)) / (2 * a)
-					if landTime > 0 and landTime < estTime then
-						targetPos = Vector3.new(
-							targetPos.X + targetVelocity.X * landTime,
-							landY,
-							targetPos.Z + targetVelocity.Z * landTime
-						)
-						disp = targetPos - origin
-						h, j, k = disp.X, disp.Y, disp.Z
-						q = 0
-						p = targetVelocity.X
-						r = targetVelocity.Z
-					end
-				end
+	--attemped gravity calculation, may return to it in the future.
+	if math.abs(q) > 0.01 and playerGravity and playerGravity > 0 then
+		local estTime = (disp.Magnitude / projectileSpeed)
+		local origq = q
+		local origj = j
+		for i = 1, 100 do
+			q -= (.5 * playerGravity) * estTime
+			local velo = targetVelocity * 0.016
+			local ray = workspace.Raycast(workspace, Vector3.new(targetPos.X, targetPos.Y, targetPos.Z), Vector3.new(velo.X, (q * estTime) - playerHeight, velo.Z), params)
+			if ray then
+				local newTarget = ray.Position + Vector3.new(0, playerHeight, 0)
+				estTime -= math.sqrt(((targetPos - newTarget).Magnitude * 2) / playerGravity)
+				targetPos = newTarget
+				j = (targetPos - origin).Y
+				q = 0
+				break
+			else
+				break
 			end
-		else
-			j = (targetPos.Y + targetVelocity.Y * estTime - 0.5 * playerGravity * estTime * estTime) - origin.Y
-			q = targetVelocity.Y - playerGravity * estTime
 		end
 	end
 
@@ -342,7 +283,7 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 				bestT = v
 			end
 		end
-
+	
 		if bestT < math.huge then
 			local t = bestT
 			local d = (h + p * t) / t
@@ -352,11 +293,11 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 			return origin + Vector3.new(d, e, f2), aimDir, t
 		end
 	elseif gravity == 0 then
-		local t = disp.Magnitude / projectileSpeed
-		local d = (h + p * t) / t
-		local e = (j + q * t - l * t * t) / t
-		local f2 = (k + r * t) / t
-		return origin + Vector3.new(d, e, f2)
+		local t = (disp.Magnitude / projectileSpeed)
+		local d = (h + p*t)/t
+		local e = (j + q*t - l*t*t)/t
+		local f = (k + r*t)/t
+		return origin + Vector3.new(d, e, f)
 	end
 end
 
