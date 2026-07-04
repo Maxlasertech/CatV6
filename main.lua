@@ -97,8 +97,12 @@ local function finishLoading()
 
 	if not shared.vapereload then
 		if not vape.Categories then return end
+		local fartVersion = '0'
+		pcall(function()
+			fartVersion = readfile('fart/profiles/version.txt'):match('%d+') or '0'
+		end)
 		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			vape:CreateNotification('Finished Loading', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
+			vape:CreateNotification('Fart v' .. fartVersion, (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
 		end
 	end
 end
