@@ -11404,13 +11404,17 @@ run(function()
 
                     add('-- Combat --')
                     pcall(function()
-                        add('lastSwing: ' .. string.format('%.3f', tick() - bedwars.SwordController.lastSwing) .. 's ago')
-                        add('lastAttack: ' .. string.format('%.3f', workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) .. 's ago')
+                        local swc = bedwars.SwordController
+                        local now = workspace:GetServerTimeNow()
+                        add('lastSwing: ' .. string.format('%.3f', os.clock() - (swc.lastSwing or 0)) .. 's ago')
+                        add('lastAttack: ' .. string.format('%.3f', now - (swc.lastAttack or 0)) .. 's ago')
                     end)
                     if lplr.Character then
                         local stun = lplr.Character:GetAttribute('StunnedUntilTime') or 0
                         local now = workspace:GetServerTimeNow()
                         add('StunnedUntilTime: ' .. (stun > now and string.format('%.2fs left', stun - now) or 'none'))
+                        local canDash = lplr.Character:GetAttribute('CanDashNext') or 0
+                        add('CanDashNext: ' .. (canDash > now and string.format('%.2fs left', canDash - now) or 'none'))
                     end
                     add('Hand: ' .. tostring(store.hand and store.hand.tool and store.hand.tool.Name or 'empty'))
                     add('HandType: ' .. tostring(store.hand and store.hand.toolType or 'none'))
@@ -11433,40 +11437,69 @@ run(function()
                     add('-- Abilities --')
                     pcall(function()
                         local ac = bedwars.AbilityController
-                        if ac then
-                            for _, name in {'dash', 'berserker_rage', 'CAT_POUNCE', 'midnight', 'electrify_jellyfish', 'SHOCKWAVE', 'LIGHTNING_STRIKE'} do
-                                local ok, can = pcall(function() return ac:canUseAbility(name) end)
-                                if ok then
-                                    add(name .. ': ' .. (can and 'ready' or 'cooldown'))
+                        if not ac then add('(no AbilityController)'); return end
+                        local found = {}
+                        for _, fn in {ac.canUseAbility, ac.useAbility, ac.getAbilityCooldown, ac.registerAbility} do
+                            if type(fn) ~= 'function' then continue end
+                            for i = 1, 40 do
+                                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                                if not ok then break end
+                                if type(val) ~= 'table' then continue end
+                                for k in next, val do
+                                    if type(k) == 'string' and not table.find(found, k) then
+                                        table.insert(found, k)
+                                    end
                                 end
                             end
                         end
+                        if lplr.Character then
+                            for attr, val in lplr.Character:GetAttributes() do
+                                if type(val) == 'string' and not table.find(found, val) then
+                                    table.insert(found, 1, val)
+                                end
+                            end
+                        end
+                        table.sort(found)
+                        local count = 0
+                        for _, name in found do
+                            local ok, can = pcall(function() return ac:canUseAbility(name) end)
+                            if ok then
+                                add(name .. ': ' .. (can and 'ready' or 'cooldown'))
+                                count += 1
+                            end
+                        end
+                        if count == 0 then add('(none registered)') end
                     end)
                     add('')
 
                     add('-- Shield --')
                     pcall(function()
                         if lplr.Character then
+                            local hasShield = false
                             for attr, val in lplr.Character:GetAttributes() do
                                 if attr:find('Shield') and type(val) == 'number' and val > 0 then
                                     add(attr .. ': ' .. tostring(val))
+                                    hasShield = true
                                 end
                             end
+                            if not hasShield then add('(none)') end
                         end
                     end)
                     add('')
 
                     add('-- Modules --')
                     pcall(function()
-                        for catName, cat in vape.Categories do
-                            if cat.Modules then
-                                for _, mod in cat.Modules do
-                                    if mod.Enabled then
-                                        add('[ON] ' .. (mod.Name or '?'))
-                                    end
-                                end
+                        local enabled = {}
+                        for name, mod in vape.Modules do
+                            if mod.Enabled then
+                                table.insert(enabled, name)
                             end
                         end
+                        table.sort(enabled)
+                        for _, name in enabled do
+                            add('[ON] ' .. name)
+                        end
+                        if #enabled == 0 then add('(none)') end
                     end)
 
                     local text = table.concat(lines, '\n')
