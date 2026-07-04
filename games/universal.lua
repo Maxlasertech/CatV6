@@ -2144,6 +2144,28 @@ run(function()
     	return ent, ent and ent[targetPart], origin
     end
 
+    local function solveProjectile(origin, ent, targetPart)
+    	local calc = prediction.SolveTrajectory(
+    		origin,
+    		ProjectileSpeed.Value,
+    		ProjectileGravity.Value,
+    		targetPart.Position,
+    		targetPart.Velocity,
+    		workspace.Gravity,
+    		ent.HipHeight,
+    		ent.Jumping and 42.6 or nil,
+    		ProjectileRaycast,
+    		targetPart
+    	)
+    	if calc then
+    		local dir = (calc - origin)
+    		local ray = workspace:Raycast(origin, dir.Unit * dir.Magnitude, ProjectileRaycast)
+    		if not ray or ray.Instance:IsDescendantOf(ent.Character) then
+    			return calc
+    		end
+    	end
+    end
+
     local Hooks = {
     	FindPartOnRayWithIgnoreList = function(args)
     		local ent, targetPart, origin = getTarget(args[1].Origin, { args[2] })
@@ -2181,17 +2203,7 @@ run(function()
     		end
     		local direction = CFrame.lookAt(origin, targetPart.Position)
     		if Projectile.Enabled then
-    			local calc = prediction.SolveTrajectory(
-    				origin,
-    				ProjectileSpeed.Value,
-    				ProjectileGravity.Value,
-    				targetPart.Position,
-    				targetPart.Velocity,
-    				workspace.Gravity,
-    				ent.HipHeight,
-    				nil,
-    				ProjectileRaycast
-    			)
+    			local calc = solveProjectile(origin, ent, targetPart)
     			if not calc then
     				return
     			end
@@ -2205,17 +2217,7 @@ run(function()
     			return
     		end
     		if Projectile.Enabled then
-    			local calc = prediction.SolveTrajectory(
-    				origin,
-    				ProjectileSpeed.Value,
-    				ProjectileGravity.Value,
-    				targetPart.Position,
-    				targetPart.Velocity,
-    				workspace.Gravity,
-    				ent.HipHeight,
-    				nil,
-    				ProjectileRaycast
-    			)
+    			local calc = solveProjectile(origin, ent, targetPart)
     			if not calc then
     				return
     			end
