@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 31
+local VERSION = 32
 local run = function(func)
 	func()
 end
@@ -15854,7 +15854,7 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, DebugMode
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
@@ -16277,6 +16277,17 @@ run(function()
                         continue
                     end
 
+                    if BreakerFallback and BreakerFallback.Enabled and bedVis then
+                        if not ItemLimit.Enabled or (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
+                            targetGlow.Adornee = bestBed
+                            if PathOverlay.Enabled then clearPath() end
+                            bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            continue
+                        end
+                    end
+
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
@@ -16351,6 +16362,11 @@ run(function()
     ItemLimit = KingDraco:CreateToggle({
         Name = 'Limit to items',
         Tooltip = 'Only breaks when holding a tool'
+    })
+    BreakerFallback = KingDraco:CreateToggle({
+        Name = 'Breaker',
+        Default = true,
+        Tooltip = 'When server cancels bed strike, use Breaker to pathfind through defense. Uses Auto tool and Limit to items'
     })
     DebugMode = KingDraco:CreateToggle({
         Name = 'Debug',
