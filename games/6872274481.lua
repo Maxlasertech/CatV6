@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 27
+local VERSION = 29
 local run = function(func)
 	func()
 end
@@ -16037,7 +16037,7 @@ run(function()
         }):andThen(function(result)
             if not result then return end
             if result == 'cancelled' then
-                store.damageBlockFail = tick() + 1
+                store.damageBlockFail = tick() + 0.3
                 return
             end
 
@@ -16268,11 +16268,11 @@ run(function()
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
                     end
 
-                    if bedVis and store.damageBlockFail <= tick() then
+                    if bedVis then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
-                        strike(bestBed)
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick())) end
+                        bedwars.breakBlock(bestBed.Position, false)
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] breakBlock bed (visible)') end
                         task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                         continue
                     end
@@ -16287,14 +16287,9 @@ run(function()
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
-                            task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
-                    elseif bedVis and store.damageBlockFail > tick() then
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] no defense, fallback breakBlock') end
-                        bedwars.breakBlock(bestBed.Position, false)
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                        continue
                     else
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
                     end
