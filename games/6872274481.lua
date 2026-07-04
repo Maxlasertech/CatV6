@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 19
+local VERSION = 20
 local run = function(func)
 	func()
 end
@@ -15854,13 +15854,21 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
     local targetGlow, bedGlow
     local pathParts = {}
     local losFilter
+    local debugLog = {}
+    local MAX_LOG = 200
+
+    local function dbg(msg)
+        warn(msg)
+        table.insert(debugLog, os.clock() .. ' ' .. msg)
+        if #debugLog > MAX_LOG then table.remove(debugLog, 1) end
+    end
 
     local function refreshFilter()
         if not losFilter then
@@ -16175,12 +16183,16 @@ run(function()
         end
     end
 
+    local f4Conn
+
     local function fullCleanup()
         killBar()
         for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
         table.clear(pathParts)
         if targetGlow then targetGlow:Destroy() targetGlow = nil end
         if bedGlow then bedGlow:Destroy() bedGlow = nil end
+        if f4Conn then f4Conn:Disconnect() f4Conn = nil end
+        table.clear(debugLog)
     end
 
     KingDraco = vape.Categories.Minigames:CreateModule({
@@ -16200,6 +16212,17 @@ run(function()
                 bedGlow.FillColor = Color3.fromRGB(80, 80, 255)
                 bedGlow.OutlineColor = Color3.fromRGB(180, 180, 255)
                 bedGlow.Parent = gameCamera
+
+                f4Conn = inputService.InputBegan:Connect(function(input, gpe)
+                    if gpe then return end
+                    if input.KeyCode == Enum.KeyCode.F4 and DebugMode and DebugMode.Enabled then
+                        local text = table.concat(debugLog, '\n')
+                        if setclipboard then
+                            setclipboard(text)
+                            notif('KingDraco', 'Debug log copied (' .. #debugLog .. ' lines)', 3, 'info')
+                        end
+                    end
+                end)
 
                 local beds = collection('bed', KingDraco)
 
@@ -16237,19 +16260,30 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    if isBedVisible(bestBed) then
+                    local bedVis = isBedVisible(bestBed)
+                    if DebugMode and DebugMode.Enabled then
+                        local dist = (bestBed.Position - origin).Magnitude
+                        dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
+                    end
+
+                    if bedVis then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
                         if store.damageBlockFail <= tick() then
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed OK') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] server cancelled bed strike -> planAttack') end
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
+                        if DebugMode and DebugMode.Enabled then
+                            dbg('[KD] planAttack entry=' .. tostring(entry) .. ' block=' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
+                        end
                         if entryBlock and isVisible(entry) then
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
@@ -16257,6 +16291,8 @@ run(function()
                             task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
                             continue
                         end
+                    else
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] planAttack found no entry') end
                     end
 
                     targetGlow.Adornee = nil
@@ -16309,6 +16345,10 @@ run(function()
     ItemLimit = KingDraco:CreateToggle({
         Name = 'Limit to items',
         Tooltip = 'Only breaks when holding a tool'
+    })
+    DebugMode = KingDraco:CreateToggle({
+        Name = 'Debug',
+        Tooltip = 'Prints debug info to console (F9). Press F4 to copy log to clipboard'
     })
 end)
 
