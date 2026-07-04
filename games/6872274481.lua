@@ -16271,7 +16271,7 @@ run(function()
                     if bedVis then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
-                        bedwars.breakBlock(bestBed.Position, false)
+                        bedwars.breakBlock(bestBed, false)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] breakBlock bed (visible)') end
                         task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                         continue
