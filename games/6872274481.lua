@@ -11372,10 +11372,125 @@ run(function()
 end)
 
 run(function()
+    local DebugInfo
+    local f4Conn
+
+    DebugInfo = vape.Categories.Utility:CreateModule({
+        Name = 'Debug Info',
+        Function = function(callback)
+            if callback then
+                f4Conn = inputService.InputBegan:Connect(function(input, gpe)
+                    if gpe then return end
+                    if input.KeyCode ~= Enum.KeyCode.F4 then return end
+
+                    local lines = {}
+                    local function add(str) table.insert(lines, str) end
+
+                    add('=== Debug Info ===')
+                    add('Time: ' .. os.date('%Y-%m-%d %H:%M:%S'))
+                    add('PlaceId: ' .. tostring(game.PlaceId))
+                    add('ServerTime: ' .. tostring(workspace:GetServerTimeNow()))
+                    add('')
+
+                    add('-- Player --')
+                    add('Kit: ' .. tostring(store.equippedKit or 'none'))
+                    add('Alive: ' .. tostring(entitylib.isAlive))
+                    if entitylib.isAlive and entitylib.character and entitylib.character.RootPart then
+                        local pos = entitylib.character.RootPart.Position
+                        add('Position: ' .. math.floor(pos.X) .. ', ' .. math.floor(pos.Y) .. ', ' .. math.floor(pos.Z))
+                        add('Health: ' .. tostring(entitylib.character.Humanoid and math.floor(entitylib.character.Humanoid.Health) or '?'))
+                    end
+                    add('')
+
+                    add('-- Combat --')
+                    pcall(function()
+                        add('lastSwing: ' .. string.format('%.3f', tick() - bedwars.SwordController.lastSwing) .. 's ago')
+                        add('lastAttack: ' .. string.format('%.3f', workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) .. 's ago')
+                    end)
+                    if lplr.Character then
+                        local stun = lplr.Character:GetAttribute('StunnedUntilTime') or 0
+                        local now = workspace:GetServerTimeNow()
+                        add('StunnedUntilTime: ' .. (stun > now and string.format('%.2fs left', stun - now) or 'none'))
+                    end
+                    add('Hand: ' .. tostring(store.hand and store.hand.tool and store.hand.tool.Name or 'empty'))
+                    add('HandType: ' .. tostring(store.hand and store.hand.toolType or 'none'))
+                    add('AttackReach: ' .. tostring(store.attackReach))
+                    add('')
+
+                    add('-- Inventory --')
+                    pcall(function()
+                        local sword = store.tools.sword
+                        add('Sword: ' .. (sword and sword.tool and sword.tool.Name or 'none'))
+                        local inv = bedwars.getInventory(lplr)
+                        if inv and inv.armor then
+                            for slot, item in inv.armor do
+                                add('Armor[' .. tostring(slot) .. ']: ' .. tostring(item.itemType or item))
+                            end
+                        end
+                    end)
+                    add('')
+
+                    add('-- Abilities --')
+                    pcall(function()
+                        local ac = bedwars.AbilityController
+                        if ac then
+                            for _, name in {'dash', 'berserker_rage', 'CAT_POUNCE', 'midnight', 'electrify_jellyfish', 'SHOCKWAVE', 'LIGHTNING_STRIKE'} do
+                                local ok, can = pcall(function() return ac:canUseAbility(name) end)
+                                if ok then
+                                    add(name .. ': ' .. (can and 'ready' or 'cooldown'))
+                                end
+                            end
+                        end
+                    end)
+                    add('')
+
+                    add('-- Shield --')
+                    pcall(function()
+                        if lplr.Character then
+                            for attr, val in lplr.Character:GetAttributes() do
+                                if attr:find('Shield') and type(val) == 'number' and val > 0 then
+                                    add(attr .. ': ' .. tostring(val))
+                                end
+                            end
+                        end
+                    end)
+                    add('')
+
+                    add('-- Modules --')
+                    pcall(function()
+                        for catName, cat in vape.Categories do
+                            if cat.Modules then
+                                for _, mod in cat.Modules do
+                                    if mod.Enabled then
+                                        add('[ON] ' .. (mod.Name or '?'))
+                                    end
+                                end
+                            end
+                        end
+                    end)
+
+                    local text = table.concat(lines, '\n')
+                    if setclipboard then
+                        setclipboard(text)
+                        vape:CreateNotification('Debug Info', 'Copied to clipboard (' .. #lines .. ' lines)', 3)
+                    else
+                        for _, l in lines do warn(l) end
+                        vape:CreateNotification('Debug Info', 'Printed to console (no clipboard)', 3)
+                    end
+                end)
+            else
+                if f4Conn then f4Conn:Disconnect(); f4Conn = nil end
+            end
+        end,
+        Tooltip = 'Press F4 to copy debug info to clipboard'
+    })
+end)
+
+run(function()
     local AutoSuffocate
     local Range
     local LimitItem
-    
+
     local function fixPosition(pos)
         return bedwars.BlockController:getBlockPosition(pos) * 3
     end
