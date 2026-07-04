@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 32
+local VERSION = 33
 local run = function(func)
 	func()
 end
@@ -15901,6 +15901,15 @@ run(function()
         return false
     end
 
+    local function isBedVisible(bed)
+        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
+        local positions = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
+        for _, gridPos in positions do
+            if isVisible(gridPos * 3) then return true end
+        end
+        return false
+    end
+
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16262,7 +16271,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    local bedVis = isVisible(bestBed.Position)
+                    local bedVis = isBedVisible(bestBed)
                     if DebugMode and DebugMode.Enabled then
                         local dist = (bestBed.Position - origin).Magnitude
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
