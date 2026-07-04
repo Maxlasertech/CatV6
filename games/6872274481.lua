@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 22
+local VERSION = 23
 local run = function(func)
 	func()
 end
@@ -16019,10 +16019,21 @@ run(function()
             hp.max = maxHP
         end
 
+        local dir = entitylib.character.RootPart.Position - block.Position
+        local ax, ay, az = math.abs(dir.X), math.abs(dir.Y), math.abs(dir.Z)
+        local hitNormal
+        if ay >= ax and ay >= az then
+            hitNormal = Vector3.new(0, dir.Y > 0 and 1 or -1, 0)
+        elseif ax >= az then
+            hitNormal = Vector3.new(dir.X > 0 and 1 or -1, 0, 0)
+        else
+            hitNormal = Vector3.new(0, 0, dir.Z > 0 and 1 or -1)
+        end
+
         bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync({
             blockRef = {blockPosition = gridPos},
-            hitPosition = block.Position,
-            hitNormal = Vector3.FromNormalId(Enum.NormalId.Top)
+            hitPosition = block.Position + hitNormal * 1.5,
+            hitNormal = hitNormal
         }):andThen(function(result)
             if not result then return end
             if result == 'cancelled' then
@@ -16260,12 +16271,9 @@ run(function()
                     if bedVis then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
-                        if store.damageBlockFail > tick() then
-                            bedwars.breakBlock(bestBed.Position, false)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] force break bed (no wallcheck)') end
-                        else
-                            strike(bestBed)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick())) end
+                        strike(bestBed)
+                        if DebugMode and DebugMode.Enabled then
+                            dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick()))
                         end
                         task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
                         continue
