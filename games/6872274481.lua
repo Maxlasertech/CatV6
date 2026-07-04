@@ -2317,6 +2317,74 @@ run(function()
 end)
 
 run(function()
+    local weaponCfg
+    pcall(function()
+        local swc = bedwars.SwordController
+        for _, fn in {swc.sendServerRequest, swc.swingSwordAtMouse, swc.swingSwordInRegion, swc.isClickingTooFast} do
+            if type(fn) ~= 'function' then continue end
+            for i = 1, 40 do
+                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                if not ok then break end
+                if type(val) ~= 'table' then continue end
+                local ok2, weapon = pcall(function() return val.Weapon end)
+                if not ok2 or type(weapon) ~= 'table' then continue end
+                local ok3 = pcall(function() return weapon.respectAttackOverride end)
+                if ok3 then weaponCfg = val; return end
+            end
+        end
+    end)
+
+    local oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
+    local stunConn, charConn, syncConn
+
+    local function connectStunClear(char)
+        if stunConn then stunConn:Disconnect(); stunConn = nil end
+        if not char then return end
+        stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
+            local val = char:GetAttribute('StunnedUntilTime')
+            if val and val > workspace:GetServerTimeNow() then
+                pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
+            end
+        end)
+    end
+
+    vape.Categories.Combat:CreateModule({
+        Name = 'No Attack Cooldown',
+        Function = function(callback)
+            if callback then
+                bedwars.SwordController.isClickingTooFast = function(self, ...)
+                    if weaponCfg then
+                        pcall(function() weaponCfg.Weapon.respectAttackOverride = false end)
+                    end
+                    self.lastSwing = os.clock()
+                    return false
+                end
+                connectStunClear(lplr.Character)
+                charConn = lplr.CharacterAdded:Connect(function(char)
+                    connectStunClear(char)
+                end)
+                pcall(function()
+                    local sync = bedwars.ClientSync
+                    if sync and type(sync.SwordSwing) == 'table' and type(sync.SwordSwing.setPriority) == 'function' then
+                        syncConn = sync.SwordSwing:setPriority(1):Connect(function()
+                            if weaponCfg then
+                                pcall(function() weaponCfg.Weapon.respectAttackOverride = false end)
+                            end
+                        end)
+                    end
+                end)
+            else
+                bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
+                if stunConn then stunConn:Disconnect(); stunConn = nil end
+                if charConn then charConn:Disconnect(); charConn = nil end
+                if syncConn then pcall(function() syncConn:Disconnect() end); syncConn = nil end
+            end
+        end,
+        Tooltip = 'Remove the attack delay after using any ability'
+    })
+end)
+
+run(function()
     if canDebug then
     	run(function()
     		local BlockReach
@@ -19864,6 +19932,48 @@ run(function()
         Name = 'Anti Attack Block',
         Default = true,
         Tooltip = 'Allow attacking while Hephaestus repair is active'
+    })
+end)
+
+run(function()
+    local MartinSpeed
+    local martinConn
+
+    MartinSpeed = vape.Categories.Kits:CreateModule({
+        Name = 'MartinSpeed',
+        Function = function(callback)
+            if callback then
+                local syncEvents = bedwars.ClientSyncEvents
+                if not syncEvents or not syncEvents.SwordSwing then
+                    warn('[LIONV4] martinspeed: swordswing event not found')
+                    return
+                end
+                local ok, conn = pcall(function()
+                    return syncEvents.SwordSwing:setPriority(1):connect(function(data)
+                        if not data then return end
+                        if data.attackSpeed then
+                            data.attackSpeed = data.attackSpeed - 0.05
+                        end
+                        if data.config then
+                            data.config.respectAttackSpeedOverride = false
+                        else
+                            data.config = { respectAttackSpeedOverride = false }
+                        end
+                    end)
+                end)
+                if ok and conn then
+                    martinConn = conn
+                else
+                    warn('[LIONV4] martinspeed: failed to hook swordswing')
+                end
+            else
+                if martinConn then
+                    pcall(function() martinConn:Disconnect() end)
+                    martinConn = nil
+                end
+            end
+        end,
+        Tooltip = 'Removes Martin/Cactus swing restriction — swing like a normal kit'
     })
 end)
 
