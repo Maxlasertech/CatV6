@@ -22604,11 +22604,222 @@ run(function()
     })
 end)
 run(function()
+    local DavidFastHits
+    local Targets
+    local Range
+    local FireRate
+    local Sort
+    local Legit
+    local SwingOnly
+    local Angle
+    local SilentAim
+    local lastVoidShot = tick()
+    local projectileRemote = {InvokeServer = function(self, ...) end}
+
+    task.spawn(function()
+        projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
+    end)
+
+    local function getVoidAxe()
+        for _, item in store.inventory.inventory.items do
+            if item.itemType == 'void_axe' then
+                return item
+            end
+        end
+        return nil
+    end
+
+    DavidFastHits = vape.Categories.Combat:CreateModule({
+        Name = 'David Fast Hits',
+        Function = function(callback)
+            if callback then
+                repeat
+                    task.wait()
+                    if not entitylib.isAlive then continue end
+                    if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then continue end
+                    if SwingOnly.Enabled and store.hand.toolType ~= 'sword' and (tick() - bedwars.SwordController.lastSwing) > 0.3 then continue end
+                    if tick() < lastVoidShot then continue end
+
+                    local voidAxe = getVoidAxe()
+                    if not voidAxe then continue end
+
+                    local itemMeta = bedwars.ItemMeta[voidAxe.itemType]
+                    if not itemMeta or not itemMeta.projectileSource then continue end
+
+                    local proj = itemMeta.projectileSource
+                    local ammo = voidAxe.itemType
+                    if proj.ammoItemTypes then
+                        local found = false
+                        for _, a in store.inventory.inventory.items do
+                            if table.find(proj.ammoItemTypes, a.itemType) then
+                                ammo = a.itemType
+                                found = true
+                                break
+                            end
+                        end
+                        if not found then
+                            ammo = voidAxe.itemType
+                        end
+                    end
+
+                    local projectile = proj.projectileType and proj.projectileType(ammo) or ammo
+
+                    local localPosition = entitylib.character.RootPart.Position
+                    local ent = entitylib.EntityPosition({
+                        Origin = localPosition,
+                        Range = Range.Value,
+                        Wallcheck = Targets.Walls.Enabled or nil,
+                        Part = 'RootPart',
+                        Players = Targets.Players.Enabled,
+                        NPCs = Targets.NPCs.Enabled,
+                        Limit = 1,
+                        Sort = sortmethods[Sort.Value] or sortmethods.Distance,
+                    })
+
+                    if ent and not entitylib.Wallcheck(localPosition, ent.RootPart.Position, {gameCamera, lplr.Character, ent.Character}) then
+                        local delta = (ent.RootPart.Position - localPosition)
+                        local flat = delta * Vector3.new(1, 0, 1)
+                        local localfacing = (inputService.KeyboardEnabled and gameCamera or entitylib.character.RootPart).CFrame.LookVector * Vector3.new(1, 0, 1)
+                        local facingdot = flat.Magnitude > 0 and localfacing.Magnitude > 0 and (localfacing / localfacing.Magnitude):Dot(flat / flat.Magnitude) or 0
+                        if facingdot < math.cos(math.rad(Angle.Value) / 2) then continue end
+
+                        targetinfo.Targets[ent] = tick() + 1
+
+                        lastVoidShot = tick() + FireRate.Value
+
+                        local projmeta = bedwars.ProjectileMeta[projectile]
+                        if not projmeta then continue end
+                        local projSpeed = projmeta.launchVelocity
+                        local gravity = projmeta.gravitationalAcceleration or 196.2
+                        local oldhotbar = store.inventory.hotbarSlot
+                        local oldtool = store.hand.tool
+                        local hotbar = getHotbar(voidAxe.tool)
+
+                        if hotbar then
+                            switchItem(voidAxe.tool)
+                            if Legit.Enabled then
+                                hotbarSwitch(hotbar)
+                            end
+                        end
+
+                        if SilentAim.Enabled and entitylib.isAlive then
+                            entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(ent.RootPart.Position.X, entitylib.character.RootPart.Position.Y, ent.RootPart.Position.Z))
+                        end
+
+                        local calc = prediction.SolveTrajectory(
+                            localPosition, projSpeed, gravity,
+                            ent.RootPart.Position, ent.RootPart.Velocity,
+                            workspace.Gravity, ent.HipHeight,
+                            ent.Jumping and 42.6 or nil,
+                            nil, nil, lplr:GetNetworkPing()
+                        )
+
+                        if calc then
+                            local sdir = CFrame.lookAt(localPosition, calc).LookVector
+                            local id = httpService:GenerateGUID(true)
+                            local shootPosition = (CFrame.new(localPosition, calc) * CFrame.new(Vector3.new(
+                                -bedwars.BowConstantsTable.RelX,
+                                -bedwars.BowConstantsTable.RelY,
+                                -bedwars.BowConstantsTable.RelZ
+                            ))).Position
+
+                            bedwars.ProjectileController:createLocalProjectile(itemMeta, ammo, projectile, shootPosition, id, sdir * projSpeed, {drawDurationSeconds = 1})
+                            local _, res = pcall(function() return projectileRemote:InvokeServer(
+                                voidAxe.tool,
+                                ammo,
+                                projectile,
+                                shootPosition,
+                                localPosition,
+                                sdir * projSpeed,
+                                id,
+                                {
+                                    drawDurationSeconds = 1,
+                                    shotId = httpService:GenerateGUID(false)
+                                },
+                                workspace:GetServerTimeNow() - 0.045
+                            ) end)
+                            if res then
+                                pcall(function() res.Parent = replicatedStorage end)
+                                local shoot = itemMeta.launchSound or (proj.launchSound)
+                                shoot = shoot and shoot[math.random(1, #shoot)] or nil
+                                if shoot then
+                                    bedwars.SoundManager:playSound(shoot)
+                                end
+                            end
+                        end
+
+                        task.spawn(function()
+                            task.wait(0.3)
+                            if oldtool then
+                                switchItem(oldtool)
+                                if Legit.Enabled then
+                                    hotbarSwitch(oldhotbar)
+                                end
+                            end
+                        end)
+                    end
+                until not DavidFastHits.Enabled
+            end
+        end,
+        Tooltip = 'Void Axe fast hits with closet silent aim',
+    })
+
+    Targets = DavidFastHits:CreateTargets({Players = true, NPCs = true})
+    local methods = {'Damage', 'Distance'}
+    for i in sortmethods do
+        if not table.find(methods, i) then
+            table.insert(methods, i)
+        end
+    end
+    Sort = DavidFastHits:CreateDropdown({
+        Name = 'Target mode',
+        List = methods,
+        Default = 'Distance',
+    })
+    Range = DavidFastHits:CreateSlider({
+        Name = 'Range',
+        Min = 1,
+        Max = 50,
+        Default = 30,
+        Suffix = function(val)
+            return val <= 1 and 'stud' or 'studs'
+        end,
+    })
+    Angle = DavidFastHits:CreateSlider({
+        Name = 'Max angle',
+        Min = 1,
+        Max = 360,
+        Default = 360,
+    })
+    FireRate = DavidFastHits:CreateSlider({
+        Name = 'Fire Rate',
+        Min = 0,
+        Max = 2,
+        Default = 0.5,
+        Decimal = 100,
+        Suffix = 'seconds',
+    })
+    SilentAim = DavidFastHits:CreateToggle({
+        Name = 'Silent Aim',
+        Default = true,
+        Tooltip = 'Silently rotates toward closest target',
+    })
+    SwingOnly = DavidFastHits:CreateToggle({
+        Name = 'Swing Only',
+        Default = false,
+        Tooltip = 'Only fires when actively swinging sword',
+    })
+    Legit = DavidFastHits:CreateToggle({
+        Name = 'Legit Switch',
+        Default = false,
+    })
+end)
+run(function()
     local ItemSuspend
     local FreezeDelay
     local Lifetime
     local FrozenItems = {}
-    
+
     ItemSuspend = vape.Categories.Utility:CreateModule({
         Name = 'Item Suspend',
         Function = function(callback)
