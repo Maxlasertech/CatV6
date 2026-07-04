@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 20
+local VERSION = 21
 local run = function(func)
 	func()
 end
@@ -15901,15 +15901,6 @@ run(function()
         return false
     end
 
-    local function isBedVisible(bed)
-        local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
-        local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        for _, cp in contained do
-            if isVisible(cp * 3) then return true end
-        end
-        return false
-    end
-
     local function eligible(block)
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
         if not BreakSelf.Enabled then
@@ -16260,7 +16251,7 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    local bedVis = isBedVisible(bestBed)
+                    local bedVis = isVisible(bestBed.Position)
                     if DebugMode and DebugMode.Enabled then
                         local dist = (bestBed.Position - origin).Magnitude
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
@@ -16270,12 +16261,11 @@ run(function()
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
-                        if store.damageBlockFail <= tick() then
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed OK') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            continue
+                        if DebugMode and DebugMode.Enabled then
+                            dbg('[KD] strike bed, fail=' .. tostring(store.damageBlockFail > tick()))
                         end
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] server cancelled bed strike -> planAttack') end
+                        task.wait(QuickBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or SpeedSetting.Value)
+                        continue
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
