@@ -2318,87 +2318,8 @@ end)
 
 run(function()
     local runService = cloneref(game:GetService('RunService'))
-    local heartbeatConn, stunConn, charConn, syncConn
-    local weaponConfig = nil
-    local oldIsClickingTooFast = nil
-
-    local function findWeaponConfig()
-        local found = nil
-        local swc = bedwars.SwordController
-
-        local methods = {}
-        pcall(function()
-            for k, v in swc do
-                if type(v) == 'function' then
-                    table.insert(methods, {k, v})
-                end
-            end
-        end)
-        pcall(function()
-            local mt = getmetatable(swc)
-            if mt and mt.__index and type(mt.__index) == 'table' then
-                for k, v in mt.__index do
-                    if type(v) == 'function' then
-                        table.insert(methods, {k, v})
-                    end
-                end
-            end
-        end)
-        local explicitNames = {
-            'sendServerRequest', 'swingSwordAtMouse', 'swingSwordInRegion',
-            'isClickingTooFast', 'swingRelease', 'attackEntity', 'onSwing',
-            'canSwing', 'startSwing', 'endSwing', 'handleSwing',
-            'swingSword', 'onAttack', 'handleAttack', 'performAttack',
-            'checkAttack', 'validateSwing', 'processSwing',
-        }
-        for _, name in explicitNames do
-            pcall(function()
-                local fn = swc[name]
-                if type(fn) == 'function' then
-                    table.insert(methods, {name, fn})
-                end
-            end)
-        end
-
-        warn('[NoAttackCD] Found ' .. #methods .. ' methods to scan')
-        local methodNames = {}
-        for _, pair in methods do table.insert(methodNames, pair[1]) end
-        warn('[NoAttackCD] Methods: ' .. table.concat(methodNames, ', '))
-
-        local allKeys = {}
-        pcall(function()
-            for k, v in swc do
-                table.insert(allKeys, tostring(k) .. '(' .. type(v) .. ')')
-            end
-        end)
-        warn('[NoAttackCD] SWC raw keys: ' .. (#allKeys > 0 and table.concat(allKeys, ', ') or '(none from pairs)'))
-
-        for _, pair in methods do
-            local name, fn = pair[1], pair[2]
-            for i = 1, 40 do
-                local ok, _, val = pcall(debug.getupvalue, fn, i)
-                if not ok then break end
-                if type(val) == 'table' then
-                    local ok2, weapon = pcall(function() return val.Weapon end)
-                    if ok2 and type(weapon) == 'table' then
-                        warn('[NoAttackCD] Found .Weapon table in ' .. tostring(name) .. ' upvalue ' .. i)
-                        local weaponKeys = {}
-                        pcall(function()
-                            for k, v in weapon do
-                                table.insert(weaponKeys, tostring(k) .. '=' .. tostring(v))
-                            end
-                        end)
-                        warn('[NoAttackCD] Weapon keys: ' .. table.concat(weaponKeys, ', '))
-                        found = val
-                        return found
-                    end
-                end
-            end
-        end
-
-        warn('[NoAttackCD] weaponConfig NOT found after scanning all methods')
-        return found
-    end
+    local heartbeatConn, stunConn, charConn
+    local saved = {}
 
     local function connectStunClear(char)
         if stunConn then stunConn:Disconnect(); stunConn = nil end
@@ -2406,7 +2327,6 @@ run(function()
         stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
             local val = char:GetAttribute('StunnedUntilTime')
             if val and val > workspace:GetServerTimeNow() then
-                warn('[NoAttackCD] Clearing StunnedUntilTime')
                 pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
             end
         end)
@@ -2416,100 +2336,50 @@ run(function()
         Name = 'No Attack Cooldown',
         Function = function(callback)
             if callback then
-                oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
-                weaponConfig = findWeaponConfig()
-                warn('[NoAttackCD] ENABLED | weaponConfig=' .. tostring(weaponConfig ~= nil))
-                if weaponConfig then
-                    pcall(function()
-                        local keys = {}
-                        for k, v in weaponConfig.Weapon do
-                            table.insert(keys, tostring(k) .. '=' .. tostring(v))
-                        end
-                        warn('[NoAttackCD] Weapon keys: ' .. table.concat(keys, ', '))
-                    end)
-                end
+                local swc = bedwars.SwordController
+                saved.isClickingTooFast = swc.isClickingTooFast
+                saved.getSwordSwingDisabled = swc.getSwordSwingDisabled
+                saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
+                saved.getRemainingCastingTime = swc.getRemainingCastingTime
+                saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
 
-                bedwars.SwordController.isClickingTooFast = function(self, ...)
+                swc.isClickingTooFast = function(self, ...)
                     self.lastSwing = os.clock()
-                    if weaponConfig then
-                        pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                    end
                     return false
                 end
+                swc.getSwordSwingDisabled = function(self, ...)
+                    return false
+                end
+                swc.getRemainingSwingCooldown = function(self, ...)
+                    return 0
+                end
+                swc.getRemainingCastingTime = function(self, ...)
+                    return 0
+                end
+                swc.isOnChargeAttackCooldown = function(self, ...)
+                    return false
+                end
+
                 connectStunClear(lplr.Character)
                 charConn = lplr.CharacterAdded:Connect(function(char)
                     connectStunClear(char)
                 end)
                 heartbeatConn = runService.Heartbeat:Connect(function()
-                    local swc = bedwars.SwordController
                     if swc.disableSwingState then
                         swc.disableSwingState = false
                     end
-                    if weaponConfig then
-                        pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                    end
                 end)
-
-                local synced = false
-                pcall(function()
-                    local cse = bedwars.ClientSyncEvents
-                    warn('[NoAttackCD] ClientSyncEvents type: ' .. type(cse))
-                    if cse then
-                        local syncKeys = {}
-                        pcall(function() for k in cse do table.insert(syncKeys, tostring(k)) end end)
-                        warn('[NoAttackCD] CSE keys: ' .. (#syncKeys > 0 and table.concat(syncKeys, ', ') or '(empty)'))
-                    end
-                    local cs = bedwars.ClientSync
-                    warn('[NoAttackCD] ClientSync type: ' .. type(cs))
-                    if cs then
-                        local syncKeys2 = {}
-                        pcall(function() for k in cs do table.insert(syncKeys2, tostring(k)) end end)
-                        warn('[NoAttackCD] CS keys: ' .. (#syncKeys2 > 0 and table.concat(syncKeys2, ', ') or '(empty)'))
-                    end
-                end)
-                pcall(function()
-                    local sync = bedwars.ClientSyncEvents
-                    if sync and sync.SwordSwing and type(sync.SwordSwing.setPriority) == 'function' then
-                        syncConn = sync.SwordSwing:setPriority(1):connect(function(data)
-                            if weaponConfig then
-                                pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                            end
-                            if data and data.config then
-                                data.config.respectAttackSpeedOverride = false
-                            end
-                        end)
-                        synced = true
-                        warn('[NoAttackCD] SwordSwing hooked via ClientSyncEvents')
-                    end
-                end)
-                if not synced then
-                    pcall(function()
-                        local sync = bedwars.ClientSync
-                        if sync and type(sync.SwordSwing) == 'table' and type(sync.SwordSwing.setPriority) == 'function' then
-                            syncConn = sync.SwordSwing:setPriority(1):Connect(function()
-                                if weaponConfig then
-                                    pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                                end
-                            end)
-                            synced = true
-                            warn('[NoAttackCD] SwordSwing hooked via ClientSync')
-                        end
-                    end)
-                end
-                if not synced then
-                    warn('[NoAttackCD] SwordSwing sync NOT found (tried both)')
-                end
             else
-                warn('[NoAttackCD] DISABLED')
-                if oldIsClickingTooFast then
-                    bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
-                end
+                local swc = bedwars.SwordController
+                if saved.isClickingTooFast then swc.isClickingTooFast = saved.isClickingTooFast end
+                if saved.getSwordSwingDisabled then swc.getSwordSwingDisabled = saved.getSwordSwingDisabled end
+                if saved.getRemainingSwingCooldown then swc.getRemainingSwingCooldown = saved.getRemainingSwingCooldown end
+                if saved.getRemainingCastingTime then swc.getRemainingCastingTime = saved.getRemainingCastingTime end
+                if saved.isOnChargeAttackCooldown then swc.isOnChargeAttackCooldown = saved.isOnChargeAttackCooldown end
                 if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
                 if stunConn then stunConn:Disconnect(); stunConn = nil end
                 if charConn then charConn:Disconnect(); charConn = nil end
-                if syncConn then pcall(function() syncConn:Disconnect() end); syncConn = nil end
-                weaponConfig = nil
-                oldIsClickingTooFast = nil
+                saved = {}
             end
         end,
         Tooltip = 'Remove the attack delay after using any ability'
