@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 53
+local VERSION = 54
 local run = function(func)
 	func()
 end
@@ -15854,7 +15854,7 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BedCheck, BreakerFallback, DebugMode
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BedCheck, LockedTarget, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
@@ -16205,6 +16205,7 @@ run(function()
     local f4Conn
 
     local function fullCleanup()
+        store._lockedDefensePos = nil
         killBar()
         for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
         table.clear(pathParts)
@@ -16270,6 +16271,7 @@ run(function()
                     end
 
                     if not bestBed then
+                        store._lockedDefensePos = nil
                         clearPath()
                         killBar()
                         targetGlow.Adornee = nil
@@ -16286,6 +16288,7 @@ run(function()
                     end
 
                     if bedVis and store.damageBlockFail <= tick() then
+                        store._lockedDefensePos = nil
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
@@ -16305,6 +16308,19 @@ run(function()
                         end
                     end
 
+                    local lockedPos = LockedTarget and LockedTarget.Enabled and store._lockedDefensePos
+                    local lockedBlock = lockedPos and getPlacedBlock(lockedPos)
+                    if lockedBlock and (lockedPos - origin).Magnitude <= RangeSetting.Value and isVisible(lockedPos) then
+                        targetGlow.Adornee = lockedBlock
+                        equipFor(lockedBlock)
+                        strike(lockedBlock)
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
+                    else
+                        store._lockedDefensePos = nil
+                    end
+
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
@@ -16312,6 +16328,9 @@ run(function()
                             dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
                         end
                         if entryBlock and isVisible(entry) then
+                            if LockedTarget and LockedTarget.Enabled then
+                                store._lockedDefensePos = entry
+                            end
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
@@ -16379,6 +16398,10 @@ run(function()
     BedCheck = KingDraco:CreateToggle({
         Name = 'Bed check',
         Tooltip = 'Bed strikes use 0.25s speed regardless of Break delay'
+    })
+    LockedTarget = KingDraco:CreateToggle({
+        Name = 'Locked target',
+        Tooltip = 'Stays on a defense block until it breaks or goes out of range'
     })
     ItemLimit = KingDraco:CreateToggle({
         Name = 'Limit to items',
