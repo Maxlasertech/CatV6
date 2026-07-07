@@ -2399,6 +2399,8 @@ run(function()
         end)
     end
 
+    local swingDetected = false
+
     vape.Categories.Combat:CreateModule({
         Name = 'No Attack Cooldown',
         Function = function(callback)
@@ -2410,6 +2412,7 @@ run(function()
                 saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
                 saved.getRemainingCastingTime = swc.getRemainingCastingTime
                 saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
+                saved.playSwordEffect = swc.playSwordEffect
                 saved.mobileSwingPressed = swc.mobileSwingPressed
                 saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
                 saved.swingSwordAtMouse = swc.swingSwordAtMouse
@@ -2431,12 +2434,31 @@ run(function()
                     return false
                 end
 
-                swc.mobileSwingPressed = function(self)
-                    forceSwing(self)
+                swc.playSwordEffect = function(self, ...)
+                    swingDetected = true
+                    return saved.playSwordEffect(self, ...)
                 end
 
-                swc.swingSwordAtViewportPoint = function(self)
-                    forceSwing(self)
+                swc.mobileSwingPressed = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    swingDetected = false
+                    saved.mobileSwingPressed(self, ...)
+                    if not swingDetected then
+                        forceSwing(self)
+                    end
+                end
+
+                swc.swingSwordAtViewportPoint = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    swingDetected = false
+                    saved.swingSwordAtViewportPoint(self, ...)
+                    if not swingDetected then
+                        forceSwing(self)
+                    end
                 end
 
                 swc.swingSwordAtMouse = function(self, ...)
