@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 41
+local VERSION = 42
 local run = function(func)
 	func()
 end
@@ -16369,7 +16369,7 @@ run(function()
                         continue
                     end
                     local hits = getBlockHits(nb, np)
-                    local h = useDistance and ((origin - np).Magnitude + hits * 3) or hits
+                    local h = useDistance and ((origin - np).Magnitude + hits) or hits
                     local nc = pick[1] + h
                     if nc < (costs[np] or math.huge) then
                         costs[np] = nc
