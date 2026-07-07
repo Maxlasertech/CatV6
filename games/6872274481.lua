@@ -2427,23 +2427,25 @@ run(function()
                 end
 
                 swc.mobileSwingPressed = function(self, ...)
+                    if self.activeSwordActionId then
+                        forceSwing(self)
+                        return
+                    end
                     clearBlockingState(self)
                     self.lastSwing = os.clock() - 1
                     self.lastAttack = workspace:GetServerTimeNow() - 1
-                    local ok, err = pcall(saved.mobileSwingPressed, self, ...)
-                    if not ok then
-                        forceSwing(self)
-                    end
+                    saved.mobileSwingPressed(self, ...)
                 end
 
                 swc.swingSwordAtViewportPoint = function(self, ...)
+                    if self.activeSwordActionId then
+                        forceSwing(self)
+                        return
+                    end
                     clearBlockingState(self)
                     self.lastSwing = os.clock() - 1
                     self.lastAttack = workspace:GetServerTimeNow() - 1
-                    local ok, err = pcall(saved.swingSwordAtViewportPoint, self, ...)
-                    if not ok then
-                        forceSwing(self)
-                    end
+                    saved.swingSwordAtViewportPoint(self, ...)
                 end
 
                 swc.swingSwordAtMouse = function(self, ...)
