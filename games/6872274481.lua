@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 52
+local VERSION = 53
 local run = function(func)
 	func()
 end
@@ -15854,7 +15854,7 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BreakerFallback, DebugMode
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BedCheck, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
@@ -16290,7 +16290,7 @@ run(function()
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (visible)') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        task.wait(QuickBreak.Enabled and 0 or (BedCheck.Enabled and 0.25 or SpeedSetting.Value))
                         continue
                     end
 
@@ -16300,7 +16300,7 @@ run(function()
                             if PathOverlay.Enabled then clearPath() end
                             bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
                             if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            task.wait(QuickBreak.Enabled and 0 or (BedCheck.Enabled and 0.25 or SpeedSetting.Value))
                             continue
                         end
                     end
@@ -16323,7 +16323,7 @@ run(function()
                         targetGlow.Adornee = bestBed
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (no defense found)') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        task.wait(QuickBreak.Enabled and 0 or (BedCheck.Enabled and 0.25 or SpeedSetting.Value))
                         continue
                     else
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
@@ -16376,6 +16376,10 @@ run(function()
     })
     BreakSelf = KingDraco:CreateToggle({Name = 'Self break'})
     QuickBreak = KingDraco:CreateToggle({Name = 'Instant break'})
+    BedCheck = KingDraco:CreateToggle({
+        Name = 'Bed check',
+        Tooltip = 'Bed strikes use 0.25s speed regardless of Break delay'
+    })
     ItemLimit = KingDraco:CreateToggle({
         Name = 'Limit to items',
         Tooltip = 'Only breaks when holding a tool'
