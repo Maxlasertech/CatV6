@@ -16005,6 +16005,7 @@ run(function()
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
+    local lockedTarget = nil
     local targetGlow, bedGlow
     local pathParts = {}
     local losFilter
@@ -16425,6 +16426,7 @@ run(function()
                     end
 
                     if bedVis and store.damageBlockFail <= tick() then
+                        lockedTarget = nil
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
@@ -16435,6 +16437,7 @@ run(function()
 
                     if BreakerFallback and BreakerFallback.Enabled and bedVis then
                         if not ItemLimit.Enabled or (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
+                            lockedTarget = nil
                             targetGlow.Adornee = bestBed
                             if PathOverlay.Enabled then clearPath() end
                             bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
@@ -16444,6 +16447,16 @@ run(function()
                         end
                     end
 
+                    if lockedTarget and lockedTarget.Parent and (lockedTarget.Position - origin).Magnitude < RangeSetting.Value and isVisible(lockedTarget.Position) then
+                        targetGlow.Adornee = lockedTarget
+                        strike(lockedTarget)
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked ' .. lockedTarget.Name) end
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
+                    else
+                        lockedTarget = nil
+                    end
+
                     local entry, route, anchor = planAttack(bestBed, origin)
                     if entry then
                         local entryBlock = getPlacedBlock(entry)
@@ -16451,6 +16464,7 @@ run(function()
                             dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
                         end
                         if entryBlock and isVisible(entry) then
+                            lockedTarget = entryBlock
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
