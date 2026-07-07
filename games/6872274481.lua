@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 38
+local VERSION = 39
 local run = function(func)
 	func()
 end
@@ -16006,6 +16006,7 @@ run(function()
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
     local lockedTarget = nil
+    local lastBedVis = false
     local targetGlow, bedGlow
     local pathParts = {}
     local losFilter
@@ -16387,13 +16388,14 @@ run(function()
                 local beds = collection('bed', KingDraco)
 
                 repeat
-                    task.wait(1 / TickRate.Value)
                     if not KingDraco.Enabled then break end
                     if not entitylib.isAlive then
                         clearPath()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        lastBedVis = false
+                        task.wait(1 / TickRate.Value)
                         continue
                     end
 
@@ -16415,12 +16417,18 @@ run(function()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        lastBedVis = false
+                        task.wait(1 / TickRate.Value)
                         continue
                     end
 
                     bedGlow.Adornee = bestBed
 
                     local bedVis = isBedVisible(bestBed)
+                    if bedVis and not lastBedVis then
+                        store.damageBlockFail = 0
+                    end
+                    lastBedVis = bedVis
                     if DebugMode and DebugMode.Enabled then
                         local dist = (bestBed.Position - origin).Magnitude
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
@@ -16486,6 +16494,7 @@ run(function()
                     targetGlow.Adornee = nil
                     clearPath()
                     killBar()
+                    task.wait(1 / TickRate.Value)
                 until not KingDraco.Enabled
             else
                 fullCleanup()
