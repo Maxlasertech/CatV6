@@ -2350,14 +2350,15 @@ run(function()
 
     local function forceSwing(swc)
         if not entitylib.isAlive then return end
-        local sword = store.tools.sword
+        local sword = store.hand
+        if not sword or sword.toolType ~= 'sword' then
+            sword = store.tools.sword
+        end
         if not sword or not sword.tool then return end
         local meta = bedwars.ItemMeta[sword.tool.Name]
         if not meta then return end
 
         clearBlockingState(swc)
-        swc.lastSwing = os.clock() - 1
-        swc.lastAttack = workspace:GetServerTimeNow() - 1
 
         pcall(function()
             swc:playSwordEffect(meta, false)
@@ -2367,29 +2368,33 @@ run(function()
         swc.lastAttack = workspace:GetServerTimeNow()
 
         pcall(function()
-            local unit = lplr:GetMouse().UnitRay
             local localPos = entitylib.character.RootPart.Position
+            local camCF = workspace.CurrentCamera.CFrame
+            local dir = camCF.LookVector
             local rayParams = RaycastParams.new()
             rayParams.FilterDescendantsInstances = {lplr.Character}
-            local ray = bedwars.QueryUtil:raycast(unit.Origin, unit.Direction * 200, rayParams)
+            local attackRange = (meta.sword and meta.sword.attackRange) or 14.4
+            local ray = bedwars.QueryUtil:raycast(camCF.Position, dir * (attackRange + 5), rayParams)
             if ray then
-                local hitPos = ray.Position
-                local dir = (hitPos - localPos).Unit
-                bedwars.Client:Get(remotes.AttackEntity):SendToServer({
-                    weapon = sword.tool,
-                    chargedAttack = {chargeRatio = 0},
-                    entityInstance = ray.Instance.Parent,
-                    validate = {
-                        raycast = {
-                            cameraPosition = {value = localPos},
-                            cursorDirection = {value = dir},
+                local hitChar = ray.Instance.Parent
+                local humanoid = hitChar and hitChar:FindFirstChildOfClass('Humanoid')
+                if humanoid then
+                    bedwars.Client:Get(remotes.AttackEntity):SendToServer({
+                        weapon = sword.tool,
+                        chargedAttack = {chargeRatio = 0},
+                        entityInstance = hitChar,
+                        validate = {
+                            raycast = {
+                                cameraPosition = {value = localPos},
+                                cursorDirection = {value = dir},
+                            },
+                            targetPosition = {
+                                value = ray.Instance.Position,
+                            },
+                            selfPosition = {value = localPos},
                         },
-                        targetPosition = {
-                            value = hitPos,
-                        },
-                        selfPosition = {value = localPos},
-                    },
-                })
+                    })
+                end
             end
         end)
     end
@@ -2426,26 +2431,12 @@ run(function()
                     return false
                 end
 
-                swc.mobileSwingPressed = function(self, ...)
-                    if self.activeSwordActionId then
-                        forceSwing(self)
-                        return
-                    end
-                    clearBlockingState(self)
-                    self.lastSwing = os.clock() - 1
-                    self.lastAttack = workspace:GetServerTimeNow() - 1
-                    saved.mobileSwingPressed(self, ...)
+                swc.mobileSwingPressed = function(self)
+                    forceSwing(self)
                 end
 
-                swc.swingSwordAtViewportPoint = function(self, ...)
-                    if self.activeSwordActionId then
-                        forceSwing(self)
-                        return
-                    end
-                    clearBlockingState(self)
-                    self.lastSwing = os.clock() - 1
-                    self.lastAttack = workspace:GetServerTimeNow() - 1
-                    saved.swingSwordAtViewportPoint(self, ...)
+                swc.swingSwordAtViewportPoint = function(self)
+                    forceSwing(self)
                 end
 
                 swc.swingSwordAtMouse = function(self, ...)
