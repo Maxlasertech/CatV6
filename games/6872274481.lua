@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 50
+local VERSION = 48
 local run = function(func)
 	func()
 end
@@ -2313,6 +2313,136 @@ run(function()
             end
         end,
         Tooltip = 'Remove the CPS cap'
+    })
+end)
+
+run(function()
+    local runService = cloneref(game:GetService('RunService'))
+    local heartbeatConn, stunConn, charConn
+    local saved = {}
+
+    local function clearBlockingState(swc)
+        swc.disableSwingState = false
+        swc.holdAutoSwingDisabled = false
+        swc.activeSwordActionId = nil
+        pcall(function() swc.thirdPersonAnimPlaying = false end)
+        pcall(function() swc.enabled = true end)
+        pcall(function()
+            if lplr.Character then
+                local stun = lplr.Character:GetAttribute('StunnedUntilTime')
+                if stun and stun > workspace:GetServerTimeNow() then
+                    lplr.Character:SetAttribute('StunnedUntilTime', 0)
+                end
+            end
+        end)
+    end
+
+    local function connectStunClear(char)
+        if stunConn then stunConn:Disconnect(); stunConn = nil end
+        if not char then return end
+        stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
+            local val = char:GetAttribute('StunnedUntilTime')
+            if val and val > workspace:GetServerTimeNow() then
+                pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
+            end
+        end)
+    end
+
+    local function forceSwing(swc)
+        clearBlockingState(swc)
+        swc.lastSwing = os.clock() - 1
+        swc.lastAttack = workspace:GetServerTimeNow() - 1
+        pcall(saved.swingSwordAtMouse, swc)
+    end
+
+    local swingDetected = false
+
+    vape.Categories.Combat:CreateModule({
+        Name = 'No Attack Cooldown',
+        Function = function(callback)
+            if callback then
+                local swc = bedwars.SwordController
+
+                saved.isClickingTooFast = swc.isClickingTooFast
+                saved.getSwordSwingDisabled = swc.getSwordSwingDisabled
+                saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
+                saved.getRemainingCastingTime = swc.getRemainingCastingTime
+                saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
+                saved.playSwordEffect = swc.playSwordEffect
+                saved.mobileSwingPressed = swc.mobileSwingPressed
+                saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
+                saved.swingSwordAtMouse = swc.swingSwordAtMouse
+
+                swc.isClickingTooFast = function(self)
+                    self.lastSwing = os.clock()
+                    return false
+                end
+                swc.getSwordSwingDisabled = function()
+                    return false
+                end
+                swc.getRemainingSwingCooldown = function()
+                    return 0
+                end
+                swc.getRemainingCastingTime = function()
+                    return 0
+                end
+                swc.isOnChargeAttackCooldown = function()
+                    return false
+                end
+
+                swc.playSwordEffect = function(self, ...)
+                    swingDetected = true
+                    return saved.playSwordEffect(self, ...)
+                end
+
+                swc.mobileSwingPressed = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    swingDetected = false
+                    saved.mobileSwingPressed(self, ...)
+                    if not swingDetected then
+                        forceSwing(self)
+                    end
+                end
+
+                swc.swingSwordAtViewportPoint = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    swingDetected = false
+                    saved.swingSwordAtViewportPoint(self, ...)
+                    if not swingDetected then
+                        forceSwing(self)
+                    end
+                end
+
+                swc.swingSwordAtMouse = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    return saved.swingSwordAtMouse(self, ...)
+                end
+
+                connectStunClear(lplr.Character)
+                charConn = lplr.CharacterAdded:Connect(function(char)
+                    connectStunClear(char)
+                end)
+                heartbeatConn = runService.Heartbeat:Connect(function()
+                    clearBlockingState(swc)
+                end)
+            else
+                local swc = bedwars.SwordController
+                for name, fn in saved do
+                    if fn then swc[name] = fn end
+                end
+                if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
+                if stunConn then stunConn:Disconnect(); stunConn = nil end
+                if charConn then charConn:Disconnect(); charConn = nil end
+                saved = {}
+            end
+        end,
+        Tooltip = 'Remove the attack delay after using any ability'
     })
 end)
 
@@ -11304,10 +11434,188 @@ run(function()
 end)
 
 run(function()
+    local DebugInfo
+    local f4Conn
+
+    DebugInfo = vape.Categories.Utility:CreateModule({
+        Name = 'Debug Info',
+        Function = function(callback)
+            if callback then
+                f4Conn = inputService.InputBegan:Connect(function(input, gpe)
+                    if gpe then return end
+                    if input.KeyCode ~= Enum.KeyCode.F4 then return end
+
+                    local lines = {}
+                    local function add(str) table.insert(lines, str) end
+
+                    add('=== Debug Info ===')
+                    add('Time: ' .. os.date('%Y-%m-%d %H:%M:%S'))
+                    add('PlaceId: ' .. tostring(game.PlaceId))
+                    add('ServerTime: ' .. tostring(workspace:GetServerTimeNow()))
+                    add('')
+
+                    add('-- Player --')
+                    add('Kit: ' .. tostring(store.equippedKit or 'none'))
+                    add('Alive: ' .. tostring(entitylib.isAlive))
+                    if entitylib.isAlive and entitylib.character and entitylib.character.RootPart then
+                        local pos = entitylib.character.RootPart.Position
+                        add('Position: ' .. math.floor(pos.X) .. ', ' .. math.floor(pos.Y) .. ', ' .. math.floor(pos.Z))
+                        add('Health: ' .. tostring(entitylib.character.Humanoid and math.floor(entitylib.character.Humanoid.Health) or '?'))
+                    end
+                    add('')
+
+                    add('-- Combat --')
+                    pcall(function()
+                        local swc = bedwars.SwordController
+                        local now = workspace:GetServerTimeNow()
+                        add('lastSwing: ' .. string.format('%.3f', os.clock() - (swc.lastSwing or 0)) .. 's ago')
+                        add('lastAttack: ' .. string.format('%.3f', now - (swc.lastAttack or 0)) .. 's ago')
+                        add('disableSwingState: ' .. tostring(swc.disableSwingState))
+                        add('enabled: ' .. tostring(swc.enabled))
+                    end)
+                    if lplr.Character then
+                        local stun = lplr.Character:GetAttribute('StunnedUntilTime') or 0
+                        local now = workspace:GetServerTimeNow()
+                        add('StunnedUntilTime: ' .. (stun > now and string.format('%.2fs left', stun - now) or 'none'))
+                        local canDash = lplr.Character:GetAttribute('CanDashNext') or 0
+                        add('CanDashNext: ' .. (canDash > now and string.format('%.2fs left', canDash - now) or 'none'))
+                    end
+                    add('Hand: ' .. tostring(store.hand and store.hand.tool and store.hand.tool.Name or 'empty'))
+                    add('HandType: ' .. tostring(store.hand and store.hand.toolType or 'none'))
+                    add('AttackReach: ' .. tostring(store.attackReach))
+                    add('')
+
+                    add('-- WeaponConfig --')
+                    pcall(function()
+                        local swc = bedwars.SwordController
+                        local wc = nil
+                        for _, fn in {swc.sendServerRequest, swc.swingSwordAtMouse, swc.swingSwordInRegion, swc.isClickingTooFast} do
+                            if type(fn) ~= 'function' then continue end
+                            for i = 1, 40 do
+                                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                                if not ok then break end
+                                if type(val) ~= 'table' then continue end
+                                local ok2, weapon = pcall(function() return val.Weapon end)
+                                if ok2 and type(weapon) == 'table' then
+                                    wc = weapon
+                                    break
+                                end
+                            end
+                            if wc then break end
+                        end
+                        if wc then
+                            for k, v in wc do
+                                add(tostring(k) .. ': ' .. tostring(v))
+                            end
+                        else
+                            add('(not found)')
+                        end
+                    end)
+                    add('')
+
+                    add('-- Inventory --')
+                    pcall(function()
+                        local sword = store.tools.sword
+                        add('Sword: ' .. (sword and sword.tool and sword.tool.Name or 'none'))
+                        local inv = bedwars.getInventory(lplr)
+                        if inv and inv.armor then
+                            for slot, item in inv.armor do
+                                add('Armor[' .. tostring(slot) .. ']: ' .. tostring(item.itemType or item))
+                            end
+                        end
+                    end)
+                    add('')
+
+                    add('-- Abilities --')
+                    pcall(function()
+                        local ac = bedwars.AbilityController
+                        if not ac then add('(no AbilityController)'); return end
+                        local found = {}
+                        for _, fn in {ac.canUseAbility, ac.useAbility, ac.getAbilityCooldown, ac.registerAbility} do
+                            if type(fn) ~= 'function' then continue end
+                            for i = 1, 40 do
+                                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                                if not ok then break end
+                                if type(val) ~= 'table' then continue end
+                                for k in next, val do
+                                    if type(k) == 'string' and not table.find(found, k) then
+                                        table.insert(found, k)
+                                    end
+                                end
+                            end
+                        end
+                        if lplr.Character then
+                            for attr, val in lplr.Character:GetAttributes() do
+                                if type(val) == 'string' and not table.find(found, val) then
+                                    table.insert(found, 1, val)
+                                end
+                            end
+                        end
+                        table.sort(found)
+                        local count = 0
+                        for _, name in found do
+                            local ok, can = pcall(function() return ac:canUseAbility(name) end)
+                            if ok then
+                                add(name .. ': ' .. (can and 'ready' or 'cooldown'))
+                                count += 1
+                            end
+                        end
+                        if count == 0 then add('(none registered)') end
+                    end)
+                    add('')
+
+                    add('-- Shield --')
+                    pcall(function()
+                        if lplr.Character then
+                            local hasShield = false
+                            for attr, val in lplr.Character:GetAttributes() do
+                                if attr:find('Shield') and type(val) == 'number' and val > 0 then
+                                    add(attr .. ': ' .. tostring(val))
+                                    hasShield = true
+                                end
+                            end
+                            if not hasShield then add('(none)') end
+                        end
+                    end)
+                    add('')
+
+                    add('-- Modules --')
+                    pcall(function()
+                        local enabled = {}
+                        for name, mod in vape.Modules do
+                            if mod.Enabled then
+                                table.insert(enabled, name)
+                            end
+                        end
+                        table.sort(enabled)
+                        for _, name in enabled do
+                            add('[ON] ' .. name)
+                        end
+                        if #enabled == 0 then add('(none)') end
+                    end)
+
+                    local text = table.concat(lines, '\n')
+                    if setclipboard then
+                        setclipboard(text)
+                        vape:CreateNotification('Debug Info', 'Copied to clipboard (' .. #lines .. ' lines)', 3)
+                    else
+                        for _, l in lines do warn(l) end
+                        vape:CreateNotification('Debug Info', 'Printed to console (no clipboard)', 3)
+                    end
+                end)
+            else
+                if f4Conn then f4Conn:Disconnect(); f4Conn = nil end
+            end
+        end,
+        Tooltip = 'Press F4 to copy debug info to clipboard'
+    })
+end)
+
+run(function()
     local AutoSuffocate
     local Range
     local LimitItem
-    
+
     local function fixPosition(pos)
         return bedwars.BlockController:getBlockPosition(pos) * 3
     end
@@ -11620,7 +11928,10 @@ run(function()
     local Smart
     local Switch
     local Layers
-    
+    local AutoPatch
+    local ProtectedLayers
+    local PlacementSpeed
+
     local function getBedNear()
         local localPosition = entitylib.isAlive and entitylib.character.RootPart.Position or Vector3.zero
         for _, v in collectionService:GetTagged('bed') do
@@ -11633,7 +11944,7 @@ run(function()
         end
         return nil
     end
-    
+
     local function getBlocks()
         local blocks = {}
         for _, item in store.inventory.inventory.items do
@@ -11649,7 +11960,7 @@ run(function()
         end)
         return blocks
     end
-    
+
     local function getPyramid(size, grid)
         local positions = {}
         for h = size, 0, -1 do
@@ -11662,11 +11973,82 @@ run(function()
         end
         return positions
     end
-    
+
+    local function isEnemy(player)
+        if not player then return false end
+        local myTeam = lplr:GetAttribute('Team')
+        return player:GetAttribute('Team') ~= myTeam
+    end
+
+    local function isWithinProtectedLayers(worldPos, bed)
+        if not bed then return false end
+        local relPos = bed.CFrame:PointToObjectSpace(worldPos)
+        local gx = math.floor(relPos.X / 3 + 0.5)
+        local gy = math.floor(relPos.Y / 3 + 0.5)
+        local gz = math.floor(relPos.Z / 3 + 0.5)
+        local maxLayer = ProtectedLayers.Value
+        for layer = 1, maxLayer do
+            for _, pos in getPyramid(layer, 3) do
+                local px = math.floor(pos.X / 3 + 0.5)
+                local py = math.floor(pos.Y / 3 + 0.5)
+                local pz = math.floor(pos.Z / 3 + 0.5)
+                if px == gx and py == gy and pz == gz then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
     BedProtector = vape.Categories.World:CreateModule({
-        Name = 'Bed Protector',
+        Name = 'Draco X2',
         Function = function(callback)
             if callback then
+                BedProtector:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
+                    if not BedProtector.Enabled then return end
+                    if not AutoPatch.Enabled then return end
+                    if not entitylib.isAlive then return end
+                    if not isEnemy(data.player) then return end
+
+                    local worldPos = data.blockRef.blockPosition * 3
+                    local bed = getBedNear()
+                    if not bed then return end
+                    if (worldPos - bed.Position).Magnitude > PlaceRange.Value then return end
+                    if not isWithinProtectedLayers(worldPos, bed) then return end
+                    if getPlacedBlock(worldPos) then return end
+
+                    local blocks = getBlocks()
+                    if #blocks == 0 then return end
+                    local block = blocks[1]
+
+                    task.spawn(function()
+                        if PlacementSpeed.Value > 0 then
+                            task.wait(PlacementSpeed.Value / 1000)
+                        end
+
+                        if getPlacedBlock(worldPos) then return end
+                        if (entitylib.character.RootPart.Position - worldPos).Magnitude > PlaceRange.Value then return end
+
+                        local old = store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
+                        local switched = false
+
+                        if Switch.Enabled then
+                            local hotbar = getHotbar(block[3])
+                            if hotbar and hotbarSwitch(hotbar) then
+                                switched = true
+                                task.wait()
+                            end
+                        end
+
+                        bedwars.placeBlock(worldPos, block[1], false)
+
+                        if switched and old then
+                            task.wait()
+                            hotbarSwitch(old)
+                        end
+                    end)
+                end))
+
                 repeat
                     local bed = getBedNear()
                     if bed then
@@ -11676,11 +12058,11 @@ run(function()
                             end
                             local switch, old = Switch.Enabled, store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
                             local hotbar = nil
-    
+
                             if switch then
                                 hotbar = getHotbar(block[3])
                             end
-    
+
                             for _, pos in getPyramid(i, 3) do
                                 if not BedProtector.Enabled then
                                     break
@@ -11698,14 +12080,14 @@ run(function()
                                 task.spawn(bedwars.placeBlock, pos, block[1], false)
                                 task.wait(0.1)
                             end
-    
+
                             if switch and old and hotbarSwitch(old) then
                                 task.wait()
                             end
                         end
                     else
                         if Mode.Value == 'On Key' then
-                            notif('BedProtector', 'Unable to locate bed', 5)
+                            notif('Draco X2', 'Unable to locate bed', 5)
                             BedProtector:Toggle()
                         end
                     end
@@ -11717,9 +12099,9 @@ run(function()
                 until not BedProtector.Enabled
             end
         end,
-        Tooltip = 'Automatically places strong blocks around the bed.'
+        Tooltip = 'Automatically places and defends blocks around the bed.'
     })
-    
+
     Mode = BedProtector:CreateDropdown({
         Name = 'Mode',
         List = {'Toggle', 'On Key'},
@@ -11750,154 +12132,26 @@ run(function()
     })
     Switch = BedProtector:CreateToggle({Name = 'Auto Switch'})
     Smart = BedProtector:CreateToggle({Name = 'Smart', Default = true})
-end)
-
-run(function()
-    local AutoPatch
-    local Layers
-    local PlaceDelay
-    local PatchRange
-    local PatchSpeed
-    local PatchSwitch
-
-    local function getStrongestBlock()
-        local best, bestHealth = nil, 0
-        for _, item in store.inventory.inventory.items do
-            local meta = bedwars.ItemMeta[item.itemType]
-            local block = meta and meta.block
-            if block and (block.health or 0) > bestHealth and getHotbar(item.tool) then
-                best = item
-                bestHealth = block.health
-            end
-        end
-        return best
-    end
-
-    local function isEnemy(player)
-        if not player then return false end
-        local myTeam = lplr:GetAttribute('Team')
-        return player:GetAttribute('Team') ~= myTeam
-    end
-
-    local function bedInRange(worldPos)
-        local myTeam = lplr:GetAttribute('Team') or -1
-        for _, v in collectionService:GetTagged('bed') do
-            if v:GetAttribute('Team' .. myTeam .. 'NoBreak') then
-                if (worldPos - v.Position).Magnitude <= PatchRange.Value then
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
-    -- Tracks consecutive breaks at the same spot so a position that keeps
-    -- getting re-broken keeps getting re-patched, not just the first time.
-    -- Entries decay after a few seconds of quiet so the counter doesn't
-    -- permanently lock out a spot the enemy gave up on.
-    local breakCounts = {}
-    local BREAK_DECAY_SECS = 10
-
-    local function posKey(pos)
-        return math.floor(pos.X / 3 + 0.5) .. ':' .. math.floor(pos.Y / 3 + 0.5) .. ':' .. math.floor(pos.Z / 3 + 0.5)
-    end
-
-    local function shouldPatch(worldPos)
-        local key = posKey(worldPos)
-        local now = tick()
-        local entry = breakCounts[key]
-        if not entry or (now - entry.last) > BREAK_DECAY_SECS then
-            entry = {count = 0, last = now}
-            breakCounts[key] = entry
-        end
-        entry.count += 1
-        entry.last = now
-        return entry.count <= Layers.Value
-    end
-
-    AutoPatch = vape.Categories.World:CreateModule({
-        Name = 'Auto Patch',
-        Function = function(call)
-            if not call then
-                table.clear(breakCounts)
-                return
-            end
-            AutoPatch:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
-                if not AutoPatch.Enabled then return end
-                if not entitylib.isAlive then return end
-                if not isEnemy(data.player) then return end
-
-                local worldPos = data.blockRef.blockPosition * 3
-                if not bedInRange(worldPos) then return end
-                if not shouldPatch(worldPos) then return end
-
-                local block = getStrongestBlock()
-                if not block then return end
-
-                -- Each break gets its own coroutine so a flurry of breaks
-                -- from multiple attackers all get patched immediately
-                -- instead of queueing behind one shared lock.
-                task.spawn(function()
-                    if PlaceDelay.Value > 0 then
-                        task.wait(PlaceDelay.Value / 1000)
-                    end
-                    local old = store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
-                    local switched = false
-
-                    if PatchSwitch.Enabled then
-                        local hotbar = getHotbar(block.tool)
-                        if hotbar and hotbarSwitch(hotbar) then
-                            switched = true
-                        end
-                    end
-
-                    bedwars.placeBlock(worldPos, block.itemType, false)
-
-                    if switched then
-                        task.wait((11 - PatchSpeed.Value) * 0.03)
-                        if old then
-                            hotbarSwitch(old)
-                        end
-                    end
-                end)
-            end))
-        end,
-        Tooltip = 'Instantly replaces blocks broken by enemies near your bed, using the strongest block available'
+    AutoPatch = BedProtector:CreateToggle({
+        Name = 'AutoPatch',
+        Default = false,
+        Tooltip = 'When enabled, automatically replaces blocks broken by enemies within the protected layers'
     })
-
-    Layers = AutoPatch:CreateSlider({
-        Name = 'Layers',
+    ProtectedLayers = BedProtector:CreateSlider({
+        Name = 'Protected Layers',
         Min = 1,
         Max = 8,
         Default = 2,
         Suffix = function(v) return v == 1 and 'layer' or 'layers' end,
-        Tooltip = 'How many times in a row the same spot can be re-broken and still get patched'
+        Tooltip = 'How many pyramid layers AutoPatch will monitor and rebuild when broken by enemies'
     })
-    PatchRange = AutoPatch:CreateSlider({
-        Name = 'Place Range',
-        Min = 1,
-        Max = 30,
-        Default = 15,
-    })
-    PlaceDelay = AutoPatch:CreateSlider({
-        Name = 'Place Delay',
+    PlacementSpeed = BedProtector:CreateSlider({
+        Name = 'Placement Speed',
         Min = 0,
         Max = 500,
-        Default = 0,
+        Default = 100,
         Suffix = 'ms',
-        Tooltip = 'Delay before placing each patch block; increase to look less automatic'
-    })
-    PatchSpeed = AutoPatch:CreateSlider({
-        Name = 'Speed',
-        Min = 1,
-        Max = 10,
-        Default = 6,
-        Tooltip = 'How quickly it switches back to your previous item after patching; higher is faster but may cut the placement animation short'
-    })
-    PatchSwitch = AutoPatch:CreateToggle({
-        Name = 'Auto Switch',
-        Default = true,
-        Tooltip = 'Switch hotbar to the strongest block before placing so the placement animation shows the block instead of your held item'
+        Tooltip = 'Delay in milliseconds before AutoPatch places a replacement block; 0 for instant'
     })
 end)
 
@@ -16121,8 +16375,8 @@ run(function()
                         if not nb then exposed = true end
                         continue
                     end
-                    local h = useDistance and (origin - Vector3.new(np.X, origin.Y, np.Z)).Magnitude or getBlockHits(nb, np)
-                    local nc = pick[1] + h
+                    local hits = getBlockHits(nb, np)
+                    local nc = pick[1] + hits
                     if nc < (costs[np] or math.huge) then
                         costs[np] = nc
                         prev[np] = pick[2]
@@ -19953,6 +20207,48 @@ run(function()
 end)
 
 run(function()
+    local MartinSpeed
+    local martinConn
+
+    MartinSpeed = vape.Categories.Kits:CreateModule({
+        Name = 'MartinSpeed',
+        Function = function(callback)
+            if callback then
+                local syncEvents = bedwars.ClientSyncEvents
+                if not syncEvents or not syncEvents.SwordSwing then
+                    warn('[LIONV4] martinspeed: swordswing event not found')
+                    return
+                end
+                local ok, conn = pcall(function()
+                    return syncEvents.SwordSwing:setPriority(1):connect(function(data)
+                        if not data then return end
+                        if data.attackSpeed then
+                            data.attackSpeed = data.attackSpeed - 0.05
+                        end
+                        if data.config then
+                            data.config.respectAttackSpeedOverride = false
+                        else
+                            data.config = { respectAttackSpeedOverride = false }
+                        end
+                    end)
+                end)
+                if ok and conn then
+                    martinConn = conn
+                else
+                    warn('[LIONV4] martinspeed: failed to hook swordswing')
+                end
+            else
+                if martinConn then
+                    pcall(function() martinConn:Disconnect() end)
+                    martinConn = nil
+                end
+            end
+        end,
+        Tooltip = 'Removes Martin/Cactus swing restriction — swing like a normal kit'
+    })
+end)
+
+run(function()
     local cloneref = cloneref or function(o) return o end
     local pl  = cloneref(game:GetService('Players'))
     local hs  = cloneref(game:GetService('HttpService'))
@@ -22639,7 +22935,7 @@ run(function()
     local FreezeDelay
     local Lifetime
     local FrozenItems = {}
-    
+
     ItemSuspend = vape.Categories.Utility:CreateModule({
         Name = 'Item Suspend',
         Function = function(callback)
