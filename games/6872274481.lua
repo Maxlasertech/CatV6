@@ -11448,7 +11448,10 @@ run(function()
     local Smart
     local Switch
     local Layers
-    
+    local AutoPatch
+    local ProtectedLayers
+    local PlacementSpeed
+
     local function getBedNear()
         local localPosition = entitylib.isAlive and entitylib.character.RootPart.Position or Vector3.zero
         for _, v in collectionService:GetTagged('bed') do
@@ -11461,7 +11464,7 @@ run(function()
         end
         return nil
     end
-    
+
     local function getBlocks()
         local blocks = {}
         for _, item in store.inventory.inventory.items do
@@ -11477,7 +11480,7 @@ run(function()
         end)
         return blocks
     end
-    
+
     local function getPyramid(size, grid)
         local positions = {}
         for h = size, 0, -1 do
@@ -11490,11 +11493,82 @@ run(function()
         end
         return positions
     end
-    
+
+    local function isEnemy(player)
+        if not player then return false end
+        local myTeam = lplr:GetAttribute('Team')
+        return player:GetAttribute('Team') ~= myTeam
+    end
+
+    local function isWithinProtectedLayers(worldPos, bed)
+        if not bed then return false end
+        local relPos = bed.CFrame:PointToObjectSpace(worldPos)
+        local gx = math.floor(relPos.X / 3 + 0.5)
+        local gy = math.floor(relPos.Y / 3 + 0.5)
+        local gz = math.floor(relPos.Z / 3 + 0.5)
+        local maxLayer = ProtectedLayers.Value
+        for layer = 1, maxLayer do
+            for _, pos in getPyramid(layer, 3) do
+                local px = math.floor(pos.X / 3 + 0.5)
+                local py = math.floor(pos.Y / 3 + 0.5)
+                local pz = math.floor(pos.Z / 3 + 0.5)
+                if px == gx and py == gy and pz == gz then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
     BedProtector = vape.Categories.World:CreateModule({
-        Name = 'Bed Protector',
+        Name = 'Draco X2',
         Function = function(callback)
             if callback then
+                BedProtector:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
+                    if not BedProtector.Enabled then return end
+                    if not AutoPatch.Enabled then return end
+                    if not entitylib.isAlive then return end
+                    if not isEnemy(data.player) then return end
+
+                    local worldPos = data.blockRef.blockPosition * 3
+                    local bed = getBedNear()
+                    if not bed then return end
+                    if (worldPos - bed.Position).Magnitude > PlaceRange.Value then return end
+                    if not isWithinProtectedLayers(worldPos, bed) then return end
+                    if getPlacedBlock(worldPos) then return end
+
+                    local blocks = getBlocks()
+                    if #blocks == 0 then return end
+                    local block = blocks[1]
+
+                    task.spawn(function()
+                        if PlacementSpeed.Value > 0 then
+                            task.wait(PlacementSpeed.Value / 1000)
+                        end
+
+                        if getPlacedBlock(worldPos) then return end
+                        if (entitylib.character.RootPart.Position - worldPos).Magnitude > PlaceRange.Value then return end
+
+                        local old = store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
+                        local switched = false
+
+                        if Switch.Enabled then
+                            local hotbar = getHotbar(block[3])
+                            if hotbar and hotbarSwitch(hotbar) then
+                                switched = true
+                                task.wait()
+                            end
+                        end
+
+                        bedwars.placeBlock(worldPos, block[1], false)
+
+                        if switched and old then
+                            task.wait()
+                            hotbarSwitch(old)
+                        end
+                    end)
+                end))
+
                 repeat
                     local bed = getBedNear()
                     if bed then
@@ -11504,11 +11578,11 @@ run(function()
                             end
                             local switch, old = Switch.Enabled, store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
                             local hotbar = nil
-    
+
                             if switch then
                                 hotbar = getHotbar(block[3])
                             end
-    
+
                             for _, pos in getPyramid(i, 3) do
                                 if not BedProtector.Enabled then
                                     break
@@ -11526,14 +11600,14 @@ run(function()
                                 task.spawn(bedwars.placeBlock, pos, block[1], false)
                                 task.wait(0.1)
                             end
-    
+
                             if switch and old and hotbarSwitch(old) then
                                 task.wait()
                             end
                         end
                     else
                         if Mode.Value == 'On Key' then
-                            notif('BedProtector', 'Unable to locate bed', 5)
+                            notif('Draco X2', 'Unable to locate bed', 5)
                             BedProtector:Toggle()
                         end
                     end
@@ -11545,9 +11619,9 @@ run(function()
                 until not BedProtector.Enabled
             end
         end,
-        Tooltip = 'Automatically places strong blocks around the bed.'
+        Tooltip = 'Automatically places and defends blocks around the bed.'
     })
-    
+
     Mode = BedProtector:CreateDropdown({
         Name = 'Mode',
         List = {'Toggle', 'On Key'},
@@ -11578,154 +11652,26 @@ run(function()
     })
     Switch = BedProtector:CreateToggle({Name = 'Auto Switch'})
     Smart = BedProtector:CreateToggle({Name = 'Smart', Default = true})
-end)
-
-run(function()
-    local AutoPatch
-    local Layers
-    local PlaceDelay
-    local PatchRange
-    local PatchSpeed
-    local PatchSwitch
-
-    local function getStrongestBlock()
-        local best, bestHealth = nil, 0
-        for _, item in store.inventory.inventory.items do
-            local meta = bedwars.ItemMeta[item.itemType]
-            local block = meta and meta.block
-            if block and (block.health or 0) > bestHealth and getHotbar(item.tool) then
-                best = item
-                bestHealth = block.health
-            end
-        end
-        return best
-    end
-
-    local function isEnemy(player)
-        if not player then return false end
-        local myTeam = lplr:GetAttribute('Team')
-        return player:GetAttribute('Team') ~= myTeam
-    end
-
-    local function bedInRange(worldPos)
-        local myTeam = lplr:GetAttribute('Team') or -1
-        for _, v in collectionService:GetTagged('bed') do
-            if v:GetAttribute('Team' .. myTeam .. 'NoBreak') then
-                if (worldPos - v.Position).Magnitude <= PatchRange.Value then
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
-    -- Tracks consecutive breaks at the same spot so a position that keeps
-    -- getting re-broken keeps getting re-patched, not just the first time.
-    -- Entries decay after a few seconds of quiet so the counter doesn't
-    -- permanently lock out a spot the enemy gave up on.
-    local breakCounts = {}
-    local BREAK_DECAY_SECS = 10
-
-    local function posKey(pos)
-        return math.floor(pos.X / 3 + 0.5) .. ':' .. math.floor(pos.Y / 3 + 0.5) .. ':' .. math.floor(pos.Z / 3 + 0.5)
-    end
-
-    local function shouldPatch(worldPos)
-        local key = posKey(worldPos)
-        local now = tick()
-        local entry = breakCounts[key]
-        if not entry or (now - entry.last) > BREAK_DECAY_SECS then
-            entry = {count = 0, last = now}
-            breakCounts[key] = entry
-        end
-        entry.count += 1
-        entry.last = now
-        return entry.count <= Layers.Value
-    end
-
-    AutoPatch = vape.Categories.World:CreateModule({
-        Name = 'Auto Patch',
-        Function = function(call)
-            if not call then
-                table.clear(breakCounts)
-                return
-            end
-            AutoPatch:Clean(vapeEvents.BreakBlockEvent.Event:Connect(function(data)
-                if not AutoPatch.Enabled then return end
-                if not entitylib.isAlive then return end
-                if not isEnemy(data.player) then return end
-
-                local worldPos = data.blockRef.blockPosition * 3
-                if not bedInRange(worldPos) then return end
-                if not shouldPatch(worldPos) then return end
-
-                local block = getStrongestBlock()
-                if not block then return end
-
-                -- Each break gets its own coroutine so a flurry of breaks
-                -- from multiple attackers all get patched immediately
-                -- instead of queueing behind one shared lock.
-                task.spawn(function()
-                    if PlaceDelay.Value > 0 then
-                        task.wait(PlaceDelay.Value / 1000)
-                    end
-                    local old = store.hand and store.hand.tool and getHotbar(store.hand.tool) or nil
-                    local switched = false
-
-                    if PatchSwitch.Enabled then
-                        local hotbar = getHotbar(block.tool)
-                        if hotbar and hotbarSwitch(hotbar) then
-                            switched = true
-                        end
-                    end
-
-                    bedwars.placeBlock(worldPos, block.itemType, false)
-
-                    if switched then
-                        task.wait((11 - PatchSpeed.Value) * 0.03)
-                        if old then
-                            hotbarSwitch(old)
-                        end
-                    end
-                end)
-            end))
-        end,
-        Tooltip = 'Instantly replaces blocks broken by enemies near your bed, using the strongest block available'
+    AutoPatch = BedProtector:CreateToggle({
+        Name = 'AutoPatch',
+        Default = false,
+        Tooltip = 'When enabled, automatically replaces blocks broken by enemies within the protected layers'
     })
-
-    Layers = AutoPatch:CreateSlider({
-        Name = 'Layers',
+    ProtectedLayers = BedProtector:CreateSlider({
+        Name = 'Protected Layers',
         Min = 1,
         Max = 8,
         Default = 2,
         Suffix = function(v) return v == 1 and 'layer' or 'layers' end,
-        Tooltip = 'How many times in a row the same spot can be re-broken and still get patched'
+        Tooltip = 'How many pyramid layers AutoPatch will monitor and rebuild when broken by enemies'
     })
-    PatchRange = AutoPatch:CreateSlider({
-        Name = 'Place Range',
-        Min = 1,
-        Max = 30,
-        Default = 15,
-    })
-    PlaceDelay = AutoPatch:CreateSlider({
-        Name = 'Place Delay',
+    PlacementSpeed = BedProtector:CreateSlider({
+        Name = 'Placement Speed',
         Min = 0,
         Max = 500,
-        Default = 0,
+        Default = 100,
         Suffix = 'ms',
-        Tooltip = 'Delay before placing each patch block; increase to look less automatic'
-    })
-    PatchSpeed = AutoPatch:CreateSlider({
-        Name = 'Speed',
-        Min = 1,
-        Max = 10,
-        Default = 6,
-        Tooltip = 'How quickly it switches back to your previous item after patching; higher is faster but may cut the placement animation short'
-    })
-    PatchSwitch = AutoPatch:CreateToggle({
-        Name = 'Auto Switch',
-        Default = true,
-        Tooltip = 'Switch hotbar to the strongest block before placing so the placement animation shows the block instead of your held item'
+        Tooltip = 'Delay in milliseconds before AutoPatch places a replacement block; 0 for instant'
     })
 end)
 
