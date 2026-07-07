@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 34
+local VERSION = 35
 local run = function(func)
 	func()
 end
@@ -16260,7 +16260,7 @@ run(function()
                         if not nb then exposed = true end
                         continue
                     end
-                    local h = useDistance and (origin - Vector3.new(np.X, origin.Y, np.Z)).Magnitude or getBlockHits(nb, np)
+                    local h = useDistance and ((origin - np).Magnitude + (np.Y - anchor.Y)) or getBlockHits(nb, np)
                     local nc = pick[1] + h
                     if nc < (costs[np] or math.huge) then
                         costs[np] = nc
