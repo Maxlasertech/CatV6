@@ -2321,6 +2321,25 @@ run(function()
     local heartbeatConn, stunConn, charConn
     local saved = {}
 
+    local function clearBlockingState(swc)
+        swc.disableSwingState = false
+        swc.holdAutoSwingDisabled = false
+        swc.activeSwordActionId = nil
+        pcall(function()
+            if swc.thirdPersonAnimPlaying then
+                swc.thirdPersonAnimPlaying = false
+            end
+        end)
+        pcall(function()
+            if lplr.Character then
+                local stun = lplr.Character:GetAttribute('StunnedUntilTime')
+                if stun and stun > workspace:GetServerTimeNow() then
+                    lplr.Character:SetAttribute('StunnedUntilTime', 0)
+                end
+            end
+        end)
+    end
+
     local function connectStunClear(char)
         if stunConn then stunConn:Disconnect(); stunConn = nil end
         if not char then return end
@@ -2332,17 +2351,13 @@ run(function()
         end)
     end
 
-    local function clearBlockingState(swc)
-        swc.disableSwingState = false
-        swc.holdAutoSwingDisabled = false
-        pcall(function()
-            if lplr.Character then
-                local stun = lplr.Character:GetAttribute('StunnedUntilTime')
-                if stun and stun > workspace:GetServerTimeNow() then
-                    lplr.Character:SetAttribute('StunnedUntilTime', 0)
-                end
-            end
-        end)
+    local function wrapSwing(original)
+        return function(self, ...)
+            clearBlockingState(self)
+            self.lastSwing = os.clock() - 1
+            self.lastAttack = workspace:GetServerTimeNow() - 1
+            return original(self, ...)
+        end
     end
 
     vape.Categories.Combat:CreateModule({
@@ -2350,18 +2365,19 @@ run(function()
         Function = function(callback)
             if callback then
                 local swc = bedwars.SwordController
+
                 saved.isClickingTooFast = swc.isClickingTooFast
                 saved.getSwordSwingDisabled = swc.getSwordSwingDisabled
                 saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
                 saved.getRemainingCastingTime = swc.getRemainingCastingTime
                 saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
                 saved.swingSwordAtMouse = swc.swingSwordAtMouse
-                saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
                 saved.swingSwordInRegion = swc.swingSwordInRegion
                 saved.attackEntity = swc.attackEntity
                 saved.mobileSwingPressed = swc.mobileSwingPressed
+                saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
 
-                swc.isClickingTooFast = function(self, ...)
+                swc.isClickingTooFast = function(self)
                     self.lastSwing = os.clock()
                     return false
                 end
@@ -2378,26 +2394,11 @@ run(function()
                     return false
                 end
 
-                swc.swingSwordAtMouse = function(self, ...)
-                    clearBlockingState(self)
-                    return saved.swingSwordAtMouse(self, ...)
-                end
-                swc.swingSwordAtViewportPoint = function(self, ...)
-                    clearBlockingState(self)
-                    return saved.swingSwordAtViewportPoint(self, ...)
-                end
-                swc.swingSwordInRegion = function(self, ...)
-                    clearBlockingState(self)
-                    return saved.swingSwordInRegion(self, ...)
-                end
-                swc.attackEntity = function(self, ...)
-                    clearBlockingState(self)
-                    return saved.attackEntity(self, ...)
-                end
-                swc.mobileSwingPressed = function(self, ...)
-                    clearBlockingState(self)
-                    return saved.mobileSwingPressed(self, ...)
-                end
+                swc.swingSwordAtMouse = wrapSwing(saved.swingSwordAtMouse)
+                swc.swingSwordInRegion = wrapSwing(saved.swingSwordInRegion)
+                swc.attackEntity = wrapSwing(saved.attackEntity)
+                swc.mobileSwingPressed = wrapSwing(saved.mobileSwingPressed)
+                swc.swingSwordAtViewportPoint = wrapSwing(saved.swingSwordAtViewportPoint)
 
                 connectStunClear(lplr.Character)
                 charConn = lplr.CharacterAdded:Connect(function(char)
