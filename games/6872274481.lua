@@ -2325,11 +2325,8 @@ run(function()
         swc.disableSwingState = false
         swc.holdAutoSwingDisabled = false
         swc.activeSwordActionId = nil
-        pcall(function()
-            if swc.thirdPersonAnimPlaying then
-                swc.thirdPersonAnimPlaying = false
-            end
-        end)
+        pcall(function() swc.thirdPersonAnimPlaying = false end)
+        pcall(function() swc.enabled = true end)
         pcall(function()
             if lplr.Character then
                 local stun = lplr.Character:GetAttribute('StunnedUntilTime')
@@ -2351,13 +2348,50 @@ run(function()
         end)
     end
 
-    local function wrapSwing(original)
-        return function(self, ...)
-            clearBlockingState(self)
-            self.lastSwing = os.clock() - 1
-            self.lastAttack = workspace:GetServerTimeNow() - 1
-            return original(self, ...)
-        end
+    local function forceSwing(swc)
+        if not entitylib.isAlive then return end
+        local sword = store.tools.sword
+        if not sword or not sword.tool then return end
+        local meta = bedwars.ItemMeta[sword.tool.Name]
+        if not meta then return end
+
+        clearBlockingState(swc)
+        swc.lastSwing = os.clock() - 1
+        swc.lastAttack = workspace:GetServerTimeNow() - 1
+
+        pcall(function()
+            swc:playSwordEffect(meta, false)
+        end)
+
+        swc.lastSwing = tick()
+        swc.lastAttack = workspace:GetServerTimeNow()
+
+        pcall(function()
+            local unit = lplr:GetMouse().UnitRay
+            local localPos = entitylib.character.RootPart.Position
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {lplr.Character}
+            local ray = bedwars.QueryUtil:raycast(unit.Origin, unit.Direction * 200, rayParams)
+            if ray then
+                local hitPos = ray.Position
+                local dir = (hitPos - localPos).Unit
+                bedwars.Client:Get(remotes.AttackEntity):SendToServer({
+                    weapon = sword.tool,
+                    chargedAttack = {chargeRatio = 0},
+                    entityInstance = ray.Instance.Parent,
+                    validate = {
+                        raycast = {
+                            cameraPosition = {value = localPos},
+                            cursorDirection = {value = dir},
+                        },
+                        targetPosition = {
+                            value = hitPos,
+                        },
+                        selfPosition = {value = localPos},
+                    },
+                })
+            end
+        end)
     end
 
     vape.Categories.Combat:CreateModule({
@@ -2371,11 +2405,9 @@ run(function()
                 saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
                 saved.getRemainingCastingTime = swc.getRemainingCastingTime
                 saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
-                saved.swingSwordAtMouse = swc.swingSwordAtMouse
-                saved.swingSwordInRegion = swc.swingSwordInRegion
-                saved.attackEntity = swc.attackEntity
                 saved.mobileSwingPressed = swc.mobileSwingPressed
                 saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
+                saved.swingSwordAtMouse = swc.swingSwordAtMouse
 
                 swc.isClickingTooFast = function(self)
                     self.lastSwing = os.clock()
@@ -2394,11 +2426,32 @@ run(function()
                     return false
                 end
 
-                swc.swingSwordAtMouse = wrapSwing(saved.swingSwordAtMouse)
-                swc.swingSwordInRegion = wrapSwing(saved.swingSwordInRegion)
-                swc.attackEntity = wrapSwing(saved.attackEntity)
-                swc.mobileSwingPressed = wrapSwing(saved.mobileSwingPressed)
-                swc.swingSwordAtViewportPoint = wrapSwing(saved.swingSwordAtViewportPoint)
+                swc.mobileSwingPressed = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    local ok, err = pcall(saved.mobileSwingPressed, self, ...)
+                    if not ok then
+                        forceSwing(self)
+                    end
+                end
+
+                swc.swingSwordAtViewportPoint = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    local ok, err = pcall(saved.swingSwordAtViewportPoint, self, ...)
+                    if not ok then
+                        forceSwing(self)
+                    end
+                end
+
+                swc.swingSwordAtMouse = function(self, ...)
+                    clearBlockingState(self)
+                    self.lastSwing = os.clock() - 1
+                    self.lastAttack = workspace:GetServerTimeNow() - 1
+                    return saved.swingSwordAtMouse(self, ...)
+                end
 
                 connectStunClear(lplr.Character)
                 charConn = lplr.CharacterAdded:Connect(function(char)
