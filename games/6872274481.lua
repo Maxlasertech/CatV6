@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 55
+local VERSION = 56
 local run = function(func)
 	func()
 end
@@ -16288,7 +16288,6 @@ run(function()
                     end
 
                     if bedVis and store.damageBlockFail <= tick() then
-                        store._lockedDefensePos = nil
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
