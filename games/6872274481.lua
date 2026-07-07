@@ -2317,57 +2317,6 @@ run(function()
 end)
 
 run(function()
-    local runService = cloneref(game:GetService('RunService'))
-    local oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
-    local heartbeatConn, stunConn, charConn
-
-    local function connectStunClear(char)
-        if stunConn then stunConn:Disconnect(); stunConn = nil end
-        if not char then return end
-        stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
-            local val = char:GetAttribute('StunnedUntilTime')
-            if val and val > workspace:GetServerTimeNow() then
-                pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
-            end
-        end)
-    end
-
-    vape.Categories.Combat:CreateModule({
-        Name = 'No Attack Cooldown',
-        Function = function(callback)
-            if callback then
-                bedwars.SwordController.isClickingTooFast = function(self, ...)
-                    self.lastSwing = os.clock()
-                    return false
-                end
-                connectStunClear(lplr.Character)
-                charConn = lplr.CharacterAdded:Connect(function(char)
-                    connectStunClear(char)
-                end)
-                heartbeatConn = runService.Heartbeat:Connect(function()
-                    local swc = bedwars.SwordController
-                    if swc.disableSwingState then
-                        swc.disableSwingState = false
-                    end
-                    if lplr.Character then
-                        local stun = lplr.Character:GetAttribute('StunnedUntilTime')
-                        if stun and stun > workspace:GetServerTimeNow() then
-                            pcall(function() lplr.Character:SetAttribute('StunnedUntilTime', 0) end)
-                        end
-                    end
-                end)
-            else
-                bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
-                if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
-                if stunConn then stunConn:Disconnect(); stunConn = nil end
-                if charConn then charConn:Disconnect(); charConn = nil end
-            end
-        end,
-        Tooltip = 'Remove the attack delay after using any ability'
-    })
-end)
-
-run(function()
     if canDebug then
     	run(function()
     		local BlockReach
