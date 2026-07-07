@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 33
+local VERSION = 34
 local run = function(func)
 	func()
 end
