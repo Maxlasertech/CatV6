@@ -15082,6 +15082,7 @@ run(function()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        task.wait(0.1)
                         continue
                     end
 
@@ -15104,6 +15105,7 @@ run(function()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        task.wait(0.1)
                         continue
                     end
 
