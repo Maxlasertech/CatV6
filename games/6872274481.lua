@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 54
+local VERSION = 55
 local run = function(func)
 	func()
 end
@@ -16310,7 +16310,7 @@ run(function()
 
                     local lockedPos = LockedTarget and LockedTarget.Enabled and store._lockedDefensePos
                     local lockedBlock = lockedPos and getPlacedBlock(lockedPos)
-                    if lockedBlock and (lockedPos - origin).Magnitude <= RangeSetting.Value and isVisible(lockedPos) then
+                    if lockedBlock and (lockedPos - origin).Magnitude <= RangeSetting.Value then
                         targetGlow.Adornee = lockedBlock
                         equipFor(lockedBlock)
                         strike(lockedBlock)
