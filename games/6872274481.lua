@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 51
+local VERSION = 52
 local run = function(func)
 	func()
 end
@@ -15932,7 +15932,14 @@ run(function()
         local meta = bedwars.ItemMeta[block.Name]
         if not meta or not meta.block then return end
         local tool = store.tools[meta.block.breakType]
-        if tool then switchItem(tool.tool) end
+        if not tool then return end
+        local slot = getHotbar(tool.tool)
+        if slot and store.inventory.hotbarSlot ~= slot then
+            bedwars.Store:dispatch({
+                type = 'InventorySelectHotbarSlot',
+                slot = slot
+            })
+        end
     end
 
     local function readHP(block, gridPos)
