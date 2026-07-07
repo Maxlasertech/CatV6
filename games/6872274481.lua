@@ -2332,6 +2332,19 @@ run(function()
         end)
     end
 
+    local function clearBlockingState(swc)
+        swc.disableSwingState = false
+        swc.holdAutoSwingDisabled = false
+        pcall(function()
+            if lplr.Character then
+                local stun = lplr.Character:GetAttribute('StunnedUntilTime')
+                if stun and stun > workspace:GetServerTimeNow() then
+                    lplr.Character:SetAttribute('StunnedUntilTime', 0)
+                end
+            end
+        end)
+    end
+
     vape.Categories.Combat:CreateModule({
         Name = 'No Attack Cooldown',
         Function = function(callback)
@@ -2342,22 +2355,48 @@ run(function()
                 saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
                 saved.getRemainingCastingTime = swc.getRemainingCastingTime
                 saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
+                saved.swingSwordAtMouse = swc.swingSwordAtMouse
+                saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
+                saved.swingSwordInRegion = swc.swingSwordInRegion
+                saved.attackEntity = swc.attackEntity
+                saved.mobileSwingPressed = swc.mobileSwingPressed
 
                 swc.isClickingTooFast = function(self, ...)
                     self.lastSwing = os.clock()
                     return false
                 end
-                swc.getSwordSwingDisabled = function(self, ...)
+                swc.getSwordSwingDisabled = function()
                     return false
                 end
-                swc.getRemainingSwingCooldown = function(self, ...)
+                swc.getRemainingSwingCooldown = function()
                     return 0
                 end
-                swc.getRemainingCastingTime = function(self, ...)
+                swc.getRemainingCastingTime = function()
                     return 0
                 end
-                swc.isOnChargeAttackCooldown = function(self, ...)
+                swc.isOnChargeAttackCooldown = function()
                     return false
+                end
+
+                swc.swingSwordAtMouse = function(self, ...)
+                    clearBlockingState(self)
+                    return saved.swingSwordAtMouse(self, ...)
+                end
+                swc.swingSwordAtViewportPoint = function(self, ...)
+                    clearBlockingState(self)
+                    return saved.swingSwordAtViewportPoint(self, ...)
+                end
+                swc.swingSwordInRegion = function(self, ...)
+                    clearBlockingState(self)
+                    return saved.swingSwordInRegion(self, ...)
+                end
+                swc.attackEntity = function(self, ...)
+                    clearBlockingState(self)
+                    return saved.attackEntity(self, ...)
+                end
+                swc.mobileSwingPressed = function(self, ...)
+                    clearBlockingState(self)
+                    return saved.mobileSwingPressed(self, ...)
                 end
 
                 connectStunClear(lplr.Character)
@@ -2365,17 +2404,13 @@ run(function()
                     connectStunClear(char)
                 end)
                 heartbeatConn = runService.Heartbeat:Connect(function()
-                    if swc.disableSwingState then
-                        swc.disableSwingState = false
-                    end
+                    clearBlockingState(swc)
                 end)
             else
                 local swc = bedwars.SwordController
-                if saved.isClickingTooFast then swc.isClickingTooFast = saved.isClickingTooFast end
-                if saved.getSwordSwingDisabled then swc.getSwordSwingDisabled = saved.getSwordSwingDisabled end
-                if saved.getRemainingSwingCooldown then swc.getRemainingSwingCooldown = saved.getRemainingSwingCooldown end
-                if saved.getRemainingCastingTime then swc.getRemainingCastingTime = saved.getRemainingCastingTime end
-                if saved.isOnChargeAttackCooldown then swc.isOnChargeAttackCooldown = saved.isOnChargeAttackCooldown end
+                for name, fn in saved do
+                    if fn then swc[name] = fn end
+                end
                 if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
                 if stunConn then stunConn:Disconnect(); stunConn = nil end
                 if charConn then charConn:Disconnect(); charConn = nil end
