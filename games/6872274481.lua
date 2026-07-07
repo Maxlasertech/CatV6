@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 33
+local VERSION = 51
 local run = function(func)
 	func()
 end
@@ -16121,8 +16121,9 @@ run(function()
                     end
                 end
 
-                if exposed and pick[2] ~= anchor and pick[1] < best.cost then
-                    if isVisible(pick[2]) then
+                if exposed and pick[2] ~= anchor then
+                    local score = useDistance and (origin - pick[2]).Magnitude or pick[1]
+                    if score < best.cost and isVisible(pick[2]) then
                         local route = {}
                         local cur = pick[2]
                         while cur and cur ~= anchor do
@@ -16130,7 +16131,7 @@ run(function()
                             cur = prev[cur]
                         end
                         best.entry = pick[2]
-                        best.cost = pick[1]
+                        best.cost = score
                         best.route = route
                         best.anchor = anchor
                     end
