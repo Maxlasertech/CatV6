@@ -2324,22 +2324,79 @@ run(function()
 
     local function findWeaponConfig()
         local found = nil
+        local swc = bedwars.SwordController
+
+        local methods = {}
         pcall(function()
-            local swc = bedwars.SwordController
-            for name, fn in swc do
-                if type(fn) ~= 'function' then continue end
-                for i = 1, 40 do
-                    local ok, _, val = pcall(debug.getupvalue, fn, i)
-                    if not ok then break end
-                    if type(val) ~= 'table' then continue end
-                    local ok2, weapon = pcall(function() return val.Weapon end)
-                    if ok2 and type(weapon) == 'table' then
-                        local ok3 = pcall(function() return weapon.respectAttackOverride end)
-                        if ok3 then found = val; return end
+            for k, v in swc do
+                if type(v) == 'function' then
+                    table.insert(methods, {k, v})
+                end
+            end
+        end)
+        pcall(function()
+            local mt = getmetatable(swc)
+            if mt and mt.__index and type(mt.__index) == 'table' then
+                for k, v in mt.__index do
+                    if type(v) == 'function' then
+                        table.insert(methods, {k, v})
                     end
                 end
             end
         end)
+        local explicitNames = {
+            'sendServerRequest', 'swingSwordAtMouse', 'swingSwordInRegion',
+            'isClickingTooFast', 'swingRelease', 'attackEntity', 'onSwing',
+            'canSwing', 'startSwing', 'endSwing', 'handleSwing',
+            'swingSword', 'onAttack', 'handleAttack', 'performAttack',
+            'checkAttack', 'validateSwing', 'processSwing',
+        }
+        for _, name in explicitNames do
+            pcall(function()
+                local fn = swc[name]
+                if type(fn) == 'function' then
+                    table.insert(methods, {name, fn})
+                end
+            end)
+        end
+
+        warn('[NoAttackCD] Found ' .. #methods .. ' methods to scan')
+        local methodNames = {}
+        for _, pair in methods do table.insert(methodNames, pair[1]) end
+        warn('[NoAttackCD] Methods: ' .. table.concat(methodNames, ', '))
+
+        local allKeys = {}
+        pcall(function()
+            for k, v in swc do
+                table.insert(allKeys, tostring(k) .. '(' .. type(v) .. ')')
+            end
+        end)
+        warn('[NoAttackCD] SWC raw keys: ' .. (#allKeys > 0 and table.concat(allKeys, ', ') or '(none from pairs)'))
+
+        for _, pair in methods do
+            local name, fn = pair[1], pair[2]
+            for i = 1, 40 do
+                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                if not ok then break end
+                if type(val) == 'table' then
+                    local ok2, weapon = pcall(function() return val.Weapon end)
+                    if ok2 and type(weapon) == 'table' then
+                        warn('[NoAttackCD] Found .Weapon table in ' .. tostring(name) .. ' upvalue ' .. i)
+                        local weaponKeys = {}
+                        pcall(function()
+                            for k, v in weapon do
+                                table.insert(weaponKeys, tostring(k) .. '=' .. tostring(v))
+                            end
+                        end)
+                        warn('[NoAttackCD] Weapon keys: ' .. table.concat(weaponKeys, ', '))
+                        found = val
+                        return found
+                    end
+                end
+            end
+        end
+
+        warn('[NoAttackCD] weaponConfig NOT found after scanning all methods')
         return found
     end
 
@@ -2394,6 +2451,22 @@ run(function()
                 end)
 
                 local synced = false
+                pcall(function()
+                    local cse = bedwars.ClientSyncEvents
+                    warn('[NoAttackCD] ClientSyncEvents type: ' .. type(cse))
+                    if cse then
+                        local syncKeys = {}
+                        pcall(function() for k in cse do table.insert(syncKeys, tostring(k)) end end)
+                        warn('[NoAttackCD] CSE keys: ' .. (#syncKeys > 0 and table.concat(syncKeys, ', ') or '(empty)'))
+                    end
+                    local cs = bedwars.ClientSync
+                    warn('[NoAttackCD] ClientSync type: ' .. type(cs))
+                    if cs then
+                        local syncKeys2 = {}
+                        pcall(function() for k in cs do table.insert(syncKeys2, tostring(k)) end end)
+                        warn('[NoAttackCD] CS keys: ' .. (#syncKeys2 > 0 and table.concat(syncKeys2, ', ') or '(empty)'))
+                    end
+                end)
                 pcall(function()
                     local sync = bedwars.ClientSyncEvents
                     if sync and sync.SwordSwing and type(sync.SwordSwing.setPriority) == 'function' then
