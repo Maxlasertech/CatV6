@@ -2318,33 +2318,25 @@ end)
 
 run(function()
     local runService = cloneref(game:GetService('RunService'))
-    local oldIsClickingTooFast = bedwars.SwordController.isClickingTooFast
-    local heartbeatConn, stunConn, charConn, syncConn
+    local heartbeatConn, stunConn, charConn
+    local saved = {}
 
-    local weaponConfig = nil
-    pcall(function()
-        local swc = bedwars.SwordController
-        for _, fn in {swc.sendServerRequest, swc.swingSwordAtMouse, swc.swingSwordInRegion, swc.isClickingTooFast} do
-            if type(fn) ~= 'function' then continue end
-            for i = 1, 40 do
-                local ok, _, val = pcall(debug.getupvalue, fn, i)
-                if not ok then break end
-                if type(val) ~= 'table' then continue end
-                local ok2, weapon = pcall(function() return val.Weapon end)
-                if not ok2 or type(weapon) ~= 'table' then continue end
-                local ok3 = pcall(function() return weapon.respectAttackOverride end)
-                if ok3 then weaponConfig = val; return end
-            end
-        end
-    end)
-    warn('[NoAttackCD] weaponConfig found: ' .. tostring(weaponConfig ~= nil))
-    if weaponConfig then
+    local function clearBlockingState(swc)
+        swc.disableSwingState = false
+        swc.holdAutoSwingDisabled = false
+        swc.activeSwordActionId = nil
         pcall(function()
-            local keys = {}
-            for k, v in weaponConfig.Weapon do
-                table.insert(keys, tostring(k) .. '=' .. tostring(v))
+            if swc.thirdPersonAnimPlaying then
+                swc.thirdPersonAnimPlaying = false
             end
-            warn('[NoAttackCD] Weapon keys: ' .. table.concat(keys, ', '))
+        end)
+        pcall(function()
+            if lplr.Character then
+                local stun = lplr.Character:GetAttribute('StunnedUntilTime')
+                if stun and stun > workspace:GetServerTimeNow() then
+                    lplr.Character:SetAttribute('StunnedUntilTime', 0)
+                end
+            end
         end)
     end
 
@@ -2354,57 +2346,76 @@ run(function()
         stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
             local val = char:GetAttribute('StunnedUntilTime')
             if val and val > workspace:GetServerTimeNow() then
-                warn('[NoAttackCD] Clearing StunnedUntilTime: ' .. tostring(val))
                 pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
             end
         end)
+    end
+
+    local function wrapSwing(original)
+        return function(self, ...)
+            clearBlockingState(self)
+            self.lastSwing = os.clock() - 1
+            self.lastAttack = workspace:GetServerTimeNow() - 1
+            return original(self, ...)
+        end
     end
 
     vape.Categories.Combat:CreateModule({
         Name = 'No Attack Cooldown',
         Function = function(callback)
             if callback then
-                warn('[NoAttackCD] ENABLED | weaponConfig=' .. tostring(weaponConfig ~= nil))
-                bedwars.SwordController.isClickingTooFast = function(self, ...)
+                local swc = bedwars.SwordController
+
+                saved.isClickingTooFast = swc.isClickingTooFast
+                saved.getSwordSwingDisabled = swc.getSwordSwingDisabled
+                saved.getRemainingSwingCooldown = swc.getRemainingSwingCooldown
+                saved.getRemainingCastingTime = swc.getRemainingCastingTime
+                saved.isOnChargeAttackCooldown = swc.isOnChargeAttackCooldown
+                saved.swingSwordAtMouse = swc.swingSwordAtMouse
+                saved.swingSwordInRegion = swc.swingSwordInRegion
+                saved.attackEntity = swc.attackEntity
+                saved.mobileSwingPressed = swc.mobileSwingPressed
+                saved.swingSwordAtViewportPoint = swc.swingSwordAtViewportPoint
+
+                swc.isClickingTooFast = function(self)
                     self.lastSwing = os.clock()
-                    if weaponConfig then
-                        pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                    end
                     return false
                 end
+                swc.getSwordSwingDisabled = function()
+                    return false
+                end
+                swc.getRemainingSwingCooldown = function()
+                    return 0
+                end
+                swc.getRemainingCastingTime = function()
+                    return 0
+                end
+                swc.isOnChargeAttackCooldown = function()
+                    return false
+                end
+
+                swc.swingSwordAtMouse = wrapSwing(saved.swingSwordAtMouse)
+                swc.swingSwordInRegion = wrapSwing(saved.swingSwordInRegion)
+                swc.attackEntity = wrapSwing(saved.attackEntity)
+                swc.mobileSwingPressed = wrapSwing(saved.mobileSwingPressed)
+                swc.swingSwordAtViewportPoint = wrapSwing(saved.swingSwordAtViewportPoint)
+
                 connectStunClear(lplr.Character)
                 charConn = lplr.CharacterAdded:Connect(function(char)
                     connectStunClear(char)
                 end)
                 heartbeatConn = runService.Heartbeat:Connect(function()
-                    local swc = bedwars.SwordController
-                    if swc.disableSwingState then
-                        swc.disableSwingState = false
-                    end
-                    if weaponConfig then
-                        pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                    end
-                end)
-                pcall(function()
-                    local sync = bedwars.ClientSync
-                    if sync and type(sync.SwordSwing) == 'table' and type(sync.SwordSwing.setPriority) == 'function' then
-                        syncConn = sync.SwordSwing:setPriority(1):Connect(function()
-                            if weaponConfig then
-                                pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
-                            end
-                        end)
-                        warn('[NoAttackCD] SwordSwing sync hooked')
-                    else
-                        warn('[NoAttackCD] SwordSwing sync NOT found')
-                    end
+                    clearBlockingState(swc)
                 end)
             else
-                warn('[NoAttackCD] DISABLED')
-                bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
+                local swc = bedwars.SwordController
+                for name, fn in saved do
+                    if fn then swc[name] = fn end
+                end
                 if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
                 if stunConn then stunConn:Disconnect(); stunConn = nil end
                 if charConn then charConn:Disconnect(); charConn = nil end
-                if syncConn then pcall(function() syncConn:Disconnect() end); syncConn = nil end
+                saved = {}
             end
         end,
         Tooltip = 'Remove the attack delay after using any ability'
