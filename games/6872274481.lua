@@ -2337,6 +2337,16 @@ run(function()
             end
         end
     end)
+    warn('[NoAttackCD] weaponConfig found: ' .. tostring(weaponConfig ~= nil))
+    if weaponConfig then
+        pcall(function()
+            local keys = {}
+            for k, v in weaponConfig.Weapon do
+                table.insert(keys, tostring(k) .. '=' .. tostring(v))
+            end
+            warn('[NoAttackCD] Weapon keys: ' .. table.concat(keys, ', '))
+        end)
+    end
 
     local function connectStunClear(char)
         if stunConn then stunConn:Disconnect(); stunConn = nil end
@@ -2344,6 +2354,7 @@ run(function()
         stunConn = char:GetAttributeChangedSignal('StunnedUntilTime'):Connect(function()
             local val = char:GetAttribute('StunnedUntilTime')
             if val and val > workspace:GetServerTimeNow() then
+                warn('[NoAttackCD] Clearing StunnedUntilTime: ' .. tostring(val))
                 pcall(function() char:SetAttribute('StunnedUntilTime', 0) end)
             end
         end)
@@ -2353,6 +2364,7 @@ run(function()
         Name = 'No Attack Cooldown',
         Function = function(callback)
             if callback then
+                warn('[NoAttackCD] ENABLED | weaponConfig=' .. tostring(weaponConfig ~= nil))
                 bedwars.SwordController.isClickingTooFast = function(self, ...)
                     self.lastSwing = os.clock()
                     if weaponConfig then
@@ -2381,9 +2393,13 @@ run(function()
                                 pcall(function() weaponConfig.Weapon.respectAttackOverride = false end)
                             end
                         end)
+                        warn('[NoAttackCD] SwordSwing sync hooked')
+                    else
+                        warn('[NoAttackCD] SwordSwing sync NOT found')
                     end
                 end)
             else
+                warn('[NoAttackCD] DISABLED')
                 bedwars.SwordController.isClickingTooFast = oldIsClickingTooFast
                 if heartbeatConn then heartbeatConn:Disconnect(); heartbeatConn = nil end
                 if stunConn then stunConn:Disconnect(); stunConn = nil end
@@ -11432,6 +11448,34 @@ run(function()
                     add('Hand: ' .. tostring(store.hand and store.hand.tool and store.hand.tool.Name or 'empty'))
                     add('HandType: ' .. tostring(store.hand and store.hand.toolType or 'none'))
                     add('AttackReach: ' .. tostring(store.attackReach))
+                    add('')
+
+                    add('-- WeaponConfig --')
+                    pcall(function()
+                        local swc = bedwars.SwordController
+                        local wc = nil
+                        for _, fn in {swc.sendServerRequest, swc.swingSwordAtMouse, swc.swingSwordInRegion, swc.isClickingTooFast} do
+                            if type(fn) ~= 'function' then continue end
+                            for i = 1, 40 do
+                                local ok, _, val = pcall(debug.getupvalue, fn, i)
+                                if not ok then break end
+                                if type(val) ~= 'table' then continue end
+                                local ok2, weapon = pcall(function() return val.Weapon end)
+                                if ok2 and type(weapon) == 'table' then
+                                    wc = weapon
+                                    break
+                                end
+                            end
+                            if wc then break end
+                        end
+                        if wc then
+                            for k, v in wc do
+                                add(tostring(k) .. ': ' .. tostring(v))
+                            end
+                        else
+                            add('(not found)')
+                        end
+                    end)
                     add('')
 
                     add('-- Inventory --')
