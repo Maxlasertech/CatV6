@@ -3947,6 +3947,7 @@ function mainapi:CreateCategory(categorysettings)
 
 		for i, v in components do
 			moduleapi['Create'..i] = function(_, optionsettings)
+				if not moduleapi.Options then moduleapi.Options = {} end
 				return v(optionsettings, modulechildren, moduleapi)
 			end
 		end
