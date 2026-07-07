@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 37
+local VERSION = 38
 local run = function(func)
 	func()
 end
@@ -16436,18 +16436,6 @@ run(function()
                         continue
                     end
 
-                    if BreakerFallback and BreakerFallback.Enabled and bedVis then
-                        if not ItemLimit.Enabled or (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
-                            lockedTarget = nil
-                            targetGlow.Adornee = bestBed
-                            if PathOverlay.Enabled then clearPath() end
-                            bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            continue
-                        end
-                    end
-
                     if lockedTarget and lockedTarget.Parent and (lockedTarget.Position - origin).Magnitude < RangeSetting.Value and isVisible(lockedTarget.Position) then
                         targetGlow.Adornee = lockedTarget
                         strike(lockedTarget)
@@ -16470,6 +16458,18 @@ run(function()
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
                             if DebugMode and DebugMode.Enabled then dbg('[KD] strike defense') end
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            continue
+                        end
+                    end
+
+                    if BreakerFallback and BreakerFallback.Enabled and bedVis then
+                        if not ItemLimit.Enabled or (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
+                            lockedTarget = nil
+                            targetGlow.Adornee = bestBed
+                            if PathOverlay.Enabled then clearPath() end
+                            bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
