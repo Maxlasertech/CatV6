@@ -17263,19 +17263,50 @@ run(function()
     local Interval
 
     local fakeActive = false
-    local controllerActivated = false
+    local injectedKeys = {}
+    local fakeMaid = nil
+
+    local function createFakeMaid()
+    	local maid = {}
+    	maid._tasks = {}
+    	maid.GiveTask = function(self, task)
+    		table.insert(self._tasks, task)
+    		return task
+    	end
+    	maid.Add = maid.GiveTask
+    	maid.DoCleaning = function(self)
+    		for _, t in self._tasks do
+    			if typeof(t) == 'RBXScriptConnection' then
+    				pcall(function() t:Disconnect() end)
+    			elseif typeof(t) == 'Instance' then
+    				pcall(function() t:Destroy() end)
+    			elseif type(t) == 'function' then
+    				pcall(t)
+    			elseif type(t) == 'table' and t.Destroy then
+    				pcall(function() t:Destroy() end)
+    			end
+    		end
+    		table.clear(self._tasks)
+    	end
+    	maid.Destroy = maid.DoCleaning
+    	maid.Cleanup = maid.DoCleaning
+    	return maid
+    end
+
+    local maidKeyNames = {'_maid', '_janitor', '_trove', 'maid', 'janitor', 'trove', '_Maid', '_Janitor'}
 
     FakeMetalPlayer = vape.Categories.Kits:CreateModule({
     	Name = 'Fake Metal Player',
     	Function = function(call)
     		if call then
     			if fakeActive then
-    				warn('[FakeMetalPlayer] Simulation already active, skipping duplicate')
+    				warn('[FakeMetalPlayer] Already active, skipping')
     				return
     			end
 
     			fakeActive = true
-    			controllerActivated = false
+    			table.clear(injectedKeys)
+    			fakeMaid = createFakeMaid()
 
     			local function log(msg)
     				if DebugLogs and DebugLogs.Enabled then
@@ -17284,36 +17315,84 @@ run(function()
     			end
 
     			log('Creating fake Metal player state')
-    			notif('Fake Metal Player', 'Activating simulated Metal kit presence', 5, 'info')
+    			notif('Fake Metal Player', 'Activating Metal kit simulation', 5, 'info')
 
     			local controller = nil
     			pcall(function()
     				controller = bedwars.Knit.Controllers.HiddenMetalController
     			end)
 
-    			if controller and controller.onKitLocalActivated then
+    			if not controller then
+    				log('HiddenMetalController not found')
+    				fakeActive = false
+    				return
+    			end
+
+    			for _, key in maidKeyNames do
+    				if controller[key] == nil then
+    					controller[key] = fakeMaid
+    					table.insert(injectedKeys, key)
+    					log('Injected fake maid at controller.' .. key)
+    				end
+    			end
+
+    			if #injectedKeys == 0 then
+    				local existingMaidKey = nil
+    				for _, key in maidKeyNames do
+    					if controller[key] ~= nil then
+    						existingMaidKey = key
+    						break
+    					end
+    				end
+    				if existingMaidKey then
+    					log('Maid already exists at controller.' .. existingMaidKey)
+    				else
+    					log('No known maid keys found, trying upvalue injection')
+    					pcall(function()
+    						for i = 1, 20 do
+    							local name, val = debug.getupvalue(controller.onKitLocalActivated, i)
+    							if not name then break end
+    							if val == nil and (name:lower():find('maid') or name:lower():find('janitor') or name:lower():find('trove')) then
+    								debug.setupvalue(controller.onKitLocalActivated, i, fakeMaid)
+    								log('Injected fake maid into upvalue ' .. name .. ' (index ' .. i .. ')')
+    								table.insert(injectedKeys, 'upvalue:' .. i)
+    							end
+    						end
+    					end)
+    				end
+    			end
+
+    			if controller.onKitLocalActivated then
     				local suc, err = pcall(function()
     					controller:onKitLocalActivated()
     				end)
     				if suc then
-    					controllerActivated = true
-    					log('HiddenMetalController.onKitLocalActivated called successfully')
+    					log('onKitLocalActivated succeeded')
     				else
     					log('onKitLocalActivated failed: ' .. tostring(err))
-    				end
-    			else
-    				log('HiddenMetalController or onKitLocalActivated not found')
-    			end
 
-    			if controller and controller.KnitStart and not controllerActivated then
-    				local suc, err = pcall(function()
-    					controller:KnitStart()
-    				end)
-    				if suc then
-    					controllerActivated = true
-    					log('HiddenMetalController.KnitStart called as fallback')
-    				else
-    					log('KnitStart fallback failed: ' .. tostring(err))
+    					log('Scanning upvalues for nil GiveTask holder...')
+    					pcall(function()
+    						for i = 1, 30 do
+    							local name, val = debug.getupvalue(controller.onKitLocalActivated, i)
+    							if not name then break end
+    							if val == nil then
+    								log('  upvalue ' .. i .. ' (' .. tostring(name) .. ') = nil')
+    								debug.setupvalue(controller.onKitLocalActivated, i, fakeMaid)
+    								log('  -> injected fake maid into upvalue ' .. i)
+    								table.insert(injectedKeys, 'upvalue:' .. i)
+    							end
+    						end
+    					end)
+
+    					local suc2, err2 = pcall(function()
+    						controller:onKitLocalActivated()
+    					end)
+    					if suc2 then
+    						log('onKitLocalActivated succeeded after upvalue injection')
+    					else
+    						log('onKitLocalActivated still failed: ' .. tostring(err2))
+    					end
     				end
     			end
 
@@ -17326,13 +17405,44 @@ run(function()
     			end))
     		else
     			if not fakeActive then return end
+
+    			local function log(msg)
+    				if DebugLogs and DebugLogs.Enabled then
+    					warn('[FakeMetalPlayer] ' .. msg)
+    				end
+    			end
+
+    			if fakeMaid then
+    				pcall(function() fakeMaid:DoCleaning() end)
+    				log('Fake maid cleaned up')
+    			end
+
+    			local controller = nil
+    			pcall(function()
+    				controller = bedwars.Knit.Controllers.HiddenMetalController
+    			end)
+    			if controller then
+    				for _, key in injectedKeys do
+    					if key:sub(1, 8) == 'upvalue:' then
+    						pcall(function()
+    							local idx = tonumber(key:sub(9))
+    							debug.setupvalue(controller.onKitLocalActivated, idx, nil)
+    						end)
+    					else
+    						pcall(function() controller[key] = nil end)
+    					end
+    					log('Removed injected key: ' .. key)
+    				end
+    			end
+
+    			table.clear(injectedKeys)
+    			fakeMaid = nil
     			fakeActive = false
-    			controllerActivated = false
-    			warn('[FakeMetalPlayer] Removing fake Metal player state')
-    			notif('Fake Metal Player', 'Deactivated simulated Metal kit presence', 5, 'info')
+    			warn('[FakeMetalPlayer] Deactivated')
+    			notif('Fake Metal Player', 'Simulation stopped', 5, 'info')
     		end
     	end,
-    	Tooltip = 'Simulates a Metal Detector kit player joining.\nMetal spawning is server-controlled so this may have no effect on actual spawns.'
+    	Tooltip = 'Simulates a Metal Detector kit player joining.\nInjects a fake maid so the controller can activate.\nMetal spawning is server-controlled so this may have no effect.'
     })
 
     DebugLogs = FakeMetalPlayer:CreateToggle({
