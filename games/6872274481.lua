@@ -14555,7 +14555,27 @@ run(function()
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
                         if attemptBreak(customlist, localPosition) then continue end
                         if attemptBreak(LuckyBlock.Enabled and luckyblock, localPosition) then continue end
-                        if attemptBreak(IronOre.Enabled and ironores, localPosition) then continue end
+                        if IronOre.Enabled then
+                            local myTeam = lplr:GetAttribute('Team')
+                            local myBed
+                            if myTeam then
+                                for _, b in beds do
+                                    if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
+                                        myBed = b
+                                        break
+                                    end
+                                end
+                            end
+                            if myBed then
+                                local baseOres = {}
+                                for _, ore in ironores do
+                                    if (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        table.insert(baseOres, ore)
+                                    end
+                                end
+                                if attemptBreak(baseOres, localPosition) then continue end
+                            end
+                        end
     
                         for _, v in parts do
                             v.Position = Vector3.zero
@@ -14681,7 +14701,7 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, LockedTarget, BreakerFallback, DebugMode
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, LockedTarget, BaseOre, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
@@ -15071,6 +15091,7 @@ run(function()
                 end)
 
                 local beds = collection('bed', KingDraco)
+                local ironores = collection('iron_ore_mesh_block', KingDraco)
 
                 local lastBedVis = false
 
@@ -15178,6 +15199,37 @@ run(function()
                         task.wait(QuickBreak.Enabled and 0 or 0.25)
                         continue
                     else
+                        if BaseOre and BaseOre.Enabled then
+                            local myTeam = lplr:GetAttribute('Team')
+                            local myBed
+                            if myTeam then
+                                for _, b in beds do
+                                    if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
+                                        myBed = b
+                                        break
+                                    end
+                                end
+                            end
+                            if myBed then
+                                local bestOre, bestOreDist = nil, math.huge
+                                for _, ore in ironores do
+                                    if ore and ore.Parent and (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        local d = (ore.Position - origin).Magnitude
+                                        if d <= RangeSetting.Value and d < bestOreDist and isVisible(ore.Position) then
+                                            bestOre, bestOreDist = ore, d
+                                        end
+                                    end
+                                end
+                                if bestOre then
+                                    targetGlow.Adornee = bestOre
+                                    equipFor(bestOre)
+                                    strike(bestOre)
+                                    if DebugMode and DebugMode.Enabled then dbg('[KD] strike base ore') end
+                                    task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                    continue
+                                end
+                            end
+                        end
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
                     end
 
@@ -15232,6 +15284,10 @@ run(function()
     LockedTarget = KingDraco:CreateToggle({
         Name = 'Locked target',
         Tooltip = 'Stays on a defense block until it breaks or goes out of range'
+    })
+    BaseOre = KingDraco:CreateToggle({
+        Name = 'Base ore',
+        Tooltip = 'Mines iron ore near your own bed when idle'
     })
     ItemLimit = KingDraco:CreateToggle({
         Name = 'Limit to items',
