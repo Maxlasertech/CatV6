@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 61
+local VERSION = 62
 local run = function(func)
 	func()
 end
@@ -14956,7 +14956,19 @@ run(function()
                 end
 
                 if exposed and pick[2] ~= anchor then
-                    local score = useDistance and (origin - pick[2]).Magnitude or pick[1]
+                    local score
+                    if useDistance then
+                        local toBed = anchor - origin
+                        local toBlock = pick[2] - origin
+                        if toBed.Magnitude > 0.1 and toBlock.Magnitude > 0.1 then
+                            local alignment = toBed.Unit:Dot(toBlock.Unit)
+                            score = toBlock.Magnitude * (2 - alignment)
+                        else
+                            score = toBlock.Magnitude
+                        end
+                    else
+                        score = pick[1]
+                    end
                     if score < best.cost and isVisible(pick[2]) then
                         local route = {}
                         local cur = pick[2]
