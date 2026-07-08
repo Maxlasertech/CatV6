@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 37
+local VERSION = 38
 local run = function(func)
 	func()
 end
@@ -15123,8 +15123,39 @@ run(function()
                         store._lockedDefenseBlock = nil
                         clearPath()
                         killBar()
-                        targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        if BaseOre and BaseOre.Enabled then
+                            local myTeam = lplr:GetAttribute('Team')
+                            local myBed
+                            if myTeam then
+                                for _, b in beds do
+                                    if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
+                                        myBed = b
+                                        break
+                                    end
+                                end
+                            end
+                            if myBed then
+                                local bestOre, bestOreDist = nil, math.huge
+                                for _, ore in ironores do
+                                    if ore and ore.Parent and (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        local d = (ore.Position - origin).Magnitude
+                                        if d <= RangeSetting.Value and d < bestOreDist and isVisible(ore.Position) then
+                                            bestOre, bestOreDist = ore, d
+                                        end
+                                    end
+                                end
+                                if bestOre then
+                                    targetGlow.Adornee = bestOre
+                                    equipFor(bestOre)
+                                    strike(bestOre)
+                                    if DebugMode and DebugMode.Enabled then dbg('[KD] strike base ore') end
+                                    task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                    continue
+                                end
+                            end
+                        end
+                        targetGlow.Adornee = nil
                         task.wait(0.1)
                         continue
                     end
