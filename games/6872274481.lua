@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 37
+local VERSION = 38
 local run = function(func)
 	func()
 end
@@ -15032,6 +15032,7 @@ run(function()
 
     local function fullCleanup()
         store._lockedDefenseBlock = nil
+        store._lockedDefensePos = nil
         killBar()
         for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
         table.clear(pathParts)
@@ -15100,6 +15101,7 @@ run(function()
 
                     if not bestBed then
                         store._lockedDefenseBlock = nil
+                        store._lockedDefensePos = nil
                         clearPath()
                         killBar()
                         targetGlow.Adornee = nil
@@ -15141,15 +15143,32 @@ run(function()
                     end
 
                     local lockedBlock = LockedTarget and LockedTarget.Enabled and store._lockedDefenseBlock
-                    if lockedBlock and lockedBlock.Parent and (lockedBlock.Position - origin).Magnitude <= RangeSetting.Value then
-                        targetGlow.Adornee = lockedBlock
-                        equipFor(lockedBlock)
-                        strike(lockedBlock)
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                        continue
-                    else
-                        store._lockedDefenseBlock = nil
+                    if lockedBlock then
+                        if lockedBlock.Parent and (lockedBlock.Position - origin).Magnitude <= RangeSetting.Value then
+                            targetGlow.Adornee = lockedBlock
+                            equipFor(lockedBlock)
+                            strike(lockedBlock)
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
+                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            continue
+                        elseif not lockedBlock.Parent and store._lockedDefensePos then
+                            local patchedBlock = getPlacedBlock(store._lockedDefensePos)
+                            if patchedBlock and (patchedBlock.Position - origin).Magnitude <= RangeSetting.Value then
+                                store._lockedDefenseBlock = patchedBlock
+                                targetGlow.Adornee = patchedBlock
+                                equipFor(patchedBlock)
+                                strike(patchedBlock)
+                                if DebugMode and DebugMode.Enabled then dbg('[KD] strike patched defense') end
+                                task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                continue
+                            else
+                                store._lockedDefenseBlock = nil
+                                store._lockedDefensePos = nil
+                            end
+                        else
+                            store._lockedDefenseBlock = nil
+                            store._lockedDefensePos = nil
+                        end
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
@@ -15161,6 +15180,7 @@ run(function()
                         if entryBlock and isVisible(entry) then
                             if LockedTarget and LockedTarget.Enabled then
                                 store._lockedDefenseBlock = entryBlock
+                                store._lockedDefensePos = entry
                             end
                             targetGlow.Adornee = entryBlock
                             if PathOverlay.Enabled then drawPath(route, entry, anchor) end
