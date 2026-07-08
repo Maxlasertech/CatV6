@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 60
+local VERSION = 61
 local run = function(func)
 	func()
 end
@@ -15111,18 +15111,6 @@ run(function()
 
                     bedGlow.Adornee = bestBed
 
-                    local lockedBlock = LockedTarget and LockedTarget.Enabled and store._lockedDefenseBlock
-                    if lockedBlock and lockedBlock.Parent and (lockedBlock.Position - origin).Magnitude <= RangeSetting.Value then
-                        targetGlow.Adornee = lockedBlock
-                        equipFor(lockedBlock)
-                        strike(lockedBlock)
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                        continue
-                    else
-                        store._lockedDefenseBlock = nil
-                    end
-
                     local bedVis = isBedVisible(bestBed)
                     if bedVis and not lastBedVis then
                         store.damageBlockFail = 0
@@ -15151,6 +15139,18 @@ run(function()
                             task.wait(QuickBreak.Enabled and 0 or (BedCheck.Enabled and 0.25 or SpeedSetting.Value))
                             continue
                         end
+                    end
+
+                    local lockedBlock = LockedTarget and LockedTarget.Enabled and store._lockedDefenseBlock
+                    if lockedBlock and lockedBlock.Parent and (lockedBlock.Position - origin).Magnitude <= RangeSetting.Value then
+                        targetGlow.Adornee = lockedBlock
+                        equipFor(lockedBlock)
+                        strike(lockedBlock)
+                        if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
+                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        continue
+                    else
+                        store._lockedDefenseBlock = nil
                     end
 
                     local entry, route, anchor = planAttack(bestBed, origin)
