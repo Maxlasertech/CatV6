@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 35
+local VERSION = 36
 local run = function(func)
 	func()
 end
@@ -15071,14 +15071,16 @@ run(function()
 
                 local beds = collection('bed', KingDraco)
 
+                local lastBedVis = false
+
                 repeat
-                    task.wait(1 / TickRate.Value)
                     if not KingDraco.Enabled then break end
                     if not entitylib.isAlive then
                         clearPath()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        task.wait(0.1)
                         continue
                     end
 
@@ -15100,12 +15102,17 @@ run(function()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        task.wait(0.1)
                         continue
                     end
 
                     bedGlow.Adornee = bestBed
 
                     local bedVis = isBedVisible(bestBed)
+                    if bedVis and not lastBedVis then
+                        store.damageBlockFail = 0
+                    end
+                    lastBedVis = bedVis
                     if DebugMode and DebugMode.Enabled then
                         local dist = (bestBed.Position - origin).Magnitude
                         dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
@@ -15158,6 +15165,7 @@ run(function()
                     targetGlow.Adornee = nil
                     clearPath()
                     killBar()
+                    task.wait(1 / TickRate.Value)
                 until not KingDraco.Enabled
             else
                 fullCleanup()
