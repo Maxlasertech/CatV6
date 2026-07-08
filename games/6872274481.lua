@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 34
+local VERSION = 35
 local run = function(func)
 	func()
 end
@@ -15116,7 +15116,7 @@ run(function()
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (visible)') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        task.wait(QuickBreak.Enabled and 0 or 0.25)
                         continue
                     end
 
@@ -15126,7 +15126,7 @@ run(function()
                             if PathOverlay.Enabled then clearPath() end
                             bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
                             if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                            task.wait(QuickBreak.Enabled and 0 or 0.25)
                             continue
                         end
                     end
@@ -15149,7 +15149,7 @@ run(function()
                         targetGlow.Adornee = bestBed
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (no defense found)') end
-                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                        task.wait(QuickBreak.Enabled and 0 or 0.25)
                         continue
                     else
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
