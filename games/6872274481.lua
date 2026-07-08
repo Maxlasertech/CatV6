@@ -15136,22 +15136,19 @@ run(function()
                                 end
                             end
                             if myBed then
-                                local bestOre, bestOreDist = nil, math.huge
+                                local baseOres = {}
                                 for _, ore in ironores do
-                                    if ore and ore.Parent and (ore.Position - myBed.Position).Magnitude <= 40 then
-                                        local d = (ore.Position - origin).Magnitude
-                                        if d <= RangeSetting.Value and d < bestOreDist and isVisible(ore.Position) then
-                                            bestOre, bestOreDist = ore, d
-                                        end
+                                    if (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        table.insert(baseOres, ore)
                                     end
                                 end
-                                if bestOre then
-                                    targetGlow.Adornee = bestOre
-                                    equipFor(bestOre)
-                                    strike(bestOre)
-                                    if DebugMode and DebugMode.Enabled then dbg('[KD] strike base ore') end
-                                    task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                                    continue
+                                for _, ore in baseOres do
+                                    if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                                        if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
+                                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -15242,22 +15239,19 @@ run(function()
                                 end
                             end
                             if myBed then
-                                local bestOre, bestOreDist = nil, math.huge
+                                local baseOres = {}
                                 for _, ore in ironores do
-                                    if ore and ore.Parent and (ore.Position - myBed.Position).Magnitude <= 40 then
-                                        local d = (ore.Position - origin).Magnitude
-                                        if d <= RangeSetting.Value and d < bestOreDist and isVisible(ore.Position) then
-                                            bestOre, bestOreDist = ore, d
-                                        end
+                                    if (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        table.insert(baseOres, ore)
                                     end
                                 end
-                                if bestOre then
-                                    targetGlow.Adornee = bestOre
-                                    equipFor(bestOre)
-                                    strike(bestOre)
-                                    if DebugMode and DebugMode.Enabled then dbg('[KD] strike base ore') end
-                                    task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                                    continue
+                                for _, ore in baseOres do
+                                    if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                                        if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
+                                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                        break
+                                    end
                                 end
                             end
                         end
