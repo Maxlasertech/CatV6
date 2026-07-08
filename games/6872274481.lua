@@ -17258,6 +17258,101 @@ run(function()
 end)
 
 run(function()
+    local FakeMetalPlayer
+    local DebugLogs
+    local Interval
+
+    local fakeActive = false
+    local controllerActivated = false
+
+    FakeMetalPlayer = vape.Categories.Kits:CreateModule({
+    	Name = 'Fake Metal Player',
+    	Function = function(call)
+    		if call then
+    			if fakeActive then
+    				warn('[FakeMetalPlayer] Simulation already active, skipping duplicate')
+    				return
+    			end
+
+    			fakeActive = true
+    			controllerActivated = false
+
+    			local function log(msg)
+    				if DebugLogs and DebugLogs.Enabled then
+    					warn('[FakeMetalPlayer] ' .. msg)
+    				end
+    			end
+
+    			log('Creating fake Metal player state')
+    			notif('Fake Metal Player', 'Activating simulated Metal kit presence', 5, 'info')
+
+    			local controller = nil
+    			pcall(function()
+    				controller = bedwars.Knit.Controllers.HiddenMetalController
+    			end)
+
+    			if controller and controller.onKitLocalActivated then
+    				local suc, err = pcall(function()
+    					controller:onKitLocalActivated()
+    				end)
+    				if suc then
+    					controllerActivated = true
+    					log('HiddenMetalController.onKitLocalActivated called successfully')
+    				else
+    					log('onKitLocalActivated failed: ' .. tostring(err))
+    				end
+    			else
+    				log('HiddenMetalController or onKitLocalActivated not found')
+    			end
+
+    			if controller and controller.KnitStart and not controllerActivated then
+    				local suc, err = pcall(function()
+    					controller:KnitStart()
+    				end)
+    				if suc then
+    					controllerActivated = true
+    					log('HiddenMetalController.KnitStart called as fallback')
+    				else
+    					log('KnitStart fallback failed: ' .. tostring(err))
+    				end
+    			end
+
+    			FakeMetalPlayer:Clean(task.spawn(function()
+    				repeat
+    					local metals = collectionService:GetTagged('hidden-metal')
+    					log('Hidden metals in world: ' .. #metals)
+    					task.wait(Interval and Interval.Value or 5)
+    				until not FakeMetalPlayer.Enabled
+    			end))
+    		else
+    			if not fakeActive then return end
+    			fakeActive = false
+    			controllerActivated = false
+    			warn('[FakeMetalPlayer] Removing fake Metal player state')
+    			notif('Fake Metal Player', 'Deactivated simulated Metal kit presence', 5, 'info')
+    		end
+    	end,
+    	Tooltip = 'Simulates a Metal Detector kit player joining.\nMetal spawning is server-controlled so this may have no effect on actual spawns.'
+    })
+
+    DebugLogs = FakeMetalPlayer:CreateToggle({
+    	Name = 'Debug Logs',
+    	Default = true,
+    	Tooltip = 'Print debug info to dev console'
+    })
+    Interval = FakeMetalPlayer:CreateSlider({
+    	Name = 'Log Interval',
+    	Min = 1,
+    	Max = 30,
+    	Default = 5,
+    	Suffix = function(val)
+    		return val > 1 and 'secs' or 'sec'
+    	end,
+    	Tooltip = 'How often to log hidden metal count'
+    })
+end)
+
+run(function()
     local AutoNoelle
     local Notify
     local FrostySlime
