@@ -2297,8 +2297,110 @@ run(function()
 end)
 
 run(function()
+    local ProjectileAura
+    local Targets
+    local Range
+    local Delay
+    local Projectile
+
+    local projectileRemote = {InvokeServer = function() end}
+    task.spawn(function()
+    	projectileRemote = bedwars.Client:Get(remotes.FireProjectile).instance
+    end)
+
+    local function getWeapon()
+    	for _, item in store.inventory.inventory.items do
+    		local meta = bedwars.ItemMeta[item.itemType]
+    		if meta and meta.projectileSource then
+    			return item, meta
+    		end
+    	end
+    end
+
+    ProjectileAura = vape.Categories.Combat:CreateModule({
+    	Name = 'Projectile Aura',
+    	Function = function(call)
+    		if call then
+    			repeat
+    				if entitylib.isAlive then
+    					local item, meta = getWeapon()
+    					if item then
+    						local selfPos = entitylib.character.RootPart.Position
+    						local ent = entitylib.EntityPosition({
+    							Origin = selfPos,
+    							Range = Range.Value,
+    							Part = 'RootPart',
+    							Wallcheck = Targets.Walls.Enabled or nil,
+    							Players = Targets.Players.Enabled,
+    							NPCs = Targets.NPCs.Enabled,
+    							Limit = 1,
+    							Sort = sortmethods['Distance'],
+    						})
+
+    						if ent then
+    							local dir = (ent.RootPart.Position - selfPos).Unit
+    							local projType = Projectile.Value or 'volley_arrow'
+    							local ammoType = projType
+
+    							local shootPos = selfPos
+    							projectileRemote:InvokeServer(
+    								item.tool,
+    								ammoType,
+    								'arrow',
+    								shootPos,
+    								shootPos,
+    								dir * 9e9,
+    								httpService:GenerateGUID(false),
+    								{
+    									shotId = httpService:GenerateGUID(false),
+    									drawDurationSec = 9e9
+    								},
+    								workspace:GetServerTimeNow()
+    							)
+    						end
+    					end
+    				end
+    				task.wait(Delay.Value)
+    			until not ProjectileAura.Enabled
+    		end
+    	end,
+    	Tooltip = 'Automatically fires projectiles at the nearest enemy'
+    })
+
+    Targets = ProjectileAura:CreateTargets({
+    	Players = true,
+    	NPCs = true,
+    	Walls = true,
+    })
+    Range = ProjectileAura:CreateSlider({
+    	Name = 'Range',
+    	Min = 10,
+    	Max = 200,
+    	Default = 100,
+    	Suffix = function(val)
+    		return val <= 1 and 'stud' or 'studs'
+    	end,
+    })
+    Delay = ProjectileAura:CreateSlider({
+    	Name = 'Delay',
+    	Min = 0.1,
+    	Max = 2,
+    	Default = 0.35,
+    	Decimal = 100,
+    	Suffix = function(val)
+    		return val <= 1 and 'sec' or 'secs'
+    	end,
+    })
+    Projectile = ProjectileAura:CreateDropdown({
+    	Name = 'Projectile',
+    	List = {'volley_arrow', 'arrow', 'fireball'},
+    	Default = 'volley_arrow',
+    })
+end)
+
+run(function()
     local old
-    
+
     vape.Categories.Combat:CreateModule({
         Name = 'No Click Delay',
         Function = function(callback)
