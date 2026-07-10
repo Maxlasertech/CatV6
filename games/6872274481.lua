@@ -15124,7 +15124,7 @@ run(function()
                         clearPath()
                         killBar()
                         bedGlow.Adornee = nil
-                        if BaseOre and BaseOre.Enabled then
+                        if BaseOre and BaseOre.Enabled and store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock then
                             local myTeam = lplr:GetAttribute('Team')
                             local myBed
                             if myTeam then
@@ -15227,7 +15227,7 @@ run(function()
                         task.wait(QuickBreak.Enabled and 0 or 0.25)
                         continue
                     else
-                        if BaseOre and BaseOre.Enabled then
+                        if BaseOre and BaseOre.Enabled and store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock then
                             local myTeam = lplr:GetAttribute('Team')
                             local myBed
                             if myTeam then
