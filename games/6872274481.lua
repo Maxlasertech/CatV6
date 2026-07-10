@@ -8272,94 +8272,30 @@ run(function()
 
     local SwordModelOffset = CFrame.Angles(math.rad(-95), math.rad(-90), 0) * CFrame.new(0, 2, 0)
 
-    local SwordTiers = {
-        'wood_sword',
-        'stone_sword',
-        'iron_sword',
-        'diamond_sword',
-        'emerald_sword',
+    local BaseSwords = {
+        wood_sword = true,
+        stone_sword = true,
+        iron_sword = true,
+        diamond_sword = true,
+        emerald_sword = true,
     }
 
-    local SwordSkinNames = {}
     local SkinList = {}
 
     local function isSword(itemName)
-        for _, tier in SwordTiers do
-            if itemName == tier then
-                return true
-            end
-        end
-        return false
-    end
-
-    local function getSkinGroup(skinName)
-        local group = skinName
-        for _, tier in SwordTiers do
-            group = group:gsub('_?' .. tier, '')
-        end
-        group = group:gsub('_+$', ''):gsub('^_+', '')
-        if group == '' then return nil end
-        return group
+        return BaseSwords[itemName] == true
     end
 
     local function collectSwordSkins()
-        table.clear(SwordSkinNames)
         table.clear(SkinList)
-
         local items = replicatedStorage:FindFirstChild('Items')
         if items then
             for _, child in items:GetChildren() do
-                local name = child.Name
-                if name:find('sword') and child:FindFirstChild('Handle') then
-                    local matchesTier = false
-                    for _, tier in SwordTiers do
-                        if name == tier then
-                            matchesTier = true
-                            break
-                        end
-                        if name:find(tier) then
-                            local group = getSkinGroup(name)
-                            if group then
-                                if not SwordSkinNames[group] then
-                                    SwordSkinNames[group] = {}
-                                    table.insert(SkinList, group)
-                                end
-                                table.insert(SwordSkinNames[group], name)
-                            end
-                            matchesTier = true
-                            break
-                        end
-                    end
-                    if not matchesTier then
-                        local group = getSkinGroup(name)
-                        if group then
-                            if not SwordSkinNames[group] then
-                                SwordSkinNames[group] = {}
-                                table.insert(SkinList, group)
-                            end
-                            table.insert(SwordSkinNames[group], name)
-                        end
-                    end
+                if child:FindFirstChild('Handle') and child.Name:find('sword') and not BaseSwords[child.Name] then
+                    table.insert(SkinList, child.Name)
                 end
             end
         end
-
-        if #SkinList == 0 then
-            for _, kitSkin in bedwars.BedwarsKitSkin do
-                if kitSkin.itemSkins then
-                    for _, skinName in kitSkin.itemSkins do
-                        if skinName:find('sword') then
-                            if not SwordSkinNames[kitSkin.name] then
-                                SwordSkinNames[kitSkin.name] = {}
-                                table.insert(SkinList, kitSkin.name)
-                            end
-                            table.insert(SwordSkinNames[kitSkin.name], skinName)
-                        end
-                    end
-                end
-            end
-        end
-
         table.sort(SkinList, function(a, b) return a < b end)
     end
 
@@ -8367,22 +8303,8 @@ run(function()
         if not SkinDropdown.Value or not item then return end
         local meta = bedwars.ItemMeta[item.Name]
         if not meta or not meta.sword then return end
-        local skins = SwordSkinNames[SkinDropdown.Value]
-        if not skins then return end
 
-        local bestSkin
-        for _, skinName in skins do
-            if skinName:find(item.Name) then
-                bestSkin = skinName
-                break
-            end
-        end
-        if not bestSkin then
-            bestSkin = skins[1]
-        end
-        if not bestSkin then return end
-
-        local skinAsset = replicatedStorage.Items:FindFirstChild(bestSkin)
+        local skinAsset = replicatedStorage.Items:FindFirstChild(SkinDropdown.Value)
         if not skinAsset or not skinAsset:FindFirstChild('Handle') then return end
 
         local model = Instance.new('Model', item)
@@ -8405,7 +8327,7 @@ run(function()
             item.Handle:Destroy()
         end
 
-        item:SetAttribute('ItemSkin', bestSkin)
+        item:SetAttribute('ItemSkin', SkinDropdown.Value)
     end
 
     SwordSkinRender = vape.Categories.Render:CreateModule({
