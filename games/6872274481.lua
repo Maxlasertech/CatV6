@@ -8331,7 +8331,7 @@ run(function()
     end
 
     SwordSkinRender = vape.Categories.Render:CreateModule({
-        Name = 'Sword Skin',
+        Name = 'Sword Skin 2',
         Tooltip = 'Changes your sword skin to a selected cosmetic',
         Function = function(callback)
             if callback then
@@ -8384,7 +8384,7 @@ run(function()
     collectSwordSkins()
 
     SkinDropdown = SwordSkinRender:CreateDropdown({
-        Name = 'Sword Skin',
+        Name = 'Sword Skin 2',
         List = SkinList,
     })
 end)
