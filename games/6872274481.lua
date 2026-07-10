@@ -8266,6 +8266,162 @@ run(function()
 end)
 
 run(function()
+    local SwordSkinRender
+    local SkinDropdown
+    local SavedSwordModels = {}
+
+    local SwordModelOffset = CFrame.Angles(math.rad(-95), math.rad(-90), 0) * CFrame.new(0, 2, 0)
+
+    local SwordTiers = {
+        'wood_sword',
+        'stone_sword',
+        'iron_sword',
+        'diamond_sword',
+        'emerald_sword',
+    }
+
+    local SwordSkinNames = {}
+    local SkinList = {}
+
+    local function isSword(itemName)
+        for _, tier in SwordTiers do
+            if itemName == tier then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function collectSwordSkins()
+        table.clear(SwordSkinNames)
+        table.clear(SkinList)
+        for _, kitSkin in bedwars.BedwarsKitSkin do
+            if kitSkin.itemSkins then
+                local hasSword = false
+                for _, skinName in kitSkin.itemSkins do
+                    for _, tier in SwordTiers do
+                        if skinName:find(tier) then
+                            hasSword = true
+                            break
+                        end
+                    end
+                    if hasSword then break end
+                end
+                if hasSword then
+                    if not SwordSkinNames[kitSkin.name] then
+                        SwordSkinNames[kitSkin.name] = {}
+                        table.insert(SkinList, kitSkin.name)
+                    end
+                    for _, skinName in kitSkin.itemSkins do
+                        for _, tier in SwordTiers do
+                            if skinName:find(tier) then
+                                table.insert(SwordSkinNames[kitSkin.name], skinName)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        table.sort(SkinList, function(a, b) return a < b end)
+    end
+
+    local function applySwordSkin(item, parent)
+        if not SkinDropdown.Value or not item then return end
+        local meta = bedwars.ItemMeta[item.Name]
+        if not meta or not meta.sword then return end
+        if not SwordSkinNames[SkinDropdown.Value] then return end
+
+        for _, skinName in SwordSkinNames[SkinDropdown.Value] do
+            if not skinName:find(item.Name) then continue end
+            local skinAsset = replicatedStorage.Items:FindFirstChild(skinName)
+            if not skinAsset then continue end
+
+            local model = Instance.new('Model', item)
+            local handle = skinAsset.Handle:Clone()
+            handle.Parent = model
+            table.insert(SavedSwordModels, model)
+            SwordSkinRender:Clean(model)
+
+            for _, desc in model:GetDescendants() do
+                pcall(function() desc.Anchored = false end)
+                pcall(function() desc.CanCollide = false end)
+            end
+
+            model:PivotTo(parent.RightHand.CFrame * SwordModelOffset)
+            local weld = Instance.new('WeldConstraint', model)
+            weld.Part0 = parent.RightHand
+            weld.Part1 = model.Handle
+
+            if item:FindFirstChild('Handle') then
+                item.Handle:Destroy()
+            end
+
+            item:SetAttribute('ItemSkin', skinName)
+            break
+        end
+    end
+
+    SwordSkinRender = vape.Categories.Render:CreateModule({
+        Name = 'Sword Skin',
+        Tooltip = 'Changes your sword skin to a selected cosmetic',
+        Function = function(callback)
+            if callback then
+                repeat
+                    task.wait()
+                until store.map or not SwordSkinRender.Enabled
+                if not SwordSkinRender.Enabled then return end
+
+                SwordSkinRender:Clean(vapeEvents.InventoryHeldChanged.Event:Connect(function(tool)
+                    for _, v in SavedSwordModels do
+                        pcall(function() v:Destroy() end)
+                    end
+                    table.clear(SavedSwordModels)
+
+                    if tool and isSword(tool.Name) then
+                        for _, parent in {lplr.Character, gameCamera:FindFirstChild('Viewmodel')} do
+                            if parent then
+                                local model = parent:WaitForChild(tool.Name, 5)
+                                if model then
+                                    task.delay(0, applySwordSkin, model, parent)
+                                end
+                            end
+                        end
+                    end
+                end))
+
+                SwordSkinRender:Clean(gameCamera.ChildAdded:Connect(function(child)
+                    if child.Name == 'Viewmodel' then
+                        task.defer(function()
+                            if not SwordSkinRender.Enabled then return end
+                            local tool = lplr.Character and lplr.Character:FindFirstChildWhichIsA('Tool', true)
+                            if tool and isSword(tool.Name) then
+                                local model = child:WaitForChild(tool.Name, 5)
+                                if model then
+                                    applySwordSkin(model, child)
+                                end
+                            end
+                        end)
+                    end
+                end))
+            else
+                for _, v in SavedSwordModels do
+                    pcall(function() v:Destroy() end)
+                end
+                table.clear(SavedSwordModels)
+            end
+        end,
+    })
+
+    collectSwordSkins()
+
+    SkinDropdown = SwordSkinRender:CreateDropdown({
+        Name = 'Sword Skin',
+        List = SkinList,
+    })
+end)
+
+run(function()
     local StorageESP
     local List
     local Background
