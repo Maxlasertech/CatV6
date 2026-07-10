@@ -8337,12 +8337,6 @@ run(function()
         if not group then return end
 
         local skinName = group[item.Name] or group['_any']
-        if not skinName then
-            for _, v in group do
-                skinName = v
-                break
-            end
-        end
         if not skinName then return end
 
         local skinAsset = replicatedStorage.Items:FindFirstChild(skinName)
