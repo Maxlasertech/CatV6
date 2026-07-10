@@ -9628,3 +9628,332 @@ run(function()
         end,
     })
 end)
+
+run(function()
+    local YTModule
+    local yt = loadstring(downloadFile('fart/libraries/youtube.lua'), 'youtube')()
+    yt:LoadSettings()
+
+    if not isfolder('fart/youtube') then
+        makefolder('fart/youtube')
+    end
+
+    local Volume
+    local AutoPlay
+    local ShowNowPlaying
+
+    local soundObj
+    local currentTrack = ''
+    local currentArtist = ''
+    local isPlaying = false
+    local trackQueue = {}
+    local queueIndex = 0
+
+    local nowPlayingLabel
+    local nowPlayingGui
+
+    local function truncate(str, len)
+        if #str > len then
+            return str:sub(1, len - 2) .. '..'
+        end
+        return str
+    end
+
+    local function updateNowPlaying()
+        if nowPlayingLabel and nowPlayingGui then
+            if currentTrack ~= '' then
+                local prefix = isPlaying and '▶ ' or '⏸ '
+                nowPlayingLabel.Text = prefix .. truncate(currentTrack .. ' - ' .. currentArtist, 55)
+            else
+                nowPlayingLabel.Text = 'YouTube Music - No track'
+            end
+        end
+    end
+
+    local function playById(videoId, title, artist)
+        if not videoId then return end
+        vape:CreateNotification('YouTube', 'Loading: ' .. (title or videoId) .. '...', 3)
+
+        local streamData, err = yt:GetStreams(videoId)
+        if err then
+            vape:CreateNotification('YouTube', 'Stream error: ' .. err .. ' - trying next instance', 3, 'alert')
+            local newUrl = yt:TrySwitchInstance()
+            vape:CreateNotification('YouTube', 'Switched to: ' .. newUrl, 3)
+            streamData, err = yt:GetStreams(videoId)
+            if err then
+                vape:CreateNotification('YouTube', 'Failed: ' .. err, 3, 'alert')
+                return
+            end
+        end
+
+        local audioUrl = yt:GetBestAudio(streamData)
+        if not audioUrl then
+            vape:CreateNotification('YouTube', 'No audio stream found', 3, 'alert')
+            return
+        end
+
+        if not title or title == '???' then
+            title, artist = yt:GetVideoTitle(streamData)
+        end
+
+        currentTrack = title or '???'
+        currentArtist = artist or '???'
+
+        vape:CreateNotification('YouTube', 'Downloading audio...', 3)
+        local filepath, dlErr = yt:DownloadAudio(audioUrl, 'current.m4a')
+        if dlErr then
+            vape:CreateNotification('YouTube', 'Download failed: ' .. dlErr, 3, 'alert')
+            return
+        end
+
+        if soundObj then
+            soundObj:Stop()
+        else
+            soundObj = Instance.new('Sound')
+            soundObj.Parent = workspace
+        end
+
+        soundObj.Volume = Volume and Volume.Value / 100 or 0.5
+        local ok, asset = pcall(assetfunction, filepath)
+        if not ok then
+            vape:CreateNotification('YouTube', 'Could not load audio', 3, 'alert')
+            return
+        end
+        soundObj.SoundId = asset
+        repeat task.wait() until soundObj.IsLoaded or not YTModule.Enabled
+        if YTModule.Enabled then
+            soundObj:Play()
+            isPlaying = true
+            vape:CreateNotification('YouTube', 'Now playing: ' .. currentTrack .. ' - ' .. currentArtist, 4)
+            updateNowPlaying()
+        end
+    end
+
+    local function playNext()
+        if #trackQueue == 0 then return end
+        queueIndex = queueIndex + 1
+        if queueIndex > #trackQueue then
+            queueIndex = 1
+        end
+        local t = trackQueue[queueIndex]
+        playById(t.id, t.title, t.artist)
+    end
+
+    local function playPrev()
+        if #trackQueue == 0 then return end
+        queueIndex = queueIndex - 1
+        if queueIndex < 1 then
+            queueIndex = #trackQueue
+        end
+        local t = trackQueue[queueIndex]
+        playById(t.id, t.title, t.artist)
+    end
+
+    local function createNowPlayingHud()
+        if nowPlayingGui then return end
+        local screenGui = vape.gui.ScaledGui
+        nowPlayingGui = Instance.new('Frame')
+        nowPlayingGui.Name = 'YTNowPlaying'
+        nowPlayingGui.Size = UDim2.new(0, 300, 0, 30)
+        nowPlayingGui.Position = UDim2.new(0, 10, 1, -75)
+        nowPlayingGui.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        nowPlayingGui.BackgroundTransparency = 0.3
+        nowPlayingGui.BorderSizePixel = 0
+        nowPlayingGui.Parent = screenGui
+
+        local corner = Instance.new('UICorner')
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = nowPlayingGui
+
+        local icon = Instance.new('TextLabel')
+        icon.Name = 'Icon'
+        icon.Size = UDim2.new(0, 30, 1, 0)
+        icon.BackgroundTransparency = 1
+        icon.Text = '♪'
+        icon.TextSize = 16
+        icon.Font = Enum.Font.GothamBold
+        icon.TextColor3 = Color3.fromRGB(255, 50, 50)
+        icon.Parent = nowPlayingGui
+
+        nowPlayingLabel = Instance.new('TextLabel')
+        nowPlayingLabel.Name = 'TrackLabel'
+        nowPlayingLabel.Size = UDim2.new(1, -35, 1, 0)
+        nowPlayingLabel.Position = UDim2.fromOffset(35, 0)
+        nowPlayingLabel.BackgroundTransparency = 1
+        nowPlayingLabel.Text = 'YouTube Music - No track'
+        nowPlayingLabel.TextSize = 13
+        nowPlayingLabel.Font = Enum.Font.Gotham
+        nowPlayingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nowPlayingLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nowPlayingLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        nowPlayingLabel.Parent = nowPlayingGui
+    end
+
+    local function destroyNowPlayingHud()
+        if nowPlayingGui then
+            nowPlayingGui:Destroy()
+            nowPlayingGui = nil
+            nowPlayingLabel = nil
+        end
+    end
+
+    YTModule = vape.Legit:CreateModule({
+        Name = 'YouTube Music',
+        Function = function(callback)
+            if callback then
+                if ShowNowPlaying.Enabled then
+                    createNowPlayingHud()
+                end
+                soundObj = Instance.new('Sound')
+                soundObj.Volume = Volume and Volume.Value / 100 or 0.5
+                soundObj.Parent = workspace
+
+                if AutoPlay and AutoPlay.Enabled then
+                    repeat
+                        if soundObj and not soundObj.Playing and #trackQueue > 0 and isPlaying then
+                            playNext()
+                        end
+                        task.wait(1)
+                    until not YTModule.Enabled
+                end
+            else
+                if soundObj then
+                    soundObj:Stop()
+                    soundObj:Destroy()
+                    soundObj = nil
+                end
+                destroyNowPlayingHud()
+                currentTrack = ''
+                currentArtist = ''
+                isPlaying = false
+            end
+        end,
+        Tooltip = 'Play full songs from YouTube (no login needed)',
+    })
+
+    YTModule:CreateTextBox({
+        Name = 'Search Songs',
+        Placeholder = 'song or artist name',
+        Function = function(val, enter)
+            if not enter or not val or val == '' then return end
+            vape:CreateNotification('YouTube', 'Searching...', 2)
+            local data, err = yt:Search(val, 5)
+            if err then
+                vape:CreateNotification('YouTube', 'Search error: ' .. err, 3, 'alert')
+                return
+            end
+            local results = yt:GetSearchResults(data)
+            if #results == 0 then
+                vape:CreateNotification('YouTube', 'No results found', 3)
+                return
+            end
+            trackQueue = results
+            queueIndex = 0
+            for i, track in results do
+                local dur = yt:FormatDuration(track.duration)
+                task.delay((i - 1) * 0.15, function()
+                    vape:CreateNotification('Result ' .. i, track.title .. ' - ' .. track.artist .. ' [' .. dur .. ']', 12)
+                end)
+            end
+            vape:CreateNotification('YouTube', 'Enter # below to play, or tap Next', 8)
+        end,
+    })
+
+    YTModule:CreateTextBox({
+        Name = 'Play Result #',
+        Placeholder = '1-5',
+        Function = function(val, enter)
+            if not enter then return end
+            local idx = tonumber(val)
+            if not idx or not trackQueue[idx] then
+                vape:CreateNotification('YouTube', 'Invalid result #', 3, 'alert')
+                return
+            end
+            queueIndex = idx
+            local t = trackQueue[idx]
+            playById(t.id, t.title, t.artist)
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Play / Pause',
+        Function = function()
+            if not soundObj then return end
+            if isPlaying then
+                soundObj:Pause()
+                isPlaying = false
+                vape:CreateNotification('YouTube', 'Paused', 2)
+            else
+                soundObj:Resume()
+                isPlaying = true
+                vape:CreateNotification('YouTube', 'Resumed', 2)
+            end
+            updateNowPlaying()
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Next Track',
+        Function = function()
+            playNext()
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Previous Track',
+        Function = function()
+            playPrev()
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Now Playing',
+        Function = function()
+            if currentTrack ~= '' then
+                vape:CreateNotification('YouTube', currentTrack .. ' - ' .. currentArtist, 5)
+            else
+                vape:CreateNotification('YouTube', 'Nothing is playing', 3)
+            end
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Switch Instance',
+        Function = function()
+            local newUrl = yt:TrySwitchInstance()
+            vape:CreateNotification('YouTube', 'Switched to: ' .. newUrl, 5)
+        end,
+    })
+
+    Volume = YTModule:CreateSlider({
+        Name = 'Volume',
+        Min = 0,
+        Max = 100,
+        Default = 50,
+        Suffix = '%',
+        Function = function(val)
+            if soundObj then
+                soundObj.Volume = val / 100
+            end
+        end,
+    })
+
+    AutoPlay = YTModule:CreateToggle({
+        Name = 'Auto Next',
+        Default = true,
+        Tooltip = 'Automatically play next track when current one ends',
+    })
+
+    ShowNowPlaying = YTModule:CreateToggle({
+        Name = 'Now Playing HUD',
+        Default = true,
+        Function = function(callback)
+            if callback and YTModule.Enabled then
+                createNowPlayingHud()
+                updateNowPlaying()
+            else
+                destroyNowPlayingHud()
+            end
+        end,
+    })
+end)
