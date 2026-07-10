@@ -15144,7 +15144,7 @@ run(function()
                                 end
                                 for _, ore in baseOres do
                                     if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
-                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, false)
                                         if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
                                         task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                                         break
@@ -15247,7 +15247,7 @@ run(function()
                                 end
                                 for _, ore in baseOres do
                                     if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
-                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, false)
                                         if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
                                         task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                                         break
