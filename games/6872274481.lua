@@ -6343,7 +6343,7 @@ run(function()
     	local format = string.format(Strings[ent], tostring(ent:GetAttribute('Level') or 0), (ent:GetAttribute('Level') or 0) >= 2 and 's' or '')
     	local size = getfontsize(format, nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
     	nametag.Name = Name
-    	nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
+    	nametag.Size = UDim2.fromOffset(size.X + 10, size.Y + 8)
     	nametag.AnchorPoint = Vector2.new(0.5, 1)
     	nametag.BackgroundColor3 = Color3.new()
     	nametag.BackgroundTransparency = 0.5
@@ -6352,6 +6352,14 @@ run(function()
     	nametag.Text = format
     	nametag.TextColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	nametag.RichText = true
+    	local hiveCorner = Instance.new('UICorner')
+    	hiveCorner.CornerRadius = UDim.new(0, 4)
+    	hiveCorner.Parent = nametag
+    	local hiveStroke = Instance.new('UIStroke')
+    	hiveStroke.Color = Color3.new(1, 1, 1)
+    	hiveStroke.Transparency = 0.85
+    	hiveStroke.Thickness = 1
+    	hiveStroke.Parent = nametag
     	nametag.Parent = Folder
     	Reference[ent] = nametag
 
@@ -6634,7 +6642,7 @@ run(function()
     	local format = string.format(Strings[ent], `| T{ent:GetAttribute('GeneratorLevel')}`, '')
     	local size = getfontsize(format, nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
     	nametag.Name = Name
-    	nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
+    	nametag.Size = UDim2.fromOffset(size.X + 10, size.Y + 8)
     	nametag.AnchorPoint = Vector2.new(0.5, 1)
     	nametag.BackgroundColor3 = Color3.new()
     	nametag.BackgroundTransparency = 0.5
@@ -6643,6 +6651,14 @@ run(function()
     	nametag.Text = format
     	nametag.TextColor3 = Color3.new(1, 1, 1)
     	nametag.RichText = true
+    	local genCorner = Instance.new('UICorner')
+    	genCorner.CornerRadius = UDim.new(0, 4)
+    	genCorner.Parent = nametag
+    	local genStroke = Instance.new('UIStroke')
+    	genStroke.Color = Color3.new(1, 1, 1)
+    	genStroke.Transparency = 0.85
+    	genStroke.Thickness = 1
+    	genStroke.Parent = nametag
     	nametag.Parent = Folder
     	Reference[ent] = nametag
 
@@ -6807,7 +6823,7 @@ run(function()
     	nametag.Font = Enum.Font.Arial
     	local size = getfontsize(removeTags(ent.Name), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
     	nametag.Name = ent.Name
-    	nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
+    	nametag.Size = UDim2.fromOffset(size.X + 10, size.Y + 8)
     	nametag.AnchorPoint = Vector2.new(0.5, 1)
     	nametag.BackgroundColor3 = Color3.new()
     	nametag.BackgroundTransparency = 0.5
@@ -6816,6 +6832,14 @@ run(function()
     	nametag.Text = string.format(Strings[ent], '', ent:GetAttribute('Amount') >= 2 and ' x' .. tostring(ent:GetAttribute('Amount')) or '')
     	nametag.TextColor3 = Color3.new(1, 1, 1)
     	nametag.RichText = true
+    	local itemCorner = Instance.new('UICorner')
+    	itemCorner.CornerRadius = UDim.new(0, 4)
+    	itemCorner.Parent = nametag
+    	local itemStroke = Instance.new('UIStroke')
+    	itemStroke.Color = Color3.new(1, 1, 1)
+    	itemStroke.Transparency = 0.85
+    	itemStroke.Thickness = 1
+    	itemStroke.Parent = nametag
     	nametag.Parent = Folder
     	Reference[ent] = nametag
     end
@@ -7215,14 +7239,14 @@ run(function()
     	billboard.Parent = Folder
     	billboard.Name = icon
     	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(36, 36)
+    	billboard.Size = UDim2.fromOffset(40, 40)
     	billboard.AlwaysOnTop = true
     	billboard.ClipsDescendants = false
     	billboard.Adornee = v
     	local blur = addBlur(billboard)
     	blur.Visible = Background.Enabled
     	local image = Instance.new('ImageLabel')
-    	image.Size = UDim2.fromOffset(36, 36)
+    	image.Size = UDim2.fromOffset(40, 40)
     	image.Position = UDim2.fromScale(0.5, 0.5)
     	image.AnchorPoint = Vector2.new(0.5, 0.5)
     	image.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
@@ -7231,8 +7255,19 @@ run(function()
     	image.Image = bedwars.getIcon({ itemType = icon }, true)
     	image.Parent = billboard
     	local uicorner = Instance.new('UICorner')
-    	uicorner.CornerRadius = UDim.new(0, 4)
+    	uicorner.CornerRadius = UDim.new(0, 6)
     	uicorner.Parent = image
+    	local kitStroke = Instance.new('UIStroke')
+    	kitStroke.Color = Color3.new(1, 1, 1)
+    	kitStroke.Transparency = 0.8
+    	kitStroke.Thickness = 1
+    	kitStroke.Parent = image
+    	local kitPadding = Instance.new('UIPadding')
+    	kitPadding.PaddingLeft = UDim.new(0, 4)
+    	kitPadding.PaddingRight = UDim.new(0, 4)
+    	kitPadding.PaddingTop = UDim.new(0, 4)
+    	kitPadding.PaddingBottom = UDim.new(0, 4)
+    	kitPadding.Parent = image
     	Reference[v] = billboard
     end
 
@@ -8294,22 +8329,50 @@ run(function()
 
     	local chestitems = chest and chest:GetChildren() or {}
     	for _, obj in v.Frame:GetChildren() do
-    		if obj:IsA('ImageLabel') and obj.Name ~= 'Blur' then
+    		if obj:IsA('Frame') and obj.Name == 'ItemSlot' then
     			obj:Destroy()
     		end
     	end
 
     	v.Enabled = false
-    	local alreadygot = {}
+    	local counts = {}
+    	local order = {}
     	for _, item in chestitems do
-    		if not alreadygot[item.Name] and (table.find(List.ListEnabled, item.Name) or nearStorageItem(item.Name)) then
-    			alreadygot[item.Name] = true
-    			v.Enabled = true
-    			local blockimage = Instance.new('ImageLabel')
-    			blockimage.Size = UDim2.fromOffset(32, 32)
-    			blockimage.BackgroundTransparency = 1
-    			blockimage.Image = bedwars.getIcon({ itemType = item.Name }, true)
-    			blockimage.Parent = v.Frame
+    		if table.find(List.ListEnabled, item.Name) or nearStorageItem(item.Name) then
+    			if not counts[item.Name] then
+    				counts[item.Name] = 0
+    				table.insert(order, item.Name)
+    			end
+    			counts[item.Name] += 1
+    		end
+    	end
+    	for _, itemName in order do
+    		v.Enabled = true
+    		local slot = Instance.new('Frame')
+    		slot.Name = 'ItemSlot'
+    		slot.Size = UDim2.fromOffset(32, 32)
+    		slot.BackgroundTransparency = 1
+    		slot.Parent = v.Frame
+    		local blockimage = Instance.new('ImageLabel')
+    		blockimage.Size = UDim2.fromOffset(28, 28)
+    		blockimage.Position = UDim2.fromOffset(2, 0)
+    		blockimage.BackgroundTransparency = 1
+    		blockimage.Image = bedwars.getIcon({ itemType = itemName }, true)
+    		blockimage.Parent = slot
+    		if counts[itemName] > 1 then
+    			local countLabel = Instance.new('TextLabel')
+    			countLabel.Size = UDim2.fromOffset(20, 12)
+    			countLabel.Position = UDim2.new(1, -2, 1, -2)
+    			countLabel.AnchorPoint = Vector2.new(1, 1)
+    			countLabel.BackgroundTransparency = 1
+    			countLabel.Text = 'x' .. counts[itemName]
+    			countLabel.TextColor3 = Color3.new(1, 1, 1)
+    			countLabel.TextStrokeTransparency = 0.3
+    			countLabel.TextStrokeColor3 = Color3.new()
+    			countLabel.TextSize = 10
+    			countLabel.Font = Enum.Font.GothamBold
+    			countLabel.TextXAlignment = Enum.TextXAlignment.Right
+    			countLabel.Parent = slot
     		end
     	end
     	table.clear(chestitems)
@@ -8357,7 +8420,7 @@ run(function()
     	billboard.Parent = Folder
     	billboard.Name = 'chest'
     	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(36, 36)
+    	billboard.Size = UDim2.fromOffset(40, 40)
     	billboard.AlwaysOnTop = true
     	billboard.ClipsDescendants = false
     	billboard.Adornee = v
@@ -8368,18 +8431,29 @@ run(function()
     	frame.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	frame.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
     	frame.Parent = billboard
+    	local padding = Instance.new('UIPadding')
+    	padding.PaddingLeft = UDim.new(0, 4)
+    	padding.PaddingRight = UDim.new(0, 4)
+    	padding.PaddingTop = UDim.new(0, 4)
+    	padding.PaddingBottom = UDim.new(0, 4)
+    	padding.Parent = frame
     	local layout = Instance.new('UIListLayout')
     	layout.FillDirection = Enum.FillDirection.Horizontal
-    	layout.Padding = UDim.new(0, 4)
+    	layout.Padding = UDim.new(0, 2)
     	layout.VerticalAlignment = Enum.VerticalAlignment.Center
     	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     	local layoutConnection = layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 4, 36), 36)
+    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 12, 40), 40)
     	end)
     	layout.Parent = frame
     	local corner = Instance.new('UICorner')
-    	corner.CornerRadius = UDim.new(0, 4)
+    	corner.CornerRadius = UDim.new(0, 6)
     	corner.Parent = frame
+    	local stroke = Instance.new('UIStroke')
+    	stroke.Color = Color3.new(1, 1, 1)
+    	stroke.Transparency = 0.8
+    	stroke.Thickness = 1
+    	stroke.Parent = frame
     	Reference[v] = billboard
     	Connections[v] = {
     		layoutConnection,
@@ -8480,9 +8554,9 @@ run(function()
     local function Added(v)
     	local billboard = Instance.new('BillboardGui')
     	billboard.Parent = Folder
-    	billboard.Name = 'bed'
+    	billboard.Name = 'trap'
     	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(36, 36)
+    	billboard.Size = UDim2.fromOffset(40, 40)
     	billboard.AlwaysOnTop = true
     	billboard.ClipsDescendants = false
     	billboard.Adornee = v
@@ -8493,8 +8567,14 @@ run(function()
     	frame.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	frame.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
     	frame.Parent = billboard
+    	local padding = Instance.new('UIPadding')
+    	padding.PaddingLeft = UDim.new(0, 4)
+    	padding.PaddingRight = UDim.new(0, 4)
+    	padding.PaddingTop = UDim.new(0, 4)
+    	padding.PaddingBottom = UDim.new(0, 4)
+    	padding.Parent = frame
     	local image = Instance.new('ImageLabel')
-    	image.Size = UDim2.fromOffset(32, 32)
+    	image.Size = UDim2.fromOffset(28, 28)
     	image.BackgroundTransparency = 1
     	image.Image = bedwars.getIcon({ itemType = 'snap_trap' }, true)
     	image.Parent = frame
@@ -8504,12 +8584,17 @@ run(function()
     	layout.VerticalAlignment = Enum.VerticalAlignment.Center
     	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     	layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 4, 36), 36)
+    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 12, 40), 40)
     	end)
     	layout.Parent = frame
     	local corner = Instance.new('UICorner')
-    	corner.CornerRadius = UDim.new(0, 4)
+    	corner.CornerRadius = UDim.new(0, 6)
     	corner.Parent = frame
+    	local stroke = Instance.new('UIStroke')
+    	stroke.Color = Color3.new(1, 1, 1)
+    	stroke.Transparency = 0.8
+    	stroke.Thickness = 1
+    	stroke.Parent = frame
     	Reference[v] = billboard
     end
 
