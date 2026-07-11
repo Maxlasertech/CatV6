@@ -35,23 +35,20 @@ local redirect = function()
 	})
 
 	for i = 1, 2 do
-		task.spawn(function()
-			request({
-				Method = 'POST',
-				Url = 'http://127.0.0.1:6463/rpc?v=1',
-				Headers = {
-					['Content-Type'] = 'application/json',
-					Origin = 'https://discord.com'
-				},
-				Body = body
-			})
-		end)
+		task.spawn(request, {
+			Method = 'POST',
+			Url = 'http://127.0.0.1:6463/rpc?v=1',
+			Headers = {
+				['Content-Type'] = 'application/json',
+				Origin = 'https://discord.com'
+			},
+			Body = body
+		})
 	end
 end
 
 local function downloadFile(path, func)
 	if not isfile(path) then
-		warn(path)
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
 		end)
@@ -83,6 +80,7 @@ local function finishLoading()
 		if (not teleportedServers) and (not shared.VapeIndependent) then
 			teleportedServers = true
 			local teleportScript = [[
+				shared.vapereload = true
 				if shared.VapeDeveloper then
 					loadstring(readfile('catrewrite/main.lua'), 'main')(_scriptconfig)
 				else
@@ -95,6 +93,9 @@ local function finishLoading()
 			teleportConfig = teleportConfig:gsub('%[', '{'):gsub('%]', '}')
 			teleportScript = teleportScript:gsub('_key', tostring(license.Key or '_key'))
 			teleportScript = teleportScript:gsub('_scriptconfig', teleportConfig)
+			if identifyexecutor() == 'Potassium' then
+				teleportScript = 'task.wait(12)\n'.. teleportScript
+			end
 			if shared.VapeDeveloper then
 				teleportScript = 'shared.VapeDeveloper = true\n'..teleportScript
 			end
@@ -105,19 +106,16 @@ local function finishLoading()
 		end
 	end))
 
-	if not shared.vapereload then
-		if not vape.Categories then return end
-		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			if getgenv().catrole == 'HWID MISMATCH' then
-				vape:CreateNotification('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
-				getgenv().catrole = ''
-				task.wait(0.1)
-			end
-			if vape.Place ~= 6872274481 then
-				--task.spawn(redirect)
-			end
+	if not vape.Categories then return end
+	if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
+		if getgenv().catrole == 'HWID MISMATCH' then
+			vape:CreateNotification('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
+			getgenv().catrole = ''
+			task.wait(0.1)
+		end
+		if not shared.vapereload then
 			vape:CreateNotification('Finished Loading', (getgenv().catname and `Authenticated as {getgenv().catname} with {getgenv().catrole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
-			task.delay(1, function()
+			task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
 				if shared.updated then
 					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catrewrite/profiles/commit.txt')}`, 10, 'info')
 				end

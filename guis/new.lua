@@ -370,7 +370,9 @@ local function loadJson(path)
 end
 
 downloadFile('catrewrite/profiles/features.json')
-local newModules = loadJson('catrewrite/profiles/features.json') or {}
+local moduleData = loadJson('catrewrite/profiles/features.json')
+local newModules = moduleData.new or {}
+local updModules = moduleData.updated or {}
 local function makeDraggable(gui, window)
 	gui.InputBegan:Connect(function(inputObj)
 		if window and not window.Visible then return end
@@ -3770,8 +3772,12 @@ function mainapi:CreateCategory(categorysettings)
 			if table.find(newModules, moduleapi.Name) then
 				table.insert(modulesettings.Tags, 'new')
 			end
+			if table.find(updModules, moduleapi.Name) then
+				table.insert(modulesettings.Tags, 'updated')
+			end
 			for i, tag in modulesettings.Tags do
 				tag = tag:upper()
+				modulesettings.Tags[i] = tag:lower()
 				local size = getfontsize(removeTags(tag), 12, uipallet.Font, Vector2.new(100000, 100000))
 				local indicator = Instance.new('TextLabel')
 				indicator.LayoutOrder = i - 1
@@ -3799,6 +3805,7 @@ function mainapi:CreateCategory(categorysettings)
 				indicator.Visible = tag ~= 'MATCHED'
 			end
 		end)
+		moduleapi.dtctags = modulesettings.Tags
 		local gradient = Instance.new('UIGradient')
 		gradient.Rotation = 90
 		gradient.Enabled = false
@@ -4974,7 +4981,7 @@ function mainapi:CreateSearch()
 		if search.Text == '' then return end
 
 		for i, v in self.Modules do
-			if i:lower():find(search.Text:lower()) then
+			if i:lower():find(search.Text:lower()) or table.find(v.dtctags, search.Text:lower()) then
 				local button = v.Object:Clone()
 				button.Bind:Destroy()
 				button.MouseButton1Click:Connect(function()

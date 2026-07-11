@@ -278,6 +278,9 @@ entitylib.addEntity = function(char, plr, teamfunc)
 				table.insert(entity.Connections, hum.AnimationPlayed:Connect(function(track)
 					entitylib.Events.AnimationPlayed:Fire(plr, track)
 				end))
+				table.insert(entity.Connections, char.ChildAdded:Connect(function(ent)
+					entitylib.Events.InstanceAdded:Fire(plr, ent)
+				end))
 
 				for _, v in entitylib.getUpdateConnections(entity) do
 					table.insert(entity.Connections, v:Connect(function()
