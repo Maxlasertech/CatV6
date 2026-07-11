@@ -22131,3 +22131,288 @@ run(function()
 		end
 	})
 end)
+
+run(function()
+    local PixelSword
+    local WoodColor, StoneColor, IronColor, DiamondColor, EmeraldColor
+
+    local SWORD_TYPES = {
+        'wood_sword',
+        'stone_sword',
+        'iron_sword',
+        'diamond_sword',
+        'emerald_sword'
+    }
+
+    local DEFAULT_COLORS = {
+        wood_sword    = Color3.fromRGB(139, 90, 43),
+        stone_sword   = Color3.fromRGB(136, 136, 136),
+        iron_sword    = Color3.fromRGB(199, 199, 199),
+        diamond_sword = Color3.fromRGB(85, 197, 217),
+        emerald_sword = Color3.fromRGB(68, 202, 108),
+    }
+
+    local colorSliders = {}
+    local savedParts = {}
+
+    local function getSwordType(inst)
+        local p = inst
+        while p and p ~= workspace do
+            for _, stype in SWORD_TYPES do
+                if p.Name == stype then
+                    return stype
+                end
+            end
+            p = p.Parent
+        end
+        return nil
+    end
+
+    local function getSliderColor(stype)
+        local slider = colorSliders[stype]
+        if slider then
+            return Color3.fromHSV(slider.Hue, slider.Sat, slider.Value)
+        end
+        return DEFAULT_COLORS[stype]
+    end
+
+    local hiddenObjects = {}
+
+    local function applySwordPart2(part)
+        local stype = getSwordType(part)
+        if not stype then return end
+        if not savedParts[part] then
+            savedParts[part] = {
+                Color = part.Color,
+                Material = part.Material,
+            }
+        end
+        part.Color = getSliderColor(stype)
+        part.Material = Enum.Material.SmoothPlastic
+    end
+
+    local function removeSurfaceAppearances(parent)
+        for _, child in parent:GetDescendants() do
+            if child:IsA('SurfaceAppearance') or child:IsA('Texture') or child:IsA('Decal') then
+                local stype = getSwordType(child)
+                if stype then
+                    table.insert(hiddenObjects, {obj = child, parent = child.Parent})
+                    child.Parent = nil
+                end
+            end
+        end
+    end
+
+    local function restorePart(part)
+        local entry = savedParts[part]
+        if entry then
+            pcall(function() part.Color = entry.Color end)
+            pcall(function() part.Material = entry.Material end)
+            savedParts[part] = nil
+        end
+    end
+
+    local function isSwordModel(inst)
+        for _, stype in SWORD_TYPES do
+            if inst.Name == stype then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function processSwordModel(model)
+        for _, v in model:GetDescendants() do
+            if v:IsA('BasePart') then
+                pcall(applySwordPart2, v)
+            end
+        end
+        removeSurfaceAppearances(model)
+    end
+
+    local function scanParent(parent)
+        for _, child in parent:GetChildren() do
+            if isSwordModel(child) then
+                processSwordModel(child)
+            end
+        end
+    end
+
+    local function refreshAllSwords()
+        if not PixelSword or not PixelSword.Enabled then return end
+        if lplr.Character then scanParent(lplr.Character) end
+        pcall(function()
+            local vm = gameCamera:FindFirstChild('Viewmodel')
+            if vm then scanParent(vm) end
+        end)
+    end
+
+    PixelSword = vape.Legit:CreateModule({
+        Name = 'Pixel Sword',
+        Tooltip = 'Custom pixel-art sword colors per tier — purely visual',
+        Function = function(callback)
+            if callback then
+                refreshAllSwords()
+
+                PixelSword:Clean(lplr.CharacterAdded:Connect(function(char)
+                    if not PixelSword.Enabled then return end
+                    task.wait(0.5)
+                    scanParent(char)
+                end))
+
+                if lplr.Character then
+                    PixelSword:Clean(lplr.Character.DescendantAdded:Connect(function(v)
+                        if not PixelSword.Enabled then return end
+                        if v:IsA('BasePart') and getSwordType(v) then
+                            task.defer(function()
+                                pcall(applySwordPart2, v)
+                            end)
+                        elseif (v:IsA('SurfaceAppearance') or v:IsA('Texture') or v:IsA('Decal')) and getSwordType(v) then
+                            table.insert(hiddenObjects, {obj = v, parent = v.Parent})
+                            v.Parent = nil
+                        end
+                    end))
+                end
+
+                PixelSword:Clean(lplr.CharacterAdded:Connect(function(char)
+                    if not PixelSword.Enabled then return end
+                    PixelSword:Clean(char.DescendantAdded:Connect(function(v)
+                        if not PixelSword.Enabled then return end
+                        if v:IsA('BasePart') and getSwordType(v) then
+                            task.defer(function()
+                                pcall(applySwordPart2, v)
+                            end)
+                        elseif (v:IsA('SurfaceAppearance') or v:IsA('Texture') or v:IsA('Decal')) and getSwordType(v) then
+                            table.insert(hiddenObjects, {obj = v, parent = v.Parent})
+                            v.Parent = nil
+                        end
+                    end))
+                end))
+
+                local cam = workspace.CurrentCamera
+                PixelSword:Clean(cam.DescendantAdded:Connect(function(v)
+                    if not PixelSword.Enabled then return end
+                    if v:IsA('Model') and isSwordModel(v) then
+                        task.defer(function()
+                            processSwordModel(v)
+                        end)
+                    elseif v:IsA('BasePart') and getSwordType(v) then
+                        task.defer(function()
+                            pcall(applySwordPart2, v)
+                        end)
+                    elseif (v:IsA('SurfaceAppearance') or v:IsA('Texture') or v:IsA('Decal')) and getSwordType(v) then
+                        table.insert(hiddenObjects, {obj = v, parent = v.Parent})
+                        v.Parent = nil
+                    end
+                end))
+
+                pcall(function()
+                    local vm = cam:FindFirstChild('Viewmodel')
+                    if vm then
+                        PixelSword:Clean(vm.DescendantAdded:Connect(function(v)
+                            if not PixelSword.Enabled then return end
+                            if v:IsA('BasePart') and getSwordType(v) then
+                                task.defer(function()
+                                    pcall(applySwordPart2, v)
+                                end)
+                            elseif (v:IsA('SurfaceAppearance') or v:IsA('Texture') or v:IsA('Decal')) and getSwordType(v) then
+                                table.insert(hiddenObjects, {obj = v, parent = v.Parent})
+                                v.Parent = nil
+                            end
+                        end))
+                    end
+                    PixelSword:Clean(cam.ChildAdded:Connect(function(child)
+                        if child.Name == 'Viewmodel' and PixelSword.Enabled then
+                            scanParent(child)
+                            PixelSword:Clean(child.DescendantAdded:Connect(function(v)
+                                if not PixelSword.Enabled then return end
+                                if v:IsA('BasePart') and getSwordType(v) then
+                                    task.defer(function()
+                                        pcall(applySwordPart2, v)
+                                    end)
+                                elseif (v:IsA('SurfaceAppearance') or v:IsA('Texture') or v:IsA('Decal')) and getSwordType(v) then
+                                    table.insert(hiddenObjects, {obj = v, parent = v.Parent})
+                                    v.Parent = nil
+                                end
+                            end))
+                        end
+                    end))
+                end)
+            else
+                for part, entry in savedParts do
+                    pcall(function() part.Color = entry.Color end)
+                    pcall(function() part.Material = entry.Material end)
+                end
+                table.clear(savedParts)
+                for _, data in hiddenObjects do
+                    pcall(function()
+                        if data.obj and data.parent and data.parent.Parent then
+                            data.obj.Parent = data.parent
+                        end
+                    end)
+                end
+                table.clear(hiddenObjects)
+            end
+        end
+    })
+
+    WoodColor = PixelSword:CreateColorSlider({
+        Name = 'Wood Sword',
+        Default = DEFAULT_COLORS.wood_sword,
+        Function = function()
+            refreshAllSwords()
+        end
+    })
+    colorSliders.wood_sword = WoodColor
+
+    StoneColor = PixelSword:CreateColorSlider({
+        Name = 'Stone Sword',
+        Default = DEFAULT_COLORS.stone_sword,
+        Function = function()
+            refreshAllSwords()
+        end
+    })
+    colorSliders.stone_sword = StoneColor
+
+    IronColor = PixelSword:CreateColorSlider({
+        Name = 'Iron Sword',
+        Default = DEFAULT_COLORS.iron_sword,
+        Function = function()
+            refreshAllSwords()
+        end
+    })
+    colorSliders.iron_sword = IronColor
+
+    DiamondColor = PixelSword:CreateColorSlider({
+        Name = 'Diamond Sword',
+        Default = DEFAULT_COLORS.diamond_sword,
+        Function = function()
+            refreshAllSwords()
+        end
+    })
+    colorSliders.diamond_sword = DiamondColor
+
+    EmeraldColor = PixelSword:CreateColorSlider({
+        Name = 'Emerald Sword',
+        Default = DEFAULT_COLORS.emerald_sword,
+        Function = function()
+            refreshAllSwords()
+        end
+    })
+    colorSliders.emerald_sword = EmeraldColor
+
+    PixelSword:CreateButton({
+        Name = 'Reset to Default',
+        Tooltip = 'Restores all sword colors to their defaults',
+        Function = function()
+            for stype, defaultColor in DEFAULT_COLORS do
+                local slider = colorSliders[stype]
+                if slider then
+                    local h, s, v = Color3.toHSV(defaultColor)
+                    slider:SetValue(h, s, v)
+                end
+            end
+            refreshAllSwords()
+        end
+    })
+end)
