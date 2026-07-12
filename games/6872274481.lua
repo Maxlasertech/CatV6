@@ -22152,18 +22152,18 @@ run(function()
         {0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0},
         {0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0},
         {0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,2,1,2,0,0,0,0,0,0,0,0},
-        {0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,2,2,1,1,2,2,0,0,0,0,0,0,0},
+        {0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,0},
         {0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0},
         {0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
     }
 
-    local PIXEL_SIZE = 0.2
-    local GRIP_ROW = 12.5
-    local GRIP_COL = 4.5
+    local PIXEL_SIZE = 0.35
+    local GRIP_ROW = 12
+    local GRIP_COL = 3.5
 
     local DEFAULT_BLADE = {
         wood_sword    = Color3.fromRGB(160, 110, 55),
@@ -22198,7 +22198,7 @@ run(function()
 
     local function lighten(c, amount)
         local h, s, v = Color3.toHSV(c)
-        return Color3.fromHSV(h, math.max(0, s - amount * 0.4), math.min(1, v + amount))
+        return Color3.fromHSV(h, math.max(0, s - amount * 0.5), math.min(1, v + amount))
     end
 
     local function darken(c, amount)
@@ -22211,13 +22211,13 @@ run(function()
 
         if cellType == 1 then
             local bc = getBladeColor(stype)
-            return isLight and lighten(bc, 0.12) or darken(bc, 0.12)
+            return isLight and lighten(bc, 0.18) or darken(bc, 0.18)
         elseif cellType == 2 then
             local hc = DEFAULT_HANDLE_COLOR[stype]
-            return isLight and lighten(hc, 0.08) or darken(hc, 0.08)
+            return isLight and lighten(hc, 0.15) or darken(hc, 0.15)
         elseif cellType == 3 then
             local hc = DEFAULT_HANDLE_COLOR[stype]
-            return isLight and hc or darken(hc, 0.15)
+            return isLight and lighten(hc, 0.15) or darken(hc, 0.15)
         end
         return getBladeColor(stype)
     end
