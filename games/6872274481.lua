@@ -22227,9 +22227,55 @@ run(function()
 
         if pixelModels[swordModel] then return end
 
+        local parts = {}
+        local suc = pcall(function()
+            for row = 1, #SWORD_PIXELS do
+                for col = 1, #SWORD_PIXELS[row] do
+                    local cellType = SWORD_PIXELS[row][col]
+                    if cellType > 0 then
+                        local pixel = Instance.new('Part')
+                        pixel.Name = '_PixelSword'
+                        pixel.Size = Vector3.new(PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE)
+                        pixel.Material = Enum.Material.SmoothPlastic
+                        pixel.Anchored = false
+                        pixel.CanCollide = false
+                        pixel.CanQuery = false
+                        pixel.CanTouch = false
+                        pixel.CastShadow = false
+                        pixel.TopSurface = Enum.SurfaceType.Smooth
+                        pixel.BottomSurface = Enum.SurfaceType.Smooth
+                        pixel.Color = getPixelColor(cellType, stype, row, col)
+                        pixel:SetAttribute('_PxType', cellType)
+                        pixel:SetAttribute('_PxRow', row)
+                        pixel:SetAttribute('_PxCol', col)
+
+                        local x = (col - GRIP_COL) * PIXEL_SIZE
+                        local y = (GRIP_ROW - row) * PIXEL_SIZE
+
+                        pixel.CFrame = handle.CFrame * CFrame.new(x, y, 0)
+                        pixel.Parent = swordModel
+
+                        local weld = Instance.new('WeldConstraint')
+                        weld.Part0 = handle
+                        weld.Part1 = pixel
+                        weld.Parent = pixel
+
+                        table.insert(parts, pixel)
+                    end
+                end
+            end
+        end)
+
+        if not suc or #parts == 0 then
+            for _, p in parts do
+                pcall(function() p:Destroy() end)
+            end
+            return
+        end
+
         local hidden = {}
         for _, part in swordModel:GetDescendants() do
-            if part:IsA('BasePart') then
+            if part:IsA('BasePart') and part.Name ~= '_PixelSword' then
                 hidden[part] = {type = 'transparency', value = part.Transparency}
                 part.Transparency = 1
             elseif part:IsA('SurfaceAppearance') or part:IsA('Decal') or part:IsA('Texture') then
@@ -22238,43 +22284,6 @@ run(function()
             end
         end
         hiddenParts[swordModel] = hidden
-
-        local parts = {}
-        for row = 1, #SWORD_PIXELS do
-            for col = 1, #SWORD_PIXELS[row] do
-                local cellType = SWORD_PIXELS[row][col]
-                if cellType > 0 then
-                    local pixel = Instance.new('Part')
-                    pixel.Name = '_PixelSword'
-                    pixel.Size = Vector3.new(PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE)
-                    pixel.Material = Enum.Material.SmoothPlastic
-                    pixel.Anchored = false
-                    pixel.CanCollide = false
-                    pixel.CanQuery = false
-                    pixel.CanTouch = false
-                    pixel.CastShadow = false
-                    pixel.TopSurface = Enum.SurfaceType.Smooth
-                    pixel.BottomSurface = Enum.SurfaceType.Smooth
-                    pixel.Color = getPixelColor(cellType, stype, row, col)
-                    pixel:SetAttribute('_PxType', cellType)
-                    pixel:SetAttribute('_PxRow', row)
-                    pixel:SetAttribute('_PxCol', col)
-
-                    local x = (col - GRIP_COL) * PIXEL_SIZE
-                    local y = (GRIP_ROW - row) * PIXEL_SIZE
-
-                    pixel.CFrame = handle.CFrame * CFrame.new(x, y, 0)
-                    pixel.Parent = swordModel
-
-                    local weld = Instance.new('WeldConstraint')
-                    weld.Part0 = handle
-                    weld.Part1 = pixel
-                    weld.Parent = pixel
-
-                    table.insert(parts, pixel)
-                end
-            end
-        end
 
         pixelModels[swordModel] = parts
 
