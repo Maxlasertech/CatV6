@@ -22194,6 +22194,7 @@ run(function()
     local PIXEL_SIZE = 0.25
     local GRIP_ROW = 9
     local GRIP_COL = 3.5
+    local SWORD_CFRAME = CFrame.Angles(math.rad(-95), math.rad(-90), 0)
 
     local DEFAULT_BLADE = {
         wood_sword    = Color3.fromRGB(160, 110, 55),
@@ -22261,6 +22262,11 @@ run(function()
 
         if pixelModels[swordModel] then return end
 
+        local parent = swordModel.Parent
+        local rightHand = parent and (parent:FindFirstChild('RightHand') or parent:FindFirstChild('Right Arm'))
+        local anchor = rightHand or handle
+        local baseOffset = rightHand and SWORD_CFRAME or CFrame.new()
+
         local parts = {}
         local suc = pcall(function()
             for row = 1, #SWORD_PIXELS do
@@ -22286,11 +22292,11 @@ run(function()
                         local x = (col - GRIP_COL) * PIXEL_SIZE
                         local y = (GRIP_ROW - row) * PIXEL_SIZE
 
-                        pixel.CFrame = handle.CFrame * CFrame.new(x, y, 0)
+                        pixel.CFrame = anchor.CFrame * baseOffset * CFrame.new(x, y, 0)
                         pixel.Parent = swordModel
 
                         local weld = Instance.new('WeldConstraint')
-                        weld.Part0 = handle
+                        weld.Part0 = anchor
                         weld.Part1 = pixel
                         weld.Parent = pixel
 
