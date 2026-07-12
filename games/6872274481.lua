@@ -22799,7 +22799,6 @@ run(function()
     local PIXEL_SIZE = 0.25
     local GRIP_ROW = 9
     local GRIP_COL = 3.5
-    local SWORD_CFRAME = CFrame.Angles(math.rad(-95), math.rad(-90), 0)
 
     local DEFAULT_BLADE = {
         wood_sword    = Color3.fromRGB(160, 110, 55),
@@ -22870,7 +22869,10 @@ run(function()
         local parent = swordModel.Parent
         local rightHand = parent and (parent:FindFirstChild('RightHand') or parent:FindFirstChild('Right Arm'))
         local anchor = rightHand or handle
-        local baseOffset = rightHand and SWORD_CFRAME or CFrame.new()
+        local baseOffset = CFrame.new()
+        if rightHand then
+            baseOffset = rightHand.CFrame:Inverse() * handle.CFrame
+        end
 
         local parts = {}
         local suc = pcall(function()
