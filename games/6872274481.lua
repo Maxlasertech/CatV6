@@ -10973,7 +10973,32 @@ run(function()
     local ShopTierBypass
     local tiered, nexttier = {}, {}
     local old
-    
+    local tierByType = {}
+
+    local function hasItem(itemType)
+        if getItem(itemType) then return true end
+        local armor = store.inventory.inventory.armor
+        if armor then
+            for _, a in armor do
+                if type(a) == 'table' and a.itemType == itemType then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function ownsHigherTier(itemType)
+        local shopItem = bedwars.Shop.ShopItems[itemType]
+        if not shopItem then return false end
+        local nextType = tierByType[itemType]
+        while nextType do
+            if hasItem(nextType) then return true end
+            nextType = tierByType[nextType]
+        end
+        return false
+    end
+
     ShopTierBypass = vape.Categories.Utility:CreateModule({
         Name = 'Shop Tier Bypass',
         Function = function(callback)
@@ -10983,17 +11008,25 @@ run(function()
                     for _, v in bedwars.Shop.ShopItems do
                         tiered[v] = v.tiered
                         nexttier[v] = v.nextTier
+                        if v.itemType and v.nextTier then
+                            tierByType[v.itemType] = v.nextTier
+                        end
                         v.nextTier = nil
                         v.tiered = nil
                     end
-    
+
                     old = bedwars.Shop.getShop
     				bedwars.Shop.getShop = function(...)
     					local res = {old(...)}
+    					local filtered = {}
     					for i, v in res[1] do
     						v.nextTier = nil
     						v.tiered = nil
+    						if not ownsHigherTier(v.itemType) then
+    							filtered[i] = v
+    						end
     					end
+    					res[1] = filtered
     					return unpack(res)
     				end
                 end
@@ -11010,9 +11043,10 @@ run(function()
                 end
                 table.clear(nexttier)
                 table.clear(tiered)
+                table.clear(tierByType)
             end
         end,
-        Tooltip = 'Lets you buy things like armor early.'
+        Tooltip = 'Lets you buy things like armor early. Hides lower tiers you already upgraded past.'
     })
 end)
 
