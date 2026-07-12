@@ -22140,29 +22140,25 @@ run(function()
 
     local SWORD_TYPES = {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'}
 
-    -- 16x16 pixel grid — classic Minecraft sword silhouette
+    -- 12x12 pixel grid — compact Minecraft sword silhouette
     -- 0=empty, 1=blade, 2=guard, 3=handle
     local SWORD_PIXELS = {
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0},
-        {0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0},
-        {0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0},
-        {0,0,0,2,2,1,1,2,2,0,0,0,0,0,0,0},
-        {0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-        {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,1,1},
+        {0,0,0,0,0,0,0,0,0,1,1,0},
+        {0,0,0,0,0,0,0,0,1,1,0,0},
+        {0,0,0,0,0,0,0,1,1,0,0,0},
+        {0,0,0,0,0,0,1,1,0,0,0,0},
+        {0,0,0,0,0,1,1,0,0,0,0,0},
+        {0,0,2,2,1,1,2,2,0,0,0,0},
+        {0,0,0,3,3,0,0,0,0,0,0,0},
+        {0,0,3,3,0,0,0,0,0,0,0,0},
+        {0,3,3,0,0,0,0,0,0,0,0,0},
+        {3,3,0,0,0,0,0,0,0,0,0,0},
+        {3,0,0,0,0,0,0,0,0,0,0,0},
     }
 
-    local PIXEL_SIZE = 0.35
-    local GRIP_ROW = 12
+    local PIXEL_SIZE = 0.25
+    local GRIP_ROW = 9
     local GRIP_COL = 3.5
 
     local DEFAULT_BLADE = {
@@ -22418,6 +22414,26 @@ run(function()
                 refreshColors()
             end
         })
+    end
+
+    do
+        local allStale = true
+        for _, stype in SWORD_TYPES do
+            local slider = BladeSliders[stype]
+            if slider and math.abs(slider.Hue - 0.44) > 0.05 then
+                allStale = false
+                break
+            end
+        end
+        if allStale then
+            for stype, defaultColor in DEFAULT_BLADE do
+                local slider = BladeSliders[stype]
+                if slider then
+                    local h, s, v = Color3.toHSV(defaultColor)
+                    slider:SetValue(h, s, v)
+                end
+            end
+        end
     end
 
     PixelSword:CreateButton({
