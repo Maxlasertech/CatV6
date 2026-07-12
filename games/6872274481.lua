@@ -22403,7 +22403,7 @@ run(function()
     })
 
     for _, stype in SWORD_TYPES do
-        local displayName = stype:gsub('_sword', ''):gsub('^%l', string.upper) .. ' Sword'
+        local displayName = stype:gsub('_sword', ''):gsub('^%l', string.upper) .. ' Blade'
         local dh, ds, dv = Color3.toHSV(DEFAULT_BLADE[stype])
         BladeSliders[stype] = PixelSword:CreateColorSlider({
             Name = displayName,
@@ -22414,26 +22414,6 @@ run(function()
                 refreshColors()
             end
         })
-    end
-
-    do
-        local allStale = true
-        for _, stype in SWORD_TYPES do
-            local slider = BladeSliders[stype]
-            if slider and math.abs(slider.Hue - 0.44) > 0.05 then
-                allStale = false
-                break
-            end
-        end
-        if allStale then
-            for stype, defaultColor in DEFAULT_BLADE do
-                local slider = BladeSliders[stype]
-                if slider then
-                    local h, s, v = Color3.toHSV(defaultColor)
-                    slider:SetValue(h, s, v)
-                end
-            end
-        end
     end
 
     PixelSword:CreateButton({
