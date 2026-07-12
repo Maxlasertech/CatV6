@@ -22140,45 +22140,45 @@ run(function()
 
     local SWORD_TYPES = {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'}
 
-    -- 16x16 pixel grid — classic Minecraft sword shape
-    -- 0=empty, 1=blade_light, 2=blade_dark, 3=guard, 4=handle
+    -- 16x16 pixel grid — classic Minecraft sword silhouette
+    -- 0=empty, 1=blade, 2=guard, 3=handle
     local SWORD_PIXELS = {
         {0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,2},
-        {0,0,0,0,0,0,0,0,0,0,0,0,1,1,2,0},
-        {0,0,0,0,0,0,0,0,0,0,0,1,1,2,0,0},
-        {0,0,0,0,0,0,0,0,0,0,1,1,2,0,0,0},
-        {0,0,0,0,0,0,0,0,0,1,1,2,0,0,0,0},
-        {0,0,0,0,0,0,0,0,1,1,2,0,0,0,0,0},
-        {0,0,0,0,0,0,0,1,1,2,0,0,0,0,0,0},
-        {0,0,0,0,0,0,1,1,2,0,0,0,0,0,0,0},
-        {0,0,0,0,0,3,1,3,0,0,0,0,0,0,0,0},
-        {0,0,0,0,3,3,3,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0},
-        {0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,2,1,2,0,0,0,0,0,0,0,0},
+        {0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0},
     }
 
-    local PIXEL_SIZE = 0.14
+    local PIXEL_SIZE = 0.2
     local GRIP_ROW = 12.5
     local GRIP_COL = 4.5
 
     local DEFAULT_BLADE = {
-        wood_sword    = Color3.fromRGB(139, 90, 43),
-        stone_sword   = Color3.fromRGB(136, 136, 136),
-        iron_sword    = Color3.fromRGB(199, 199, 199),
-        diamond_sword = Color3.fromRGB(85, 197, 217),
-        emerald_sword = Color3.fromRGB(68, 202, 108),
+        wood_sword    = Color3.fromRGB(160, 110, 55),
+        stone_sword   = Color3.fromRGB(145, 145, 145),
+        iron_sword    = Color3.fromRGB(210, 210, 210),
+        diamond_sword = Color3.fromRGB(95, 210, 230),
+        emerald_sword = Color3.fromRGB(75, 215, 115),
     }
 
     local DEFAULT_HANDLE_COLOR = {
-        wood_sword    = Color3.fromRGB(101, 67, 33),
-        stone_sword   = Color3.fromRGB(101, 67, 33),
-        iron_sword    = Color3.fromRGB(101, 67, 33),
-        diamond_sword = Color3.fromRGB(101, 67, 33),
-        emerald_sword = Color3.fromRGB(185, 133, 28),
+        wood_sword    = Color3.fromRGB(115, 75, 38),
+        stone_sword   = Color3.fromRGB(115, 75, 38),
+        iron_sword    = Color3.fromRGB(115, 75, 38),
+        diamond_sword = Color3.fromRGB(115, 75, 38),
+        emerald_sword = Color3.fromRGB(195, 140, 30),
     }
 
     local function isSwordModel(name)
@@ -22198,27 +22198,28 @@ run(function()
 
     local function lighten(c, amount)
         local h, s, v = Color3.toHSV(c)
-        return Color3.fromHSV(h, math.max(0, s - amount * 0.3), math.min(1, v + amount))
+        return Color3.fromHSV(h, math.max(0, s - amount * 0.4), math.min(1, v + amount))
     end
 
     local function darken(c, amount)
         local h, s, v = Color3.toHSV(c)
-        return Color3.fromHSV(h, math.min(1, s + amount * 0.2), math.max(0, v - amount))
+        return Color3.fromHSV(h, math.min(1, s + amount * 0.3), math.max(0, v - amount))
     end
 
-    local function getPixelColor(cellType, stype)
-        local bladeColor = getBladeColor(stype)
-        local handleColor = DEFAULT_HANDLE_COLOR[stype]
+    local function getPixelColor(cellType, stype, row, col)
+        local isLight = (row + col) % 2 == 0
+
         if cellType == 1 then
-            return lighten(bladeColor, 0.15)
+            local bc = getBladeColor(stype)
+            return isLight and lighten(bc, 0.12) or darken(bc, 0.12)
         elseif cellType == 2 then
-            return darken(bladeColor, 0.15)
+            local hc = DEFAULT_HANDLE_COLOR[stype]
+            return isLight and lighten(hc, 0.08) or darken(hc, 0.08)
         elseif cellType == 3 then
-            return handleColor
-        elseif cellType == 4 then
-            return darken(handleColor, 0.1)
+            local hc = DEFAULT_HANDLE_COLOR[stype]
+            return isLight and hc or darken(hc, 0.15)
         end
-        return bladeColor
+        return getBladeColor(stype)
     end
 
     local function buildPixelSword(swordModel)
@@ -22258,8 +22259,10 @@ run(function()
                     pixel.CastShadow = false
                     pixel.TopSurface = Enum.SurfaceType.Smooth
                     pixel.BottomSurface = Enum.SurfaceType.Smooth
-                    pixel.Color = getPixelColor(cellType, stype)
+                    pixel.Color = getPixelColor(cellType, stype, row, col)
                     pixel:SetAttribute('_PxType', cellType)
+                    pixel:SetAttribute('_PxRow', row)
+                    pixel:SetAttribute('_PxCol', col)
 
                     local x = (col - GRIP_COL) * PIXEL_SIZE
                     local y = (GRIP_ROW - row) * PIXEL_SIZE
@@ -22315,8 +22318,10 @@ run(function()
             if not isSwordModel(stype) then continue end
             for _, pixel in parts do
                 local cellType = pixel:GetAttribute('_PxType')
-                if cellType then
-                    pixel.Color = getPixelColor(cellType, stype)
+                local row = pixel:GetAttribute('_PxRow')
+                local col = pixel:GetAttribute('_PxCol')
+                if cellType and row and col then
+                    pixel.Color = getPixelColor(cellType, stype, row, col)
                 end
             end
         end
