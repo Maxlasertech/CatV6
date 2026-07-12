@@ -22408,9 +22408,12 @@ run(function()
 
     for _, stype in SWORD_TYPES do
         local displayName = stype:gsub('_sword', ''):gsub('^%l', string.upper) .. ' Sword'
+        local dh, ds, dv = Color3.toHSV(DEFAULT_BLADE[stype])
         BladeSliders[stype] = PixelSword:CreateColorSlider({
             Name = displayName,
-            Default = DEFAULT_BLADE[stype],
+            DefaultHue = dh,
+            DefaultSat = ds,
+            DefaultValue = dv,
             Function = function()
                 refreshColors()
             end
