@@ -22838,7 +22838,7 @@ run(function()
         local baseOffset = CFrame.new()
         if rightHand then
             baseOffset = rightHand.CFrame:Inverse() * handle.CFrame
-            baseOffset = baseOffset * CFrame.Angles(0, 0, math.rad(30))
+            baseOffset = baseOffset * CFrame.Angles(0, 0, math.rad(30)) * CFrame.new(0, -0.6, 0)
         end
 
         local parts = {}
