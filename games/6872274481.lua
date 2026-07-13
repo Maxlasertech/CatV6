@@ -9462,7 +9462,9 @@ run(function()
     local addedLighting = {}
     local origLighting = {}
     local origCloudEnabled = nil
+    local disabledEffects = {}
     local savedLightProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart','GlobalShadows'}
+    local watchedLightProps = {FogEnd=true,FogStart=true,FogColor=true,Ambient=true,OutdoorAmbient=true,Brightness=true,ExposureCompensation=true,GlobalShadows=true}
 
     local C = Color3.fromRGB
     local blockColors = {
@@ -9631,11 +9633,6 @@ run(function()
 
     local function applyPart(part, colorOverride)
         if saved[part] or part.Material == Enum.Material.Neon or part.Material == Enum.Material.ForceField then return end
-        for _, child in part:GetChildren() do
-            if child:IsA('SurfaceAppearance') or child:IsA('Decal') or child:IsA('Texture') then
-                pcall(function() child:Destroy() end)
-            end
-        end
         local origMat   = part.Material
         local origColor = part.Color
         pcall(function() part.Material = Enum.Material.SmoothPlastic end)
@@ -9666,47 +9663,50 @@ run(function()
                 repeat task.wait() until store.map or not KingAuto.Enabled
                 if not KingAuto.Enabled then return end
 
-                -- === Block overhaul ===
+                -- FFlags: kill textures, shadows, grass, mesh detail, voxel lighting at engine level
+                setfflag('PartTexturePackTable2022', '{}')
+                setfflag('PartTexturePackTablePre2022', '{}')
+                setfflag('TextureCompositorActiveJobs', '0')
+                setfflag('RenderShadowIntensity', '0')
+                setfflag('FRMQualityLevelOverride', '1')
+                setfflag('GrassMaxDistance', '0')
+                setfflag('CSGLevelOfDetailSwitchingDistance', '0')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL12', '0')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL23', '0')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL34', '0')
+                setfflag('DebugPauseVoxelizer', 'True')
+                setfflag('RenderLocalLightUpdatesMax', '0')
+                setfflag('RenderLocalLightUpdatesMin', '0')
+
+                -- === Block overhaul (batched to avoid frame spike) ===
+                local BATCH = 150
                 local blocks = store.map:FindFirstChild('Blocks')
                 if blocks then
-                    for _, blockModel in blocks:GetChildren() do
-                        pcall(scanBlock, blockModel, blockColors[blockModel.Name])
+                    local children = blocks:GetChildren()
+                    for i = 1, #children do
+                        pcall(scanBlock, children[i], blockColors[children[i].Name])
+                        if i % BATCH == 0 then task.wait() end
                     end
                 end
-                for _, v in store.map:GetDescendants() do
-                    if v:IsA('BasePart') then pcall(applyPart, v, nil) end
-                end
-                local function flattenPart(part, col)
-                    part.LocalTransparencyModifier = 1
-                    pcall(applyPart, part, col)
-                    -- defer unhide so any late-arriving SA gets destroyed before part renders
-                    task.defer(function()
-                        if part.Parent then part.LocalTransparencyModifier = 0 end
-                    end)
+                local descs = store.map:GetDescendants()
+                for i = 1, #descs do
+                    local v = descs[i]
+                    if v:IsA('BasePart') then
+                        pcall(applyPart, v, nil)
+                    elseif (v:IsA('ParticleEmitter') or v:IsA('Beam') or v:IsA('Trail') or v:IsA('Light')) and v.Enabled then
+                        v.Enabled = false
+                        disabledEffects[v] = true
+                    end
+                    if i % BATCH == 0 then task.wait() end
                 end
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
                     local col = blockColors[v.Name]
-                    -- Hide parts while processing so texture never renders
-                    for _, p in v:GetDescendants() do
-                        if p:IsA('BasePart') then p.LocalTransparencyModifier = 1 end
-                    end
                     pcall(scanBlock, v, col)
-                    -- defer unhide so SA arriving right after the block model don't flash
-                    task.defer(function()
-                        for _, p in v:GetDescendants() do
-                            if p:IsA('BasePart') and p.Parent then
-                                p.LocalTransparencyModifier = 0
-                            end
-                        end
-                    end)
-                    -- Catch parts/textures that arrive after ChildAdded
                     KingAuto:Clean(v.DescendantAdded:Connect(function(d)
                         if not KingAuto.Enabled then return end
                         if d:IsA('BasePart') then
-                            flattenPart(d, col)
-                        elseif d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
-                            pcall(function() d:Destroy() end)
+                            pcall(applyPart, d, col)
                         end
                     end))
                 end))
@@ -9729,9 +9729,7 @@ run(function()
                         if not KingAuto.Enabled then return end
                         if v:IsA('BasePart') then
                             local col = getToolBlockColor(v, char)
-                            if col then flattenPart(v, col) end
-                        elseif v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                            pcall(function() v:Destroy() end)
+                            if col then pcall(applyPart, v, col) end
                         end
                     end))
                 end
@@ -9743,45 +9741,24 @@ run(function()
                 -- First-person ViewModel lives under Camera, not the character
                 local cam = workspace.CurrentCamera
                 local function flattenCamDescendant(v)
-                    if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                        pcall(function() v:Destroy() end)
-                    elseif v:IsA('BasePart') then
+                    if v:IsA('BasePart') then
                         local col = getToolBlockColor(v, cam)
-                        if col then flattenPart(v, col) end
+                        if col then pcall(applyPart, v, col) end
                     end
                 end
                 for _, v in cam:GetDescendants() do flattenCamDescendant(v) end
                 KingAuto:Clean(cam.DescendantAdded:Connect(function(v)
                     if KingAuto.Enabled then flattenCamDescendant(v) end
                 end))
-                -- Client-side placement preview blocks appear outside store.map.Blocks
-                local function hasBlockAncestor(inst)
-                    local p = inst.Parent
-                    while p and p ~= workspace do
-                        if blockColors[p.Name] then return blockColors[p.Name] end
-                        p = p.Parent
-                    end
-                end
-                KingAuto:Clean(workspace.DescendantAdded:Connect(function(v)
+                KingAuto:Clean(store.map.DescendantAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
-                    if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                        if hasBlockAncestor(v) then pcall(function() v:Destroy() end) end
-                    elseif v:IsA('Model') and blockColors[v.Name] then
+                    if v:IsA('Model') and blockColors[v.Name] then
                         pcall(scanBlock, v, blockColors[v.Name])
                     elseif v:IsA('BasePart') and not saved[v] then
-                        local col = hasBlockAncestor(v) or blockColors[v.Name]
-                        if col then flattenPart(v, col) end
-                    end
-                end))
-                -- RenderStepped safety net: kill any SA in Blocks that slipped past events
-                KingAuto:Clean(game:GetService('RunService').RenderStepped:Connect(function()
-                    if not KingAuto.Enabled then return end
-                    local blks = store.map:FindFirstChild('Blocks')
-                    if not blks then return end
-                    for _, v in blks:GetDescendants() do
-                        if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                            pcall(function() v:Destroy() end)
-                        end
+                        pcall(applyPart, v, blockColors[v.Name] or blockColors[v.Parent and v.Parent.Name])
+                    elseif (v:IsA('ParticleEmitter') or v:IsA('Beam') or v:IsA('Trail') or v:IsA('Light')) and v.Enabled then
+                        v.Enabled = false
+                        disabledEffects[v] = true
                     end
                 end))
 
@@ -9831,10 +9808,8 @@ run(function()
                 -- Fight game resets of Lighting/Fog properties
                 local lightChanged = false
                 KingAuto:Clean(lightingService.Changed:Connect(function(prop)
-                    if lightChanged then return end
-                    if prop == 'FogEnd' or prop == 'FogStart' or prop == 'FogColor' or
-                       prop == 'Ambient' or prop == 'OutdoorAmbient' or prop == 'Brightness' or
-                       prop == 'ExposureCompensation' or prop == 'GlobalShadows' then
+                    if lightChanged or not watchedLightProps[prop] then return end
+                    do
                         lightChanged = true
                         lightingService.Ambient              = Color3.fromRGB(120, 120, 120)
                         lightingService.OutdoorAmbient       = Color3.fromRGB(100, 100, 100)
@@ -9848,6 +9823,23 @@ run(function()
                     end
                 end))
             else
+                -- Restore FFlags
+                setfflag('TextureCompositorActiveJobs', '8')
+                setfflag('RenderShadowIntensity', '1')
+                setfflag('FRMQualityLevelOverride', '0')
+                setfflag('GrassMaxDistance', '100')
+                setfflag('CSGLevelOfDetailSwitchingDistance', '250')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL12', '400')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL23', '600')
+                setfflag('CSGLevelOfDetailSwitchingDistanceL34', '800')
+                setfflag('DebugPauseVoxelizer', 'False')
+                setfflag('RenderLocalLightUpdatesMax', '8')
+                setfflag('RenderLocalLightUpdatesMin', '6')
+                -- Restore effects
+                for obj in disabledEffects do
+                    pcall(function() obj.Enabled = true end)
+                end
+                table.clear(disabledEffects)
                 -- Restore blocks
                 for part in saved do restorePart(part) end
                 table.clear(saved)
