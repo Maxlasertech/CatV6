@@ -6323,58 +6323,63 @@ end)
 
 run(function()
     local HiveESP
-    local Color
-    local Transparency
-    local Scale
 
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
 
-    local Reference, Strings = {}, {}
-    local Updates = {}
+    local Reference = {}
 
     local function Added(ent)
     	local Name = playersService:GetNameFromUserIdAsync(ent:GetAttribute('PlacedByUserId')) or 'Unknown'
 
-    	Strings[ent] = `{Name}'s beehive | %s Bee%s`
-    	local nametag = Instance.new('TextLabel')
-    	nametag.TextSize = 14 * Scale.Value
-    	nametag.Font = Enum.Font.Arial
-    	local format = string.format(Strings[ent], tostring(ent:GetAttribute('Level') or 0), (ent:GetAttribute('Level') or 0) >= 2 and 's' or '')
-    	local size = getfontsize(format, nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
-    	nametag.Name = Name
-    	nametag.Size = UDim2.fromOffset(size.X + 10, size.Y + 8)
-    	nametag.AnchorPoint = Vector2.new(0.5, 1)
-    	nametag.BackgroundColor3 = Color3.new()
-    	nametag.BackgroundTransparency = 0.5
-    	nametag.BorderSizePixel = 0
-    	nametag.Visible = false
-    	nametag.Text = format
-    	nametag.TextColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-    	nametag.RichText = true
-    	local hiveCorner = Instance.new('UICorner')
-    	hiveCorner.CornerRadius = UDim.new(0, 4)
-    	hiveCorner.Parent = nametag
-    	local hiveStroke = Instance.new('UIStroke')
-    	hiveStroke.Color = Color3.new(1, 1, 1)
-    	hiveStroke.Transparency = 0.85
-    	hiveStroke.Thickness = 1
-    	hiveStroke.Parent = nametag
-    	nametag.Parent = Folder
-    	Reference[ent] = nametag
+    	local card = Instance.new('Frame')
+    	card.AnchorPoint = Vector2.new(0.5, 1)
+    	card.BackgroundColor3 = Color3.new()
+    	card.BackgroundTransparency = 0.35
+    	card.BorderSizePixel = 0
+    	card.AutomaticSize = Enum.AutomaticSize.XY
+    	card.Visible = false
+    	local cardCorner = Instance.new('UICorner')
+    	cardCorner.CornerRadius = UDim.new(0, 4)
+    	cardCorner.Parent = card
+    	local cardPadding = Instance.new('UIPadding')
+    	cardPadding.PaddingLeft = UDim.new(0, 6)
+    	cardPadding.PaddingRight = UDim.new(0, 6)
+    	cardPadding.PaddingTop = UDim.new(0, 3)
+    	cardPadding.PaddingBottom = UDim.new(0, 3)
+    	cardPadding.Parent = card
+    	local cardLayout = Instance.new('UIListLayout')
+    	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    	cardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	cardLayout.Padding = UDim.new(0, 1)
+    	cardLayout.Parent = card
 
-    	HiveESP:Clean(ent:GetAttributeChangedSignal('Level'):Connect(function()
-    		Updates[ent] = tick() + 0.1
-    	end))
-    	Updates[ent] = tick() + 0.1
+    	local title = Instance.new('TextLabel')
+    	title.Name = 'Title'
+    	title.AutomaticSize = Enum.AutomaticSize.XY
+    	title.BackgroundTransparency = 1
+    	title.Font = Enum.Font.GothamBold
+    	title.TextSize = 9
+    	title.TextColor3 = Color3.fromRGB(255, 200, 50)
+    	title.Text = Name .. "'s Beehive"
+    	title.LayoutOrder = 1
+    	title.Parent = card
+
+    	local info = Instance.new('TextLabel')
+    	info.Name = 'Info'
+    	info.AutomaticSize = Enum.AutomaticSize.XY
+    	info.BackgroundTransparency = 1
+    	info.Font = Enum.Font.GothamBold
+    	info.TextSize = 8
+    	info.TextColor3 = Color3.fromRGB(200, 200, 200)
+    	info.RichText = true
+    	info.LayoutOrder = 2
+    	info.Parent = card
+
+    	card.Parent = Folder
+    	Reference[ent] = card
     end
-    local function Updated(ent)
-    	if Reference[ent] then
-    		Reference[ent].TextSize = 14 * Scale.Value
-    		Reference[ent].TextColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-    		Reference[ent].BackgroundTransparency = Transparency.Value
-    	end
-    end
+
     local function Removing(ent)
     	if Reference[ent] then
     		Reference[ent]:Destroy()
@@ -6392,20 +6397,15 @@ run(function()
     			HiveESP:Clean(collectionService:GetInstanceAddedSignal('beehive'):Connect(Added))
     			HiveESP:Clean(collectionService:GetInstanceRemovedSignal('beehive'):Connect(Removing))
     			HiveESP:Clean(runService.PreRender:Connect(function()
-    				for ent, nametag in Reference do
-    					local headPos, headVis = gameCamera:WorldToViewportPoint(ent.Position + Vector3.new(0, 1, 0))
-    					nametag.Visible = headVis
-    					if not headVis then
-    						continue
+    				for ent, card in Reference do
+    					local headPos, headVis = gameCamera:WorldToViewportPoint(ent.Position + Vector3.new(0, 2, 0))
+    					card.Visible = headVis
+    					if headVis then
+    						local level = ent:GetAttribute('Level') or 0
+    						local dist = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - ent.Position).Magnitude) or 0
+    						card.Info.Text = level .. ' Bee' .. (level >= 2 and 's' or '') .. '  <font color="rgb(130,130,130)">' .. dist .. 'm</font>'
+    						card.Position = UDim2.fromOffset(headPos.X, headPos.Y)
     					end
-
-    					if (Updates[ent] or 0) > tick() then
-    						nametag.Text = string.format(Strings[ent], tostring(ent:GetAttribute('Level') or 0), (ent:GetAttribute('Level') or 0) >= 2 and 's' or '')
-    						local size = getfontsize(removeTags(nametag.Text), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
-    						nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
-    					end
-
-    					nametag.Position = UDim2.fromOffset(headPos.X, headPos.Y)
     				end
     			end))
     		else
@@ -6415,45 +6415,6 @@ run(function()
     		end
     	end,
     	Tooltip = 'Renders hives locations and info'
-    })
-
-    Color = HiveESP:CreateColorSlider({
-    	Name = 'Text Color',
-    	Function = function(hue, sat, val)
-    		if HiveESP.Enabled then
-    			for ent in Reference do
-    				Updated(ent)
-    			end
-    		end
-    	end
-    })
-    Transparency = HiveESP:CreateSlider({
-    	Name = 'Transparency',
-    	Function = function()
-    		if HiveESP.Enabled then
-    			for ent in Reference do
-    				Updated(ent)
-    			end
-    		end
-    	end,
-    	Default = 0.5,
-    	Min = 0,
-    	Max = 1,
-    	Decimal = 100
-    })
-    Scale = HiveESP:CreateSlider({
-    	Name = 'Scale',
-    	Default = 1,
-    	Min = 0.1,
-    	Max = 1.5,
-    	Decimal = 10,
-    	Function = function()
-    		if HiveESP.Enabled then
-    			for ent in Reference do
-    				Updated(ent)
-    			end
-    		end
-    	end
     })
 end)
 
@@ -7401,16 +7362,13 @@ end)
 
 run(function()
     local ItemESP
-    local Distance
-    local Transparency
-    local Scale
     local WhitelistOnly
     local Whitelist = {ListEnabled = {}, Object = nil}
 
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
 
-    local Reference, Strings, Sizes = {}, {}, {}
+    local Reference = {}
 
     local function Added(ent)
     	local Name = bedwars.ItemMeta[ent.Name] and bedwars.ItemMeta[ent.Name].displayName or ent.Name
@@ -7418,42 +7376,55 @@ run(function()
     		return
     	end
 
-    	Strings[ent] = Name .. '%s'
-    	if Distance.Enabled then
-    		Strings[ent] = '<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">%s</font><font color="rgb(85, 255, 85)">]</font> '.. Strings[ent]
-    	end
+    	local card = Instance.new('Frame')
+    	card.Name = ent.Name
+    	card.AnchorPoint = Vector2.new(0.5, 1)
+    	card.BackgroundColor3 = Color3.new()
+    	card.BackgroundTransparency = 0.35
+    	card.BorderSizePixel = 0
+    	card.AutomaticSize = Enum.AutomaticSize.XY
+    	card.Visible = false
+    	local cardCorner = Instance.new('UICorner')
+    	cardCorner.CornerRadius = UDim.new(0, 4)
+    	cardCorner.Parent = card
+    	local cardPadding = Instance.new('UIPadding')
+    	cardPadding.PaddingLeft = UDim.new(0, 6)
+    	cardPadding.PaddingRight = UDim.new(0, 6)
+    	cardPadding.PaddingTop = UDim.new(0, 3)
+    	cardPadding.PaddingBottom = UDim.new(0, 3)
+    	cardPadding.Parent = card
+    	local cardLayout = Instance.new('UIListLayout')
+    	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    	cardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	cardLayout.Padding = UDim.new(0, 1)
+    	cardLayout.Parent = card
 
-    	local nametag = Instance.new('TextLabel')
-    	nametag.TextSize = 14 * Scale.Value
-    	nametag.Font = Enum.Font.Arial
-    	local size = getfontsize(removeTags(ent.Name), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
-    	nametag.Name = ent.Name
-    	nametag.Size = UDim2.fromOffset(size.X + 10, size.Y + 8)
-    	nametag.AnchorPoint = Vector2.new(0.5, 1)
-    	nametag.BackgroundColor3 = Color3.new()
-    	nametag.BackgroundTransparency = 0.5
-    	nametag.BorderSizePixel = 0
-    	nametag.Visible = false
-    	nametag.Text = string.format(Strings[ent], '', ent:GetAttribute('Amount') >= 2 and ' x' .. tostring(ent:GetAttribute('Amount')) or '')
-    	nametag.TextColor3 = Color3.new(1, 1, 1)
-    	nametag.RichText = true
-    	local itemCorner = Instance.new('UICorner')
-    	itemCorner.CornerRadius = UDim.new(0, 4)
-    	itemCorner.Parent = nametag
-    	local itemStroke = Instance.new('UIStroke')
-    	itemStroke.Color = Color3.new(1, 1, 1)
-    	itemStroke.Transparency = 0.85
-    	itemStroke.Thickness = 1
-    	itemStroke.Parent = nametag
-    	nametag.Parent = Folder
-    	Reference[ent] = nametag
+    	local title = Instance.new('TextLabel')
+    	title.Name = 'Title'
+    	title.AutomaticSize = Enum.AutomaticSize.XY
+    	title.BackgroundTransparency = 1
+    	title.Font = Enum.Font.GothamBold
+    	title.TextSize = 9
+    	title.TextColor3 = Color3.new(1, 1, 1)
+    	title.Text = Name
+    	title.LayoutOrder = 1
+    	title.Parent = card
+
+    	local info = Instance.new('TextLabel')
+    	info.Name = 'Info'
+    	info.AutomaticSize = Enum.AutomaticSize.XY
+    	info.BackgroundTransparency = 1
+    	info.Font = Enum.Font.GothamBold
+    	info.TextSize = 8
+    	info.TextColor3 = Color3.fromRGB(200, 200, 200)
+    	info.RichText = true
+    	info.LayoutOrder = 2
+    	info.Parent = card
+
+    	card.Parent = Folder
+    	Reference[ent] = card
     end
-    local function Updated(ent)
-    	if Reference[ent] then
-    		Reference[ent].TextSize = 14 * Scale.Value
-    		Reference[ent].BackgroundTransparency = Transparency.Value
-    	end
-    end
+
     local function Removing(ent)
     	if Reference[ent] then
     		Reference[ent]:Destroy()
@@ -7468,28 +7439,16 @@ run(function()
     			ItemESP:Clean(collectionService:GetInstanceAddedSignal('ItemDrop'):Connect(Added))
     			ItemESP:Clean(collectionService:GetInstanceRemovedSignal('ItemDrop'):Connect(Removing))
     			ItemESP:Clean(runService.PreRender:Connect(function()
-    				for ent, nametag in Reference do
+    				for ent, card in Reference do
     					if not ent.Parent then continue end
     					local headPos, headVis = gameCamera:WorldToViewportPoint(ent.Position + Vector3.new(0, 1, 0))
-    					nametag.Visible = headVis
-    					if not headVis then
-    						continue
+    					card.Visible = headVis
+    					if headVis then
+    						local amt = ent:GetAttribute('Amount')
+    						local dist = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - ent.Position).Magnitude) or 0
+    						card.Info.Text = (amt >= 2 and 'x' .. amt .. '  ' or '') .. '<font color="rgb(130,130,130)">' .. dist .. 'm</font>'
+    						card.Position = UDim2.fromOffset(headPos.X, headPos.Y)
     					end
-
-    					if Distance.Enabled then
-    						local mag = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - ent.Position).Magnitude) or 0
-    						if Sizes[ent] ~= mag then
-    							nametag.Text = string.format(Strings[ent], mag, ent:GetAttribute('Amount') >= 2 and ' x' .. tostring(ent:GetAttribute('Amount')) or '')
-    							local size = getfontsize(removeTags(nametag.Text), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
-    							nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
-    							Sizes[ent] = mag
-    						end
-    					else
-    						nametag.Text = string.format(Strings[ent], '')
-    						local size = getfontsize(removeTags(nametag.Text), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
-    						nametag.Size = UDim2.fromOffset(size.X + 8, size.Y + 7)
-    					end
-    					nametag.Position = UDim2.fromOffset(headPos.X, headPos.Y)
     				end
     			end))
 
@@ -7504,49 +7463,9 @@ run(function()
     	end,
     	Tooltip = 'Renders tags dropped items'
     })
-    Distance = ItemESP:CreateToggle({
-    	Name = 'Distance',
-    	Tooltip = 'Shows the distance of the item',
-    	Function = function(callback)
-    		if ItemESP.Enabled then
-    			for ent in Reference do
-    				local Name = bedwars.ItemMeta[ent.Name] and bedwars.ItemMeta[ent.Name].displayName or ent.Name
-    				Strings[ent] = callback and '<font color="rgb(85, 255, 85)">[</font><font color="rgb(255, 255, 255)">%s</font><font color="rgb(85, 255, 85)">]</font> '.. Strings[ent] or Name.. '%s'
-    			end
-    		end
-    	end
-    })
     ItemESP:CreateToggle({
     	Name = 'Group items',
     	Tooltip = 'Group items into easier to read tags'
-    })
-    Transparency = ItemESP:CreateSlider({
-    	Name = 'Transparency',
-    	Function = function()
-    		if ItemESP.Enabled then
-    			for ent in Reference do
-    				Updated(ent)
-    			end
-    		end
-    	end,
-    	Default = 0.5,
-    	Min = 0,
-    	Max = 1,
-    	Decimal = 100
-    })
-    Scale = ItemESP:CreateSlider({
-    	Name = 'Scale',
-    	Default = 1,
-    	Min = 0.1,
-    	Max = 1.5,
-    	Decimal = 10,
-    	Function = function()
-    		if ItemESP.Enabled then
-    			for ent in Reference do
-    				Updated(ent)
-    			end
-    		end
-    	end
     })
     WhitelistOnly = ItemESP:CreateToggle({
     	Name = 'Whitelist Only',
@@ -7822,8 +7741,6 @@ end)
 
 run(function()
     local KitESP
-    local Background
-    local Color = {}
     local Reference = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
@@ -7840,40 +7757,52 @@ run(function()
     }
 
     local function Added(v, icon)
-    	local billboard = Instance.new('BillboardGui')
-    	billboard.Parent = Folder
-    	billboard.Name = icon
-    	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(40, 40)
-    	billboard.AlwaysOnTop = true
-    	billboard.ClipsDescendants = false
-    	billboard.Adornee = v
-    	local blur = addBlur(billboard)
-    	blur.Visible = Background.Enabled
-    	local image = Instance.new('ImageLabel')
-    	image.Size = UDim2.fromOffset(40, 40)
-    	image.Position = UDim2.fromScale(0.5, 0.5)
-    	image.AnchorPoint = Vector2.new(0.5, 0.5)
-    	image.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-    	image.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
-    	image.BorderSizePixel = 0
-    	image.Image = bedwars.getIcon({ itemType = icon }, true)
-    	image.Parent = billboard
-    	local uicorner = Instance.new('UICorner')
-    	uicorner.CornerRadius = UDim.new(0, 6)
-    	uicorner.Parent = image
-    	local kitStroke = Instance.new('UIStroke')
-    	kitStroke.Color = Color3.new(1, 1, 1)
-    	kitStroke.Transparency = 0.8
-    	kitStroke.Thickness = 1
-    	kitStroke.Parent = image
-    	local kitPadding = Instance.new('UIPadding')
-    	kitPadding.PaddingLeft = UDim.new(0, 4)
-    	kitPadding.PaddingRight = UDim.new(0, 4)
-    	kitPadding.PaddingTop = UDim.new(0, 4)
-    	kitPadding.PaddingBottom = UDim.new(0, 4)
-    	kitPadding.Parent = image
-    	Reference[v] = billboard
+    	local card = Instance.new('Frame')
+    	card.Name = icon
+    	card.AnchorPoint = Vector2.new(0.5, 1)
+    	card.BackgroundColor3 = Color3.new()
+    	card.BackgroundTransparency = 0.35
+    	card.BorderSizePixel = 0
+    	card.AutomaticSize = Enum.AutomaticSize.XY
+    	card.Visible = false
+    	local cardCorner = Instance.new('UICorner')
+    	cardCorner.CornerRadius = UDim.new(0, 4)
+    	cardCorner.Parent = card
+    	local cardPadding = Instance.new('UIPadding')
+    	cardPadding.PaddingLeft = UDim.new(0, 6)
+    	cardPadding.PaddingRight = UDim.new(0, 6)
+    	cardPadding.PaddingTop = UDim.new(0, 3)
+    	cardPadding.PaddingBottom = UDim.new(0, 3)
+    	cardPadding.Parent = card
+    	local cardLayout = Instance.new('UIListLayout')
+    	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    	cardLayout.FillDirection = Enum.FillDirection.Horizontal
+    	cardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	cardLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    	cardLayout.Padding = UDim.new(0, 4)
+    	cardLayout.Parent = card
+
+    	local img = Instance.new('ImageLabel')
+    	img.Name = 'Icon'
+    	img.Size = UDim2.fromOffset(12, 12)
+    	img.BackgroundTransparency = 1
+    	img.Image = bedwars.getIcon({ itemType = icon }, true)
+    	img.LayoutOrder = 1
+    	img.Parent = card
+
+    	local info = Instance.new('TextLabel')
+    	info.Name = 'Info'
+    	info.AutomaticSize = Enum.AutomaticSize.XY
+    	info.BackgroundTransparency = 1
+    	info.Font = Enum.Font.GothamBold
+    	info.TextSize = 9
+    	info.TextColor3 = Color3.fromRGB(200, 200, 200)
+    	info.RichText = true
+    	info.LayoutOrder = 2
+    	info.Parent = card
+
+    	card.Parent = Folder
+    	Reference[v] = card
     end
 
     local function addKit(tag, icon)
@@ -7902,37 +7831,23 @@ run(function()
     			if kit then
     				addKit(kit[1], kit[2])
     			end
+    			KitESP:Clean(runService.PreRender:Connect(function()
+    				for obj, card in Reference do
+    					local headPos, headVis = gameCamera:WorldToViewportPoint(obj.Position + Vector3.new(0, 2, 0))
+    					card.Visible = headVis
+    					if headVis then
+    						local dist = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - obj.Position).Magnitude) or 0
+    						card.Info.Text = '<font color="rgb(130,130,130)">' .. dist .. 'm</font>'
+    						card.Position = UDim2.fromOffset(headPos.X, headPos.Y)
+    					end
+    				end
+    			end))
     		else
     			Folder:ClearAllChildren()
     			table.clear(Reference)
     		end
     	end,
     	Tooltip = 'ESP for certain kit related objects'
-    })
-    Background = KitESP:CreateToggle({
-    	Name = 'Background',
-    	Function = function(callback)
-    		if Color.Object then
-    			Color.Object.Visible = callback
-    		end
-    		for _, v in Reference do
-    			v.ImageLabel.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
-    			v.Blur.Visible = callback
-    		end
-    	end,
-    	Default = true,
-    })
-    Color = KitESP:CreateColorSlider({
-    	Name = 'Background Color',
-    	DefaultValue = 0,
-    	DefaultOpacity = 0.5,
-    	Function = function(hue, sat, val, opacity)
-    		for _, v in Reference do
-    			v.ImageLabel.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-    			v.ImageLabel.BackgroundTransparency = 1 - opacity
-    		end
-    	end,
-    	Darker = true,
     })
 end)
 
@@ -8908,9 +8823,8 @@ end)
 run(function()
     local StorageESP
     local List
-    local Background
-    local Color
     local Reference = {}
+    local Enabled = {}
     local Connections = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
@@ -8924,25 +8838,27 @@ run(function()
     	return nil
     end
 
-    local function refreshAdornee(v)
-    	local chest = v.Adornee:FindFirstChild('ChestFolderValue')
-    	chest = chest and chest.Value or nil
+    local function refreshAdornee(obj, card)
+    	local chestRef = obj:FindFirstChild('ChestFolderValue')
+    	local chest = chestRef and chestRef.Value or nil
     	if not chest then
-    		v.Enabled = false
+    		Enabled[obj] = false
     		return
     	end
 
-    	local chestitems = chest and chest:GetChildren() or {}
-    	for _, obj in v.Frame:GetChildren() do
-    		if obj:IsA('Frame') and obj.Name == 'ItemSlot' then
-    			obj:Destroy()
+    	local items = card:FindFirstChild('Items')
+    	if items then
+    		for _, child in items:GetChildren() do
+    			if child:IsA('Frame') and child.Name == 'ItemSlot' then
+    				child:Destroy()
+    			end
     		end
     	end
 
-    	v.Enabled = false
+    	Enabled[obj] = false
     	local counts = {}
     	local order = {}
-    	for _, item in chestitems do
+    	for _, item in chest:GetChildren() do
     		if table.find(List.ListEnabled, item.Name) or nearStorageItem(item.Name) then
     			if not counts[item.Name] then
     				counts[item.Name] = 0
@@ -8952,42 +8868,42 @@ run(function()
     		end
     	end
     	for _, itemName in order do
-    		v.Enabled = true
+    		Enabled[obj] = true
     		local slot = Instance.new('Frame')
     		slot.Name = 'ItemSlot'
-    		slot.Size = UDim2.fromOffset(32, 32)
+    		slot.Size = UDim2.fromOffset(16, 16)
     		slot.BackgroundTransparency = 1
-    		slot.Parent = v.Frame
+    		slot.Parent = items
     		local blockimage = Instance.new('ImageLabel')
-    		blockimage.Size = UDim2.fromOffset(28, 28)
-    		blockimage.Position = UDim2.fromOffset(2, 0)
+    		blockimage.Size = UDim2.fromOffset(14, 14)
+    		blockimage.Position = UDim2.fromOffset(1, 0)
     		blockimage.BackgroundTransparency = 1
     		blockimage.Image = bedwars.getIcon({ itemType = itemName }, true)
     		blockimage.Parent = slot
     		if counts[itemName] > 1 then
     			local countLabel = Instance.new('TextLabel')
-    			countLabel.Size = UDim2.fromOffset(20, 12)
-    			countLabel.Position = UDim2.new(1, -2, 1, -2)
+    			countLabel.Size = UDim2.fromOffset(14, 8)
+    			countLabel.Position = UDim2.new(1, -1, 1, -1)
     			countLabel.AnchorPoint = Vector2.new(1, 1)
     			countLabel.BackgroundTransparency = 1
     			countLabel.Text = 'x' .. counts[itemName]
     			countLabel.TextColor3 = Color3.new(1, 1, 1)
     			countLabel.TextStrokeTransparency = 0.3
     			countLabel.TextStrokeColor3 = Color3.new()
-    			countLabel.TextSize = 10
+    			countLabel.TextSize = 7
     			countLabel.Font = Enum.Font.GothamBold
     			countLabel.TextXAlignment = Enum.TextXAlignment.Right
     			countLabel.Parent = slot
     		end
     	end
-    	table.clear(chestitems)
     end
 
     local function Removing(v)
-    	local billboard = Reference[v]
-    	if billboard then
-    		billboard:Destroy()
+    	local card = Reference[v]
+    	if card then
+    		card:Destroy()
     		Reference[v] = nil
+    		Enabled[v] = nil
     	end
 
     	local connections = Connections[v]
@@ -9010,70 +8926,91 @@ run(function()
     end
 
     local function Added(v)
-    	local chest = v:WaitForChild('ChestFolderValue', 3)
-    	if not (chest and StorageESP.Enabled and v:HasTag('chest')) then
+    	local chestRef = v:WaitForChild('ChestFolderValue', 3)
+    	if not (chestRef and StorageESP.Enabled and v:HasTag('chest')) then
     		return
     	end
     	if Reference[v] then
     		Removing(v)
     	end
-    	chest = chest.Value
+    	local chest = chestRef.Value
     	if not chest then
     		return
     	end
-    	local billboard = Instance.new('BillboardGui')
-    	billboard.Parent = Folder
-    	billboard.Name = 'chest'
-    	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(40, 40)
-    	billboard.AlwaysOnTop = true
-    	billboard.ClipsDescendants = false
-    	billboard.Adornee = v
-    	local blur = addBlur(billboard)
-    	blur.Visible = Background.Enabled
-    	local frame = Instance.new('Frame')
-    	frame.Size = UDim2.fromScale(1, 1)
-    	frame.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-    	frame.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
-    	frame.Parent = billboard
-    	local padding = Instance.new('UIPadding')
-    	padding.PaddingLeft = UDim.new(0, 4)
-    	padding.PaddingRight = UDim.new(0, 4)
-    	padding.PaddingTop = UDim.new(0, 4)
-    	padding.PaddingBottom = UDim.new(0, 4)
-    	padding.Parent = frame
-    	local layout = Instance.new('UIListLayout')
-    	layout.FillDirection = Enum.FillDirection.Horizontal
-    	layout.Padding = UDim.new(0, 2)
-    	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-    	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    	local layoutConnection = layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 12, 40), 40)
-    	end)
-    	layout.Parent = frame
-    	local corner = Instance.new('UICorner')
-    	corner.CornerRadius = UDim.new(0, 6)
-    	corner.Parent = frame
-    	local stroke = Instance.new('UIStroke')
-    	stroke.Color = Color3.new(1, 1, 1)
-    	stroke.Transparency = 0.8
-    	stroke.Thickness = 1
-    	stroke.Parent = frame
-    	Reference[v] = billboard
+
+    	local card = Instance.new('Frame')
+    	card.AnchorPoint = Vector2.new(0.5, 1)
+    	card.BackgroundColor3 = Color3.new()
+    	card.BackgroundTransparency = 0.35
+    	card.BorderSizePixel = 0
+    	card.AutomaticSize = Enum.AutomaticSize.XY
+    	card.Visible = false
+    	local cardCorner = Instance.new('UICorner')
+    	cardCorner.CornerRadius = UDim.new(0, 4)
+    	cardCorner.Parent = card
+    	local cardPadding = Instance.new('UIPadding')
+    	cardPadding.PaddingLeft = UDim.new(0, 6)
+    	cardPadding.PaddingRight = UDim.new(0, 6)
+    	cardPadding.PaddingTop = UDim.new(0, 3)
+    	cardPadding.PaddingBottom = UDim.new(0, 3)
+    	cardPadding.Parent = card
+    	local cardLayout = Instance.new('UIListLayout')
+    	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    	cardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	cardLayout.Padding = UDim.new(0, 1)
+    	cardLayout.Parent = card
+
+    	local title = Instance.new('TextLabel')
+    	title.Name = 'Title'
+    	title.AutomaticSize = Enum.AutomaticSize.XY
+    	title.BackgroundTransparency = 1
+    	title.Font = Enum.Font.GothamBold
+    	title.TextSize = 9
+    	title.TextColor3 = Color3.fromRGB(180, 140, 255)
+    	title.Text = 'Storage'
+    	title.LayoutOrder = 1
+    	title.Parent = card
+
+    	local items = Instance.new('Frame')
+    	items.Name = 'Items'
+    	items.AutomaticSize = Enum.AutomaticSize.XY
+    	items.BackgroundTransparency = 1
+    	items.LayoutOrder = 2
+    	local itemsLayout = Instance.new('UIListLayout')
+    	itemsLayout.FillDirection = Enum.FillDirection.Horizontal
+    	itemsLayout.Padding = UDim.new(0, 2)
+    	itemsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	itemsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    	itemsLayout.Parent = items
+    	items.Parent = card
+
+    	local dist = Instance.new('TextLabel')
+    	dist.Name = 'Dist'
+    	dist.AutomaticSize = Enum.AutomaticSize.XY
+    	dist.BackgroundTransparency = 1
+    	dist.Font = Enum.Font.GothamBold
+    	dist.TextSize = 8
+    	dist.TextColor3 = Color3.fromRGB(130, 130, 130)
+    	dist.LayoutOrder = 3
+    	dist.Parent = card
+
+    	card.Parent = Folder
+    	Reference[v] = card
+    	Enabled[v] = false
+
     	Connections[v] = {
-    		layoutConnection,
     		chest.ChildAdded:Connect(function(item)
     			if table.find(List.ListEnabled, item.Name) or nearStorageItem(item.Name) then
-    				refreshAdornee(billboard)
+    				refreshAdornee(v, card)
     			end
     		end),
     		chest.ChildRemoved:Connect(function(item)
     			if table.find(List.ListEnabled, item.Name) or nearStorageItem(item.Name) then
-    				refreshAdornee(billboard)
+    				refreshAdornee(v, card)
     			end
     		end),
     	}
-    	task.spawn(refreshAdornee, billboard)
+    	task.spawn(refreshAdornee, v, card)
     end
 
     StorageESP = vape.Categories.Render:CreateModule({
@@ -9083,6 +9020,24 @@ run(function()
     			StorageESP:Clean(collectionService:GetInstanceAddedSignal('chest'):Connect(Added))
     			StorageESP:Clean(collectionService:GetInstanceRemovedSignal('chest'):Connect(Removing))
     			StorageESP:Clean(Clear)
+    			StorageESP:Clean(runService.PreRender:Connect(function()
+    				for obj, card in Reference do
+    					if not Enabled[obj] then
+    						card.Visible = false
+    						continue
+    					end
+    					local part = obj:IsA('Model') and (obj.PrimaryPart or obj:FindFirstChildWhichIsA('BasePart')) or obj
+    					if not part then card.Visible = false continue end
+    					local pos = part.Position
+    					local headPos, headVis = gameCamera:WorldToViewportPoint(pos + Vector3.new(0, 3, 0))
+    					card.Visible = headVis
+    					if headVis then
+    						local dist = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - pos).Magnitude) or 0
+    						card.Dist.Text = dist .. 'm'
+    						card.Position = UDim2.fromOffset(headPos.X, headPos.Y)
+    					end
+    				end
+    			end))
     			for _, v in collectionService:GetTagged('chest') do
     				task.spawn(Added, v)
     			end
@@ -9095,35 +9050,10 @@ run(function()
     List = StorageESP:CreateTextList({
     	Name = 'Item',
     	Function = function()
-    		for _, v in Reference do
-    			task.spawn(refreshAdornee, v)
+    		for obj, card in Reference do
+    			task.spawn(refreshAdornee, obj, card)
     		end
     	end,
-    })
-    Background = StorageESP:CreateToggle({
-    	Name = 'Background',
-    	Function = function(callback)
-    		if Color and Color.Object then
-    			Color.Object.Visible = callback
-    		end
-    		for _, v in Reference do
-    			v.Frame.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
-    			v.Blur.Visible = callback
-    		end
-    	end,
-    	Default = true,
-    })
-    Color = StorageESP:CreateColorSlider({
-    	Name = 'Background Color',
-    	DefaultValue = 0,
-    	DefaultOpacity = 0.5,
-    	Function = function(hue, sat, val, opacity)
-    		for _, v in Reference do
-    			v.Frame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-    			v.Frame.BackgroundTransparency = 1 - opacity
-    		end
-    	end,
-    	Darker = true,
     })
 end)
 
@@ -9149,58 +9079,58 @@ end)
 
 run(function()
     local TrapESP
-    local Background
-    local Color
 
     local Reference = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
 
     local function Added(v)
-    	local billboard = Instance.new('BillboardGui')
-    	billboard.Parent = Folder
-    	billboard.Name = 'trap'
-    	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    	billboard.Size = UDim2.fromOffset(40, 40)
-    	billboard.AlwaysOnTop = true
-    	billboard.ClipsDescendants = false
-    	billboard.Adornee = v
-    	local blur = addBlur(billboard)
-    	blur.Visible = Background.Enabled
-    	local frame = Instance.new('Frame')
-    	frame.Size = UDim2.fromScale(1, 1)
-    	frame.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-    	frame.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
-    	frame.Parent = billboard
-    	local padding = Instance.new('UIPadding')
-    	padding.PaddingLeft = UDim.new(0, 4)
-    	padding.PaddingRight = UDim.new(0, 4)
-    	padding.PaddingTop = UDim.new(0, 4)
-    	padding.PaddingBottom = UDim.new(0, 4)
-    	padding.Parent = frame
-    	local image = Instance.new('ImageLabel')
-    	image.Size = UDim2.fromOffset(28, 28)
-    	image.BackgroundTransparency = 1
-    	image.Image = bedwars.getIcon({ itemType = 'snap_trap' }, true)
-    	image.Parent = frame
-    	local layout = Instance.new('UIListLayout')
-    	layout.FillDirection = Enum.FillDirection.Horizontal
-    	layout.Padding = UDim.new(0, 4)
-    	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-    	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    	layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-    		billboard.Size = UDim2.fromOffset(math.max(layout.AbsoluteContentSize.X + 12, 40), 40)
-    	end)
-    	layout.Parent = frame
-    	local corner = Instance.new('UICorner')
-    	corner.CornerRadius = UDim.new(0, 6)
-    	corner.Parent = frame
-    	local stroke = Instance.new('UIStroke')
-    	stroke.Color = Color3.new(1, 1, 1)
-    	stroke.Transparency = 0.8
-    	stroke.Thickness = 1
-    	stroke.Parent = frame
-    	Reference[v] = billboard
+    	local card = Instance.new('Frame')
+    	card.AnchorPoint = Vector2.new(0.5, 1)
+    	card.BackgroundColor3 = Color3.new()
+    	card.BackgroundTransparency = 0.35
+    	card.BorderSizePixel = 0
+    	card.AutomaticSize = Enum.AutomaticSize.XY
+    	card.Visible = false
+    	local cardCorner = Instance.new('UICorner')
+    	cardCorner.CornerRadius = UDim.new(0, 4)
+    	cardCorner.Parent = card
+    	local cardPadding = Instance.new('UIPadding')
+    	cardPadding.PaddingLeft = UDim.new(0, 6)
+    	cardPadding.PaddingRight = UDim.new(0, 6)
+    	cardPadding.PaddingTop = UDim.new(0, 3)
+    	cardPadding.PaddingBottom = UDim.new(0, 3)
+    	cardPadding.Parent = card
+    	local cardLayout = Instance.new('UIListLayout')
+    	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    	cardLayout.FillDirection = Enum.FillDirection.Horizontal
+    	cardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    	cardLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    	cardLayout.Padding = UDim.new(0, 4)
+    	cardLayout.Parent = card
+
+    	local img = Instance.new('ImageLabel')
+    	img.Name = 'Icon'
+    	img.Size = UDim2.fromOffset(12, 12)
+    	img.BackgroundTransparency = 1
+    	img.Image = bedwars.getIcon({ itemType = 'snap_trap' }, true)
+    	img.LayoutOrder = 1
+    	img.Parent = card
+
+    	local info = Instance.new('TextLabel')
+    	info.Name = 'Info'
+    	info.AutomaticSize = Enum.AutomaticSize.XY
+    	info.BackgroundTransparency = 1
+    	info.Font = Enum.Font.GothamBold
+    	info.TextSize = 9
+    	info.TextColor3 = Color3.fromRGB(255, 100, 100)
+    	info.Text = 'Trap'
+    	info.RichText = true
+    	info.LayoutOrder = 2
+    	info.Parent = card
+
+    	card.Parent = Folder
+    	Reference[v] = card
     end
 
     TrapESP = vape.Categories.Render:CreateModule({
@@ -9221,38 +9151,23 @@ run(function()
     					Reference[v] = nil
     				end
     			end))
+    			TrapESP:Clean(runService.PreRender:Connect(function()
+    				for obj, card in Reference do
+    					local headPos, headVis = gameCamera:WorldToViewportPoint(obj.Position + Vector3.new(0, 2, 0))
+    					card.Visible = headVis
+    					if headVis then
+    						local dist = entitylib.isAlive and math.floor((entitylib.character.RootPart.Position - obj.Position).Magnitude) or 0
+    						card.Info.Text = 'Trap  <font color="rgb(130,130,130)">' .. dist .. 'm</font>'
+    						card.Position = UDim2.fromOffset(headPos.X, headPos.Y)
+    					end
+    				end
+    			end))
     		else
     			table.clear(Reference)
     			Folder:ClearAllChildren()
     		end
     	end,
     	Tooltip = 'Render traps placed by other teams'
-    })
-
-    Background = TrapESP:CreateToggle({
-    	Name = 'Background',
-    	Function = function(callback)
-    		if Color and Color.Object then
-    			Color.Object.Visible = callback
-    		end
-    		for _, v in Reference do
-    			v.Frame.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
-    			v.Blur.Visible = callback
-    		end
-    	end,
-    	Default = true
-    })
-    Color = TrapESP:CreateColorSlider({
-    	Name = 'Background Color',
-    	DefaultValue = 0,
-    	DefaultOpacity = 0.5,
-    	Function = function(hue, sat, val, opacity)
-    		for _, v in Reference do
-    			v.Frame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-    			v.Frame.BackgroundTransparency = 1 - opacity
-    		end
-    	end,
-    	Darker = true
     })
 end)
 
