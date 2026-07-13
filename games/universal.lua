@@ -2616,6 +2616,87 @@ run(function()
     })
 end)
 
+run(function()
+    local AutoPotion
+    local Threshold
+    local Cooldown
+    local cooldownTick = 0
+
+    local function findSplashPotion()
+        if not entitylib.isAlive then return nil end
+        local character = lplr.Character
+        local backpack = lplr:FindFirstChildWhichIsA('Backpack')
+
+        for _, container in {character, backpack} do
+            if container then
+                local tool = container:FindFirstChild('heal_splash_potion')
+                if tool and tool:IsA('Tool') then
+                    return tool
+                end
+            end
+        end
+
+        return nil
+    end
+
+    AutoPotion = vape.Categories.Combat:CreateModule({
+    	Name = 'Auto Potion',
+    	Function = function(callback)
+    		if callback then
+    			repeat
+    				if entitylib.isAlive then
+    					local hum = entitylib.character.Humanoid
+    					local healthPct = (hum.Health / hum.MaxHealth) * 100
+    					if healthPct <= Threshold.Value and tick() > cooldownTick then
+    						local potion = findSplashPotion()
+    						if potion then
+    							local character = lplr.Character
+    							local previousTool = character and character:FindFirstChildWhichIsA('Tool')
+
+    							if potion.Parent ~= character then
+    								hum:EquipTool(potion)
+    								task.wait(0.1)
+    							end
+
+    							potion:Activate()
+    							cooldownTick = tick() + Cooldown.Value
+
+    							task.wait(0.3)
+    							if previousTool and previousTool ~= potion and previousTool.Parent then
+    								hum:EquipTool(previousTool)
+    							end
+
+    							vape:CreateNotification('Auto Potion', 'Used ' .. potion.Name, 3)
+    						end
+    					end
+    				end
+    				task.wait(0.2)
+    			until not AutoPotion.Enabled
+    		end
+    	end,
+    	Tooltip = 'Automatically uses Heal Splash Potions when your health is low.',
+    })
+    Threshold = AutoPotion:CreateSlider({
+    	Name = 'Health Threshold',
+    	Min = 5,
+    	Max = 95,
+    	Default = 50,
+    	Suffix = '%',
+    	Tooltip = 'Use potion when health drops to this percentage',
+    })
+    Cooldown = AutoPotion:CreateSlider({
+    	Name = 'Cooldown',
+    	Min = 0,
+    	Max = 10,
+    	Default = 1,
+    	Decimal = 10,
+    	Suffix = function(val)
+    		return val == 1 and 'second' or 'seconds'
+    	end,
+    	Tooltip = 'Delay between potion uses',
+    })
+end)
+
 --[[
     Blatant
 ]]
