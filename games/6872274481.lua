@@ -23124,7 +23124,9 @@ run(function()
 
             local result = table.concat(lines, '\n')
             print(result)
-            vape:CreateNotification('Sword Debug', result, 30)
+            pcall(function() setclipboard(result) end)
+            pcall(function() writefile('fart/sword_debug.txt', result) end)
+            vape:CreateNotification('Sword Debug', 'Copied to clipboard & saved to fart/sword_debug.txt', 10)
         end
     })
 end)
