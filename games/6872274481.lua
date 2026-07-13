@@ -11576,48 +11576,171 @@ end)
 
 run(function()
     local ShopTierBypass
-    local tiered, nexttier = {}, {}
-    local old
-    
+    local savedTiered, savedNextTier = {}, {}
+    local oldGetShop, oldGetShopItem
+    local tierChains = {}
+    local removedItems = {}
+    local knownTiers = {
+        {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'},
+        {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'},
+        {'wood_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe'},
+        {'wood_axe', 'stone_axe', 'iron_axe', 'diamond_axe'},
+        {'leather_chestplate', 'iron_chestplate', 'diamond_chestplate', 'emerald_chestplate'},
+    }
+
+    local function hasItemOwned(itemType)
+        if getItem(itemType) then return true end
+        local armor = store.inventory.inventory.armor
+        if armor then
+            for _, a in armor do
+                if type(a) == 'table' and a.itemType == itemType then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function shouldHide(itemType)
+        local chain = tierChains[itemType]
+        if not chain then return false end
+        if hasItemOwned(itemType) then return true end
+        local myIndex = chain.index[itemType]
+        for i = myIndex + 1, #chain.items do
+            if hasItemOwned(chain.items[i]) then return true end
+        end
+        return false
+    end
+
+    local function refreshShopItems()
+        for itemType, item in removedItems do
+            bedwars.Shop.ShopItems[itemType] = item
+        end
+        table.clear(removedItems)
+
+        for itemType, item in bedwars.Shop.ShopItems do
+            if shouldHide(itemType) then
+                removedItems[itemType] = item
+                bedwars.Shop.ShopItems[itemType] = nil
+            end
+        end
+    end
+
     ShopTierBypass = vape.Categories.Utility:CreateModule({
         Name = 'Shop Tier Bypass',
         Function = function(callback)
             if callback then
                 repeat task.wait() until store.shopLoaded or not ShopTierBypass.Enabled
                 if ShopTierBypass.Enabled then
+                    local visited = {}
+                    for key, v in bedwars.Shop.ShopItems do
+                        savedTiered[v] = v.tiered
+                        savedNextTier[v] = v.nextTier
+                    end
+
+                    for key, v in bedwars.Shop.ShopItems do
+                        if not visited[key] and not v.tiered then
+                            local chain = {items = {}, index = {}}
+                            local current = v
+                            local currentKey = key
+                            while current do
+                                table.insert(chain.items, currentKey)
+                                chain.index[currentKey] = #chain.items
+                                visited[currentKey] = true
+                                currentKey = current.nextTier
+                                current = currentKey and bedwars.Shop.ShopItems[currentKey] or nil
+                            end
+                            if #chain.items > 1 then
+                                for _, it in chain.items do
+                                    tierChains[it] = chain
+                                end
+                            end
+                        end
+                    end
+
+                    for _, group in knownTiers do
+                        local hasAny = false
+                        for _, it in group do
+                            if bedwars.Shop.ShopItems[it] and not tierChains[it] then
+                                hasAny = true
+                                break
+                            end
+                        end
+                        if hasAny then
+                            local chain = {items = {}, index = {}}
+                            for _, it in group do
+                                if bedwars.Shop.ShopItems[it] then
+                                    table.insert(chain.items, it)
+                                    chain.index[it] = #chain.items
+                                end
+                            end
+                            if #chain.items > 1 then
+                                for _, it in chain.items do
+                                    tierChains[it] = chain
+                                end
+                            end
+                        end
+                    end
+
                     for _, v in bedwars.Shop.ShopItems do
-                        tiered[v] = v.tiered
-                        nexttier[v] = v.nextTier
                         v.nextTier = nil
                         v.tiered = nil
                     end
-    
-                    old = bedwars.Shop.getShop
-    				bedwars.Shop.getShop = function(...)
-    					local res = {old(...)}
-    					for i, v in res[1] do
-    						v.nextTier = nil
-    						v.tiered = nil
-    					end
-    					return unpack(res)
-    				end
+
+                    refreshShopItems()
+
+                    oldGetShop = bedwars.Shop.getShop
+                    bedwars.Shop.getShop = function(...)
+                        refreshShopItems()
+                        local res = {oldGetShop(...)}
+                        local filtered = {}
+                        for i, v in res[1] do
+                            v.nextTier = nil
+                            v.tiered = nil
+                            if not shouldHide(v.itemType) then
+                                filtered[i] = v
+                            end
+                        end
+                        res[1] = filtered
+                        return unpack(res)
+                    end
+
+                    oldGetShopItem = bedwars.Shop.getShopItem
+                    bedwars.Shop.getShopItem = function(itemType, ...)
+                        if shouldHide(itemType) then return nil end
+                        local result = oldGetShopItem(itemType, ...)
+                        if result then
+                            result.nextTier = nil
+                            result.tiered = nil
+                        end
+                        return result
+                    end
                 end
             else
-                if old then
-                    bedwars.Shop.getShop = old
-                    old = nil
+                if oldGetShop then
+                    bedwars.Shop.getShop = oldGetShop
+                    oldGetShop = nil
                 end
-                for i, v in tiered do
+                if oldGetShopItem then
+                    bedwars.Shop.getShopItem = oldGetShopItem
+                    oldGetShopItem = nil
+                end
+                for itemType, item in removedItems do
+                    bedwars.Shop.ShopItems[itemType] = item
+                end
+                for i, v in savedTiered do
                     i.tiered = v
                 end
-                for i, v in nexttier do
+                for i, v in savedNextTier do
                     i.nextTier = v
                 end
-                table.clear(nexttier)
-                table.clear(tiered)
+                table.clear(savedNextTier)
+                table.clear(savedTiered)
+                table.clear(tierChains)
+                table.clear(removedItems)
             end
         end,
-        Tooltip = 'Lets you buy things like armor early.'
+        Tooltip = 'Lets you buy things like armor early. Hides owned and lower-tier items.'
     })
 end)
 
