@@ -9925,6 +9925,144 @@ run(function()
         end,
     })
 
+    local function getPlaylistPath(name)
+        return 'fart/youtube/playlist_' .. name:gsub('[^%w_%-]', '') .. '.json'
+    end
+
+    local function savePlaylist(name, tracks)
+        local data = {}
+        for _, t in tracks do
+            table.insert(data, {id = t.id, title = t.title, artist = t.artist, duration = t.duration})
+        end
+        writefile(getPlaylistPath(name), httpService:JSONEncode(data))
+    end
+
+    local function loadPlaylist(name)
+        local path = getPlaylistPath(name)
+        if not isfile(path) then return nil end
+        local suc, data = pcall(function()
+            return httpService:JSONDecode(readfile(path))
+        end)
+        if suc and data then return data end
+        return nil
+    end
+
+    local function listPlaylists()
+        local names = {}
+        pcall(function()
+            for _, file in listfiles('fart/youtube') do
+                local name = file:match('playlist_(.+)%.json$')
+                if name then
+                    table.insert(names, name)
+                end
+            end
+        end)
+        return names
+    end
+
+    YTModule:CreateTextBox({
+        Name = 'Save Playlist',
+        Placeholder = 'playlist name',
+        Function = function(val, enter)
+            if not enter or not val or val == '' then return end
+            if #trackQueue == 0 then
+                vape:CreateNotification('YouTube', 'Queue is empty - search songs first', 3, 'alert')
+                return
+            end
+            local name = val:gsub('[^%w_%-]', '')
+            if name == '' then
+                vape:CreateNotification('YouTube', 'Invalid playlist name', 3, 'alert')
+                return
+            end
+            savePlaylist(name, trackQueue)
+            vape:CreateNotification('YouTube', 'Saved playlist "' .. name .. '" (' .. #trackQueue .. ' tracks)', 4)
+        end,
+    })
+
+    YTModule:CreateTextBox({
+        Name = 'Load Playlist',
+        Placeholder = 'playlist name',
+        Function = function(val, enter)
+            if not enter or not val or val == '' then return end
+            local name = val:gsub('[^%w_%-]', '')
+            local tracks = loadPlaylist(name)
+            if not tracks or #tracks == 0 then
+                vape:CreateNotification('YouTube', 'Playlist "' .. name .. '" not found', 3, 'alert')
+                return
+            end
+            trackQueue = tracks
+            queueIndex = 0
+            vape:CreateNotification('YouTube', 'Loaded "' .. name .. '" (' .. #tracks .. ' tracks)', 3)
+            for i, track in tracks do
+                local dur = yt:FormatDuration(track.duration)
+                task.delay((i - 1) * 0.15, function()
+                    vape:CreateNotification('Track ' .. i, track.title .. ' - ' .. track.artist .. ' [' .. dur .. ']', 10)
+                end)
+            end
+            vape:CreateNotification('YouTube', 'Enter # to play, or tap Next', 6)
+        end,
+    })
+
+    YTModule:CreateTextBox({
+        Name = 'Delete Playlist',
+        Placeholder = 'playlist name',
+        Function = function(val, enter)
+            if not enter or not val or val == '' then return end
+            local name = val:gsub('[^%w_%-]', '')
+            local path = getPlaylistPath(name)
+            if not isfile(path) then
+                vape:CreateNotification('YouTube', 'Playlist "' .. name .. '" not found', 3, 'alert')
+                return
+            end
+            delfile(path)
+            vape:CreateNotification('YouTube', 'Deleted playlist "' .. name .. '"', 3)
+        end,
+    })
+
+    YTModule:CreateButton({
+        Name = 'Show Playlists',
+        Function = function()
+            local names = listPlaylists()
+            if #names == 0 then
+                vape:CreateNotification('YouTube', 'No saved playlists', 3)
+                return
+            end
+            for i, name in names do
+                local tracks = loadPlaylist(name)
+                local count = tracks and #tracks or 0
+                task.delay((i - 1) * 0.15, function()
+                    vape:CreateNotification('Playlist', name .. ' (' .. count .. ' tracks)', 8)
+                end)
+            end
+        end,
+    })
+
+    YTModule:CreateTextBox({
+        Name = 'Add to Playlist',
+        Placeholder = 'playlist name',
+        Function = function(val, enter)
+            if not enter or not val or val == '' then return end
+            if currentTrack == '' then
+                vape:CreateNotification('YouTube', 'No track playing to add', 3, 'alert')
+                return
+            end
+            local name = val:gsub('[^%w_%-]', '')
+            if name == '' then
+                vape:CreateNotification('YouTube', 'Invalid playlist name', 3, 'alert')
+                return
+            end
+            local tracks = loadPlaylist(name) or {}
+            local current = trackQueue[queueIndex]
+            if not current then
+                vape:CreateNotification('YouTube', 'No track selected', 3, 'alert')
+                return
+            end
+            table.insert(tracks, {id = current.id, title = current.title, artist = current.artist, duration = current.duration})
+            savePlaylist(name, tracks)
+            vape:CreateNotification('YouTube', 'Added "' .. currentTrack .. '" to "' .. name .. '" (' .. #tracks .. ' tracks)', 4)
+        end,
+    })
+
     Volume = YTModule:CreateSlider({
         Name = 'Volume',
         Min = 0,
