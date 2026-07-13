@@ -11577,9 +11577,9 @@ end)
 run(function()
     local ShopTierBypass
     local savedTiered, savedNextTier = {}, {}
-    local oldGetShop, oldGetShopItem
+    local oldGetShop, oldGetShopItem, oldCallServerAsync
     local tierChains = {}
-    local removedItems = {}
+    local purchaseRemote
     local knownTiers = {
         {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'},
         {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'},
@@ -11601,10 +11601,9 @@ run(function()
         return false
     end
 
-    local function shouldHide(itemType)
+    local function isDowngrade(itemType)
         local chain = tierChains[itemType]
         if not chain then return false end
-        if hasItemOwned(itemType) then return true end
         local myIndex = chain.index[itemType]
         for i = myIndex + 1, #chain.items do
             if hasItemOwned(chain.items[i]) then return true end
@@ -11612,18 +11611,10 @@ run(function()
         return false
     end
 
-    local function refreshShopItems()
-        for itemType, item in removedItems do
-            bedwars.Shop.ShopItems[itemType] = item
-        end
-        table.clear(removedItems)
-
-        for itemType, item in bedwars.Shop.ShopItems do
-            if shouldHide(itemType) then
-                removedItems[itemType] = item
-                bedwars.Shop.ShopItems[itemType] = nil
-            end
-        end
+    local function shouldBlock(itemType)
+        if hasItemOwned(itemType) then return true end
+        if isDowngrade(itemType) then return true end
+        return false
     end
 
     ShopTierBypass = vape.Categories.Utility:CreateModule({
@@ -11687,33 +11678,42 @@ run(function()
                         v.tiered = nil
                     end
 
-                    refreshShopItems()
-
                     oldGetShop = bedwars.Shop.getShop
                     bedwars.Shop.getShop = function(...)
-                        refreshShopItems()
                         local res = {oldGetShop(...)}
-                        local filtered = {}
                         for i, v in res[1] do
                             v.nextTier = nil
                             v.tiered = nil
-                            if not shouldHide(v.itemType) then
-                                filtered[i] = v
-                            end
                         end
-                        res[1] = filtered
                         return unpack(res)
                     end
 
                     oldGetShopItem = bedwars.Shop.getShopItem
                     bedwars.Shop.getShopItem = function(itemType, ...)
-                        if shouldHide(itemType) then return nil end
                         local result = oldGetShopItem(itemType, ...)
                         if result then
                             result.nextTier = nil
                             result.tiered = nil
                         end
                         return result
+                    end
+
+                    purchaseRemote = bedwars.Client:Get('BedwarsPurchaseItem')
+                    oldCallServerAsync = purchaseRemote.CallServerAsync
+                    purchaseRemote.CallServerAsync = function(self, data, ...)
+                        if data and data.shopItem and data.shopItem.itemType then
+                            local itemType = data.shopItem.itemType
+                            if shouldBlock(itemType) then
+                                local displayName = bedwars.ItemMeta[itemType] and bedwars.ItemMeta[itemType].displayName or itemType
+                                if isDowngrade(itemType) then
+                                    notif('ShopTierBypass', 'Blocked downgrade: '..displayName, 3, 'alert')
+                                else
+                                    notif('ShopTierBypass', 'Already owned: '..displayName, 3, 'alert')
+                                end
+                                return {andThen = function() end}
+                            end
+                        end
+                        return oldCallServerAsync(self, data, ...)
                     end
                 end
             else
@@ -11725,8 +11725,10 @@ run(function()
                     bedwars.Shop.getShopItem = oldGetShopItem
                     oldGetShopItem = nil
                 end
-                for itemType, item in removedItems do
-                    bedwars.Shop.ShopItems[itemType] = item
+                if purchaseRemote and oldCallServerAsync then
+                    purchaseRemote.CallServerAsync = oldCallServerAsync
+                    oldCallServerAsync = nil
+                    purchaseRemote = nil
                 end
                 for i, v in savedTiered do
                     i.tiered = v
@@ -11737,10 +11739,9 @@ run(function()
                 table.clear(savedNextTier)
                 table.clear(savedTiered)
                 table.clear(tierChains)
-                table.clear(removedItems)
             end
         end,
-        Tooltip = 'Lets you buy things like armor early. Hides owned and lower-tier items.'
+        Tooltip = 'Lets you buy things like armor early. Blocks downgrades.'
     })
 end)
 
