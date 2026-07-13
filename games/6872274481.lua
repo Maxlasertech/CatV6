@@ -23053,4 +23053,78 @@ run(function()
             refreshColors()
         end
     })
+
+    PixelSword:CreateButton({
+        Name = 'Debug Sword Info',
+        Tooltip = 'Prints sword dimensions and positioning info',
+        Function = function()
+            local char = lplr.Character
+            if not char then
+                vape:CreateNotification('Debug', 'No character found', 5, 'warning')
+                return
+            end
+
+            local rightHand = char:FindFirstChild('RightHand') or char:FindFirstChild('Right Arm')
+            local lines = {}
+            table.insert(lines, '=== SWORD DEBUG ===')
+
+            if rightHand then
+                table.insert(lines, 'RightHand Size: ' .. tostring(rightHand.Size))
+                table.insert(lines, 'RightHand CFrame Pos: ' .. tostring(rightHand.CFrame.Position))
+            else
+                table.insert(lines, 'RightHand: NOT FOUND')
+            end
+
+            local foundSword = false
+            for _, child in char:GetChildren() do
+                if isSwordModel(child.Name) then
+                    foundSword = true
+                    local handle = child:FindFirstChild('Handle')
+                    table.insert(lines, '--- ' .. child.Name .. ' ---')
+                    table.insert(lines, 'Model class: ' .. child.ClassName)
+
+                    if handle then
+                        table.insert(lines, 'Handle Size: ' .. tostring(handle.Size))
+                        table.insert(lines, 'Handle CFrame Pos: ' .. tostring(handle.CFrame.Position))
+
+                        if rightHand then
+                            local offset = rightHand.CFrame:Inverse() * handle.CFrame
+                            local ox, oy, oz = offset:ToEulerAnglesXYZ()
+                            table.insert(lines, 'Offset Pos: ' .. tostring(offset.Position))
+                            table.insert(lines, string.format('Offset Rot (deg): X=%.1f Y=%.1f Z=%.1f', math.deg(ox), math.deg(oy), math.deg(oz)))
+                        end
+
+                        for _, part in child:GetDescendants() do
+                            if part:IsA('BasePart') and part.Name ~= '_PixelSword' then
+                                table.insert(lines, '  Part: ' .. part.Name .. ' Size: ' .. tostring(part.Size) .. ' Transparency: ' .. part.Transparency)
+                            end
+                        end
+                    else
+                        table.insert(lines, 'Handle: NOT FOUND')
+                    end
+
+                    if child:IsA('Tool') then
+                        table.insert(lines, 'GripPos: ' .. tostring(child.GripPos))
+                        table.insert(lines, 'GripForward: ' .. tostring(child.GripForward))
+                        table.insert(lines, 'GripRight: ' .. tostring(child.GripRight))
+                        table.insert(lines, 'GripUp: ' .. tostring(child.GripUp))
+                    end
+
+                    local pixelCount = 0
+                    if pixelModels[child] then
+                        pixelCount = #pixelModels[child]
+                    end
+                    table.insert(lines, 'Pixel parts: ' .. pixelCount)
+                end
+            end
+
+            if not foundSword then
+                table.insert(lines, 'No sword equipped')
+            end
+
+            local result = table.concat(lines, '\n')
+            print(result)
+            vape:CreateNotification('Sword Debug', result, 30)
+        end
+    })
 end)
