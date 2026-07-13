@@ -9427,10 +9427,8 @@ run(function()
     local addedLighting = {}
     local origLighting = {}
     local origCloudEnabled = nil
-    local disabledEffects = {}
     local hasFF = false
     local savedLightProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart','GlobalShadows'}
-    local watchedLightProps = {FogEnd=true,FogStart=true,FogColor=true,Ambient=true,OutdoorAmbient=true,Brightness=true,ExposureCompensation=true,GlobalShadows=true}
 
     local C = Color3.fromRGB
     local blockColors = {
@@ -9634,8 +9632,7 @@ run(function()
                 repeat task.wait() until store.map or not KingAuto.Enabled
                 if not KingAuto.Enabled then return end
 
-                -- FFlags: kill textures, shadows, grass, mesh detail at engine level
-                -- Only call if setfflag exists and actually works (avoids console spam)
+                -- FFlags: if executor supports them, kill textures at engine level (no RenderStepped needed)
                 hasFF = type(setfflag) == 'function' and pcall(setfflag, 'RenderShadowIntensity', '0')
                 if hasFF then
                     pcall(setfflag, 'PartTexturePackTable2022', '{}')
@@ -9652,42 +9649,45 @@ run(function()
                     pcall(setfflag, 'RenderLocalLightUpdatesMin', '0')
                 end
 
-                -- === Block overhaul (batched to avoid frame spike) ===
-                local BATCH = 150
+                -- === Block overhaul ===
                 local blocks = store.map:FindFirstChild('Blocks')
                 if blocks then
-                    local children = blocks:GetChildren()
-                    for i = 1, #children do
-                        pcall(scanBlock, children[i], blockColors[children[i].Name])
-                        if i % BATCH == 0 then task.wait() end
+                    for _, blockModel in blocks:GetChildren() do
+                        pcall(scanBlock, blockModel, blockColors[blockModel.Name])
                     end
                 end
-                local descs = store.map:GetDescendants()
-                for i = 1, #descs do
-                    local v = descs[i]
-                    if v:IsA('BasePart') then
-                        pcall(applyPart, v, nil)
-                    elseif (v:IsA('ParticleEmitter') or v:IsA('Beam') or v:IsA('Trail') or v:IsA('Light')) and v.Enabled then
-                        v.Enabled = false
-                        disabledEffects[v] = true
-                    end
-                    if i % BATCH == 0 then task.wait() end
+                for _, v in store.map:GetDescendants() do
+                    if v:IsA('BasePart') then pcall(applyPart, v, nil) end
+                end
+                local function flattenPart(part, col)
+                    part.LocalTransparencyModifier = 1
+                    pcall(applyPart, part, col)
+                    task.defer(function()
+                        if part.Parent then part.LocalTransparencyModifier = 0 end
+                    end)
                 end
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
                     local col = blockColors[v.Name]
+                    for _, p in v:GetDescendants() do
+                        if p:IsA('BasePart') then p.LocalTransparencyModifier = 1 end
+                    end
+                    pcall(scanBlock, v, col)
+                    task.defer(function()
+                        for _, p in v:GetDescendants() do
+                            if p:IsA('BasePart') and p.Parent then
+                                p.LocalTransparencyModifier = 0
+                            end
+                        end
+                    end)
                     KingAuto:Clean(v.DescendantAdded:Connect(function(d)
                         if not KingAuto.Enabled then return end
                         if d:IsA('BasePart') then
-                            pcall(applyPart, d, col)
+                            flattenPart(d, col)
                         elseif d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
                             pcall(function() d:Destroy() end)
                         end
                     end))
-                    pcall(scanBlock, v, col)
-                    task.defer(function()
-                        if KingAuto.Enabled then pcall(scanBlock, v, col) end
-                    end)
                 end))
                 local function getToolBlockColor(inst, char)
                     local p = inst.Parent
@@ -9708,7 +9708,7 @@ run(function()
                         if not KingAuto.Enabled then return end
                         if v:IsA('BasePart') then
                             local col = getToolBlockColor(v, char)
-                            if col then pcall(applyPart, v, col) end
+                            if col then flattenPart(v, col) end
                         elseif v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
                             pcall(function() v:Destroy() end)
                         end
@@ -9726,26 +9726,43 @@ run(function()
                         pcall(function() v:Destroy() end)
                     elseif v:IsA('BasePart') then
                         local col = getToolBlockColor(v, cam)
-                        if col then pcall(applyPart, v, col) end
+                        if col then flattenPart(v, col) end
                     end
                 end
                 for _, v in cam:GetDescendants() do flattenCamDescendant(v) end
                 KingAuto:Clean(cam.DescendantAdded:Connect(function(v)
                     if KingAuto.Enabled then flattenCamDescendant(v) end
                 end))
-                KingAuto:Clean(store.map.DescendantAdded:Connect(function(v)
+                local function hasBlockAncestor(inst)
+                    local p = inst.Parent
+                    while p and p ~= workspace do
+                        if blockColors[p.Name] then return blockColors[p.Name] end
+                        p = p.Parent
+                    end
+                end
+                KingAuto:Clean(workspace.DescendantAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
                     if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
-                        pcall(function() v:Destroy() end)
+                        if hasBlockAncestor(v) then pcall(function() v:Destroy() end) end
                     elseif v:IsA('Model') and blockColors[v.Name] then
                         pcall(scanBlock, v, blockColors[v.Name])
                     elseif v:IsA('BasePart') and not saved[v] then
-                        pcall(applyPart, v, blockColors[v.Name] or blockColors[v.Parent and v.Parent.Name])
-                    elseif (v:IsA('ParticleEmitter') or v:IsA('Beam') or v:IsA('Trail') or v:IsA('Light')) and v.Enabled then
-                        v.Enabled = false
-                        disabledEffects[v] = true
+                        local col = hasBlockAncestor(v) or blockColors[v.Name]
+                        if col then flattenPart(v, col) end
                     end
                 end))
+                if not hasFF then
+                    KingAuto:Clean(game:GetService('RunService').RenderStepped:Connect(function()
+                        if not KingAuto.Enabled then return end
+                        local blks = store.map:FindFirstChild('Blocks')
+                        if not blks then return end
+                        for _, v in blks:GetDescendants() do
+                            if v:IsA('SurfaceAppearance') or v:IsA('Decal') or v:IsA('Texture') then
+                                pcall(function() v:Destroy() end)
+                            end
+                        end
+                    end))
+                end
 
                 -- === Grey sky + full bright + no clouds ===
                 for _, p in savedLightProps do
@@ -9793,8 +9810,10 @@ run(function()
                 -- Fight game resets of Lighting/Fog properties
                 local lightChanged = false
                 KingAuto:Clean(lightingService.Changed:Connect(function(prop)
-                    if lightChanged or not watchedLightProps[prop] then return end
-                    do
+                    if lightChanged then return end
+                    if prop == 'FogEnd' or prop == 'FogStart' or prop == 'FogColor' or
+                       prop == 'Ambient' or prop == 'OutdoorAmbient' or prop == 'Brightness' or
+                       prop == 'ExposureCompensation' or prop == 'GlobalShadows' then
                         lightChanged = true
                         lightingService.Ambient              = Color3.fromRGB(120, 120, 120)
                         lightingService.OutdoorAmbient       = Color3.fromRGB(100, 100, 100)
@@ -9822,11 +9841,6 @@ run(function()
                     pcall(setfflag, 'RenderLocalLightUpdatesMax', '8')
                     pcall(setfflag, 'RenderLocalLightUpdatesMin', '6')
                 end
-                -- Restore effects
-                for obj in disabledEffects do
-                    pcall(function() obj.Enabled = true end)
-                end
-                table.clear(disabledEffects)
                 -- Restore blocks
                 for part in saved do restorePart(part) end
                 table.clear(saved)
