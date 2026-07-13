@@ -22838,7 +22838,8 @@ run(function()
         local baseOffset = CFrame.new()
         if rightHand then
             baseOffset = rightHand.CFrame:Inverse() * handle.CFrame
-            baseOffset = baseOffset * CFrame.Angles(0, 0, math.rad(30)) * CFrame.new(0, -0.6, 0)
+            local gripShift = handle.Size.Y / 2 - 0.3
+            baseOffset = baseOffset * CFrame.new(0, -gripShift, 0) * CFrame.Angles(0, 0, math.rad(30))
         end
 
         local parts = {}
