@@ -6323,6 +6323,7 @@ end)
 
 run(function()
     local HiveESP
+    local Background
 
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
@@ -6335,7 +6336,7 @@ run(function()
     	local card = Instance.new('Frame')
     	card.AnchorPoint = Vector2.new(0.5, 1)
     	card.BackgroundColor3 = Color3.new()
-    	card.BackgroundTransparency = 0.35
+    	card.BackgroundTransparency = Background.Enabled and 0.35 or 1
     	card.BorderSizePixel = 0
     	card.AutomaticSize = Enum.AutomaticSize.XY
     	card.Visible = false
@@ -6415,6 +6416,15 @@ run(function()
     		end
     	end,
     	Tooltip = 'Renders hives locations and info'
+    })
+    Background = HiveESP:CreateToggle({
+    	Name = 'Background',
+    	Function = function(callback)
+    		for _, card in Reference do
+    			card.BackgroundTransparency = callback and 0.35 or 1
+    		end
+    	end,
+    	Default = true
     })
 end)
 
@@ -7362,6 +7372,7 @@ end)
 
 run(function()
     local ItemESP
+    local Background
     local WhitelistOnly
     local Whitelist = {ListEnabled = {}, Object = nil}
 
@@ -7380,7 +7391,7 @@ run(function()
     	card.Name = ent.Name
     	card.AnchorPoint = Vector2.new(0.5, 1)
     	card.BackgroundColor3 = Color3.new()
-    	card.BackgroundTransparency = 0.35
+    	card.BackgroundTransparency = Background.Enabled and 0.35 or 1
     	card.BorderSizePixel = 0
     	card.AutomaticSize = Enum.AutomaticSize.XY
     	card.Visible = false
@@ -7462,6 +7473,15 @@ run(function()
     		end
     	end,
     	Tooltip = 'Renders tags dropped items'
+    })
+    Background = ItemESP:CreateToggle({
+    	Name = 'Background',
+    	Function = function(callback)
+    		for _, card in Reference do
+    			card.BackgroundTransparency = callback and 0.35 or 1
+    		end
+    	end,
+    	Default = true
     })
     ItemESP:CreateToggle({
     	Name = 'Group items',
@@ -7741,6 +7761,7 @@ end)
 
 run(function()
     local KitESP
+    local Background
     local Reference = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
@@ -7761,7 +7782,7 @@ run(function()
     	card.Name = icon
     	card.AnchorPoint = Vector2.new(0.5, 1)
     	card.BackgroundColor3 = Color3.new()
-    	card.BackgroundTransparency = 0.35
+    	card.BackgroundTransparency = Background.Enabled and 0.35 or 1
     	card.BorderSizePixel = 0
     	card.AutomaticSize = Enum.AutomaticSize.XY
     	card.Visible = false
@@ -7848,6 +7869,15 @@ run(function()
     		end
     	end,
     	Tooltip = 'ESP for certain kit related objects'
+    })
+    Background = KitESP:CreateToggle({
+    	Name = 'Background',
+    	Function = function(callback)
+    		for _, card in Reference do
+    			card.BackgroundTransparency = callback and 0.35 or 1
+    		end
+    	end,
+    	Default = true
     })
 end)
 
@@ -8823,6 +8853,7 @@ end)
 run(function()
     local StorageESP
     local List
+    local Background
     local Reference = {}
     local Enabled = {}
     local Connections = {}
@@ -8941,7 +8972,7 @@ run(function()
     	local card = Instance.new('Frame')
     	card.AnchorPoint = Vector2.new(0.5, 1)
     	card.BackgroundColor3 = Color3.new()
-    	card.BackgroundTransparency = 0.35
+    	card.BackgroundTransparency = Background.Enabled and 0.35 or 1
     	card.BorderSizePixel = 0
     	card.AutomaticSize = Enum.AutomaticSize.XY
     	card.Visible = false
@@ -9055,6 +9086,15 @@ run(function()
     		end
     	end,
     })
+    Background = StorageESP:CreateToggle({
+    	Name = 'Background',
+    	Function = function(callback)
+    		for _, card in Reference do
+    			card.BackgroundTransparency = callback and 0.35 or 1
+    		end
+    	end,
+    	Default = true
+    })
 end)
 
 run(function()
@@ -9079,6 +9119,7 @@ end)
 
 run(function()
     local TrapESP
+    local Background
 
     local Reference = {}
     local Folder = Instance.new('Folder')
@@ -9088,7 +9129,7 @@ run(function()
     	local card = Instance.new('Frame')
     	card.AnchorPoint = Vector2.new(0.5, 1)
     	card.BackgroundColor3 = Color3.new()
-    	card.BackgroundTransparency = 0.35
+    	card.BackgroundTransparency = Background.Enabled and 0.35 or 1
     	card.BorderSizePixel = 0
     	card.AutomaticSize = Enum.AutomaticSize.XY
     	card.Visible = false
@@ -9168,6 +9209,15 @@ run(function()
     		end
     	end,
     	Tooltip = 'Render traps placed by other teams'
+    })
+    Background = TrapESP:CreateToggle({
+    	Name = 'Background',
+    	Function = function(callback)
+    		for _, card in Reference do
+    			card.BackgroundTransparency = callback and 0.35 or 1
+    		end
+    	end,
+    	Default = true
     })
 end)
 
