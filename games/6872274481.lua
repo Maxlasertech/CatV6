@@ -9428,6 +9428,7 @@ run(function()
     local origLighting = {}
     local origCloudEnabled = nil
     local disabledEffects = {}
+    local hasFF = false
     local savedLightProps = {'Ambient','OutdoorAmbient','Brightness','ExposureCompensation','FogColor','FogEnd','FogStart','GlobalShadows'}
     local watchedLightProps = {FogEnd=true,FogStart=true,FogColor=true,Ambient=true,OutdoorAmbient=true,Brightness=true,ExposureCompensation=true,GlobalShadows=true}
 
@@ -9633,21 +9634,23 @@ run(function()
                 repeat task.wait() until store.map or not KingAuto.Enabled
                 if not KingAuto.Enabled then return end
 
-                -- FFlags: try to kill textures, shadows, grass, mesh detail at engine level
-                -- pcall each one since not all executors support every flag
-                pcall(setfflag, 'PartTexturePackTable2022', '{}')
-                pcall(setfflag, 'PartTexturePackTablePre2022', '{}')
-                pcall(setfflag, 'TextureCompositorActiveJobs', '0')
-                pcall(setfflag, 'RenderShadowIntensity', '0')
-                pcall(setfflag, 'FRMQualityLevelOverride', '1')
-                pcall(setfflag, 'GrassMaxDistance', '0')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistance', '0')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL12', '0')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL23', '0')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL34', '0')
-                pcall(setfflag, 'DebugPauseVoxelizer', 'True')
-                pcall(setfflag, 'RenderLocalLightUpdatesMax', '0')
-                pcall(setfflag, 'RenderLocalLightUpdatesMin', '0')
+                -- FFlags: kill textures, shadows, grass, mesh detail at engine level
+                -- Only call if setfflag exists and actually works (avoids console spam)
+                hasFF = type(setfflag) == 'function' and pcall(setfflag, 'RenderShadowIntensity', '0')
+                if hasFF then
+                    pcall(setfflag, 'PartTexturePackTable2022', '{}')
+                    pcall(setfflag, 'PartTexturePackTablePre2022', '{}')
+                    pcall(setfflag, 'TextureCompositorActiveJobs', '0')
+                    pcall(setfflag, 'FRMQualityLevelOverride', '1')
+                    pcall(setfflag, 'GrassMaxDistance', '0')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistance', '0')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL12', '0')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL23', '0')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL34', '0')
+                    pcall(setfflag, 'DebugPauseVoxelizer', 'True')
+                    pcall(setfflag, 'RenderLocalLightUpdatesMax', '0')
+                    pcall(setfflag, 'RenderLocalLightUpdatesMin', '0')
+                end
 
                 -- === Block overhaul (batched to avoid frame spike) ===
                 local BATCH = 150
@@ -9673,13 +9676,18 @@ run(function()
                 KingAuto:Clean(store.map.Blocks.ChildAdded:Connect(function(v)
                     if not KingAuto.Enabled then return end
                     local col = blockColors[v.Name]
-                    pcall(scanBlock, v, col)
                     KingAuto:Clean(v.DescendantAdded:Connect(function(d)
                         if not KingAuto.Enabled then return end
                         if d:IsA('BasePart') then
                             pcall(applyPart, d, col)
+                        elseif d:IsA('SurfaceAppearance') or d:IsA('Decal') or d:IsA('Texture') then
+                            pcall(function() d:Destroy() end)
                         end
                     end))
+                    pcall(scanBlock, v, col)
+                    task.defer(function()
+                        if KingAuto.Enabled then pcall(scanBlock, v, col) end
+                    end)
                 end))
                 local function getToolBlockColor(inst, char)
                     local p = inst.Parent
@@ -9800,18 +9808,20 @@ run(function()
                     end
                 end))
             else
-                -- Restore FFlags
-                pcall(setfflag, 'TextureCompositorActiveJobs', '8')
-                pcall(setfflag, 'RenderShadowIntensity', '1')
-                pcall(setfflag, 'FRMQualityLevelOverride', '0')
-                pcall(setfflag, 'GrassMaxDistance', '100')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistance', '250')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL12', '400')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL23', '600')
-                pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL34', '800')
-                pcall(setfflag, 'DebugPauseVoxelizer', 'False')
-                pcall(setfflag, 'RenderLocalLightUpdatesMax', '8')
-                pcall(setfflag, 'RenderLocalLightUpdatesMin', '6')
+                -- Restore FFlags (only if they were set)
+                if hasFF then
+                    pcall(setfflag, 'TextureCompositorActiveJobs', '8')
+                    pcall(setfflag, 'RenderShadowIntensity', '1')
+                    pcall(setfflag, 'FRMQualityLevelOverride', '0')
+                    pcall(setfflag, 'GrassMaxDistance', '100')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistance', '250')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL12', '400')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL23', '600')
+                    pcall(setfflag, 'CSGLevelOfDetailSwitchingDistanceL34', '800')
+                    pcall(setfflag, 'DebugPauseVoxelizer', 'False')
+                    pcall(setfflag, 'RenderLocalLightUpdatesMax', '8')
+                    pcall(setfflag, 'RenderLocalLightUpdatesMin', '6')
+                end
                 -- Restore effects
                 for obj in disabledEffects do
                     pcall(function() obj.Enabled = true end)
