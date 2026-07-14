@@ -11616,23 +11616,27 @@ run(function()
             if callback then
                 repeat task.wait() until store.shopLoaded or not ShopTierBypass.Enabled
                 if ShopTierBypass.Enabled then
-                    local visited = {}
-                    for key, v in bedwars.Shop.ShopItems do
+                    local itemsByType = {}
+                    for _, v in bedwars.Shop.ShopItems do
                         savedTiered[v] = v.tiered
                         savedNextTier[v] = v.nextTier
+                        if v.itemType then
+                            itemsByType[v.itemType] = v
+                        end
                     end
 
-                    for key, v in bedwars.Shop.ShopItems do
-                        if not visited[key] and not v.tiered then
+                    local visited = {}
+                    for itemType, v in itemsByType do
+                        if not visited[itemType] and not v.tiered then
                             local chain = {items = {}, index = {}}
                             local current = v
-                            local currentKey = key
+                            local currentType = itemType
                             while current do
-                                table.insert(chain.items, currentKey)
-                                chain.index[currentKey] = #chain.items
-                                visited[currentKey] = true
-                                currentKey = current.nextTier
-                                current = currentKey and bedwars.Shop.ShopItems[currentKey] or nil
+                                table.insert(chain.items, currentType)
+                                chain.index[currentType] = #chain.items
+                                visited[currentType] = true
+                                currentType = current.nextTier
+                                current = currentType and itemsByType[currentType] or nil
                             end
                             if #chain.items > 1 then
                                 for _, it in chain.items do
@@ -11645,7 +11649,7 @@ run(function()
                     for _, group in knownTiers do
                         local hasAny = false
                         for _, it in group do
-                            if bedwars.Shop.ShopItems[it] and not tierChains[it] then
+                            if itemsByType[it] and not tierChains[it] then
                                 hasAny = true
                                 break
                             end
@@ -11653,7 +11657,7 @@ run(function()
                         if hasAny then
                             local chain = {items = {}, index = {}}
                             for _, it in group do
-                                if bedwars.Shop.ShopItems[it] then
+                                if itemsByType[it] then
                                     table.insert(chain.items, it)
                                     chain.index[it] = #chain.items
                                 end
