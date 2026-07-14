@@ -11570,9 +11570,9 @@ end)
 run(function()
     local ShopTierBypass
     local savedTiered, savedNextTier = {}, {}
-    local oldGetShop, oldGetShopItem, oldCallServerAsync
+    local oldGetShop, oldGetShopItem, oldInvokeServer
     local tierChains = {}
-    local purchaseRemote
+    local purchaseInstance
     local knownTiers = {
         {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'},
         {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'},
@@ -11691,9 +11691,9 @@ run(function()
                         return result
                     end
 
-                    purchaseRemote = bedwars.Client:Get('BedwarsPurchaseItem')
-                    oldCallServerAsync = purchaseRemote.CallServerAsync
-                    purchaseRemote.CallServerAsync = function(self, data, ...)
+                    purchaseInstance = bedwars.Client:Get('BedwarsPurchaseItem').instance
+                    oldInvokeServer = purchaseInstance.InvokeServer
+                    purchaseInstance.InvokeServer = function(self, data, ...)
                         if data and data.shopItem and data.shopItem.itemType then
                             local itemType = data.shopItem.itemType
                             if shouldBlock(itemType) then
@@ -11703,10 +11703,10 @@ run(function()
                                 else
                                     notif('ShopTierBypass', 'Already owned: '..displayName, 3, 'alert')
                                 end
-                                return {andThen = function() end}
+                                return false
                             end
                         end
-                        return oldCallServerAsync(self, data, ...)
+                        return oldInvokeServer(self, data, ...)
                     end
                 end
             else
@@ -11718,10 +11718,10 @@ run(function()
                     bedwars.Shop.getShopItem = oldGetShopItem
                     oldGetShopItem = nil
                 end
-                if purchaseRemote and oldCallServerAsync then
-                    purchaseRemote.CallServerAsync = oldCallServerAsync
-                    oldCallServerAsync = nil
-                    purchaseRemote = nil
+                if purchaseInstance and oldInvokeServer then
+                    purchaseInstance.InvokeServer = oldInvokeServer
+                    oldInvokeServer = nil
+                    purchaseInstance = nil
                 end
                 for i, v in savedTiered do
                     i.tiered = v
