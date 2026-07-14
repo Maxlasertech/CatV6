@@ -11603,6 +11603,7 @@ run(function()
     end
 
     local function shouldBlock(itemType)
+        if not tierChains[itemType] then return false end
         if hasItemOwned(itemType) then return true end
         if isDowngrade(itemType) then return true end
         return false
