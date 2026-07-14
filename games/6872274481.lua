@@ -11783,6 +11783,161 @@ run(function()
 end)
 
 run(function()
+    local UpgradeShopBypass
+    local debugConn
+    local oldRequestPurchase
+    local savedTierData = {}
+
+    UpgradeShopBypass = vape.Categories.Utility:CreateModule({
+        Name = 'Upgrade Shop Bypass',
+        Function = function(callback)
+            if callback then
+                repeat task.wait() until next(bedwars.TeamUpgradeMeta) or not UpgradeShopBypass.Enabled
+                if not UpgradeShopBypass.Enabled then return end
+
+                for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
+                    savedTierData[upgradeType] = {}
+                    for i, tier in upgrade.tiers do
+                        savedTierData[upgradeType][i] = {
+                            availableOnlyInQueue = tier.availableOnlyInQueue,
+                            disabledInQueue = upgrade.disabledInQueue
+                        }
+                        tier.availableOnlyInQueue = nil
+                    end
+                    upgrade.disabledInQueue = nil
+                end
+
+                oldRequestPurchase = bedwars.Client.Get
+                bedwars.Client.Get = function(self, name, ...)
+                    local remote = oldRequestPurchase(self, name, ...)
+                    if name == 'RequestPurchaseTeamUpgrade' then
+                        local wrapper = {}
+                        setmetatable(wrapper, {
+                            __index = function(_, key)
+                                if key == 'CallServerAsync' then
+                                    return function(_, upgradeType, ...)
+                                        local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
+                                        local team = lplr:GetAttribute('Team')
+                                        local currentUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
+                                        local currentTier = (currentUpgrades[upgradeType] or 0) + 1
+                                        local upgradeName = upgrade and (upgrade.name == 'Armor' and 'Protection' or upgrade.name) or upgradeType
+                                        if upgrade and currentTier > #upgrade.tiers then
+                                            notif('UpgradeShopBypass', 'Already maxed: '..upgradeName, 3, 'alert')
+                                            return {andThen = function() end}
+                                        end
+                                        notif('UpgradeShopBypass', 'Purchasing '..upgradeName..' tier '..currentTier, 3, 'info')
+                                        return remote:CallServerAsync(upgradeType, ...)
+                                    end
+                                end
+                                return remote[key]
+                            end
+                        })
+                        return wrapper
+                    end
+                    return remote
+                end
+
+                debugConn = inputService.InputBegan:Connect(function(input, gpe)
+                    if gpe then return end
+                    if input.KeyCode == Enum.KeyCode.F4 and UpgradeShopBypass.Enabled then
+                        local lines = {'[UpgradeShopBypass Debug]'}
+                        local team = lplr:GetAttribute('Team')
+                        local teamUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
+                        table.insert(lines, 'Team: '..(team or 'none'))
+                        table.insert(lines, 'Queue: '..(store.queueType or 'unknown'))
+                        table.insert(lines, '')
+                        table.insert(lines, 'Available upgrades:')
+                        for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
+                            local currentTier = teamUpgrades[upgradeType] or 0
+                            local maxTier = #upgrade.tiers
+                            local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
+                            local status = currentTier >= maxTier and 'MAXED' or ('tier '..currentTier..'/'..maxTier)
+                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..'] - '..status)
+
+                            for i, tier in upgrade.tiers do
+                                local owned = i <= currentTier and ' [OWNED]' or ''
+                                local queueLock = ''
+                                if savedTierData[upgradeType] and savedTierData[upgradeType][i] then
+                                    local orig = savedTierData[upgradeType][i]
+                                    if orig.availableOnlyInQueue then
+                                        queueLock = ' (queue-locked: '..table.concat(orig.availableOnlyInQueue, ',')..')'
+                                    end
+                                    if orig.disabledInQueue then
+                                        queueLock = queueLock..' (disabled-in: '..table.concat(orig.disabledInQueue, ',')..')'
+                                    end
+                                end
+                                table.insert(lines, '    tier '..i..': '..tier.cost..' diamonds'..owned..queueLock)
+                            end
+                        end
+
+                        table.insert(lines, '')
+                        table.insert(lines, 'Raw teamUpgrades state:')
+                        for k, v in teamUpgrades do
+                            if type(v) == 'table' then
+                                for uk, uv in v do
+                                    table.insert(lines, '  '..tostring(k)..'.'..tostring(uk)..' = '..tostring(uv))
+                                end
+                            else
+                                table.insert(lines, '  '..tostring(k)..' = '..tostring(v))
+                            end
+                        end
+
+                        table.insert(lines, '')
+                        table.insert(lines, 'Bypass status:')
+                        for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
+                            local bypassed = {}
+                            if savedTierData[upgradeType] then
+                                for i, orig in savedTierData[upgradeType] do
+                                    if orig.availableOnlyInQueue then
+                                        table.insert(bypassed, 'tier '..i..' queue-lock removed')
+                                    end
+                                end
+                                if savedTierData[upgradeType][1] and savedTierData[upgradeType][1].disabledInQueue then
+                                    table.insert(bypassed, 'disabledInQueue removed')
+                                end
+                            end
+                            if #bypassed > 0 then
+                                local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
+                                table.insert(lines, '  '..upgradeName..': '..table.concat(bypassed, ', '))
+                            end
+                        end
+
+                        local text = table.concat(lines, '\n')
+                        if setclipboard then
+                            setclipboard(text)
+                        end
+                        print(text)
+                        notif('UpgradeShopBypass', 'Debug copied to clipboard & console', 3, 'info')
+                    end
+                end)
+            else
+                if oldRequestPurchase then
+                    bedwars.Client.Get = oldRequestPurchase
+                    oldRequestPurchase = nil
+                end
+                if debugConn then
+                    debugConn:Disconnect()
+                    debugConn = nil
+                end
+                for upgradeType, tiers in savedTierData do
+                    local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
+                    if upgrade then
+                        for i, orig in tiers do
+                            if upgrade.tiers[i] then
+                                upgrade.tiers[i].availableOnlyInQueue = orig.availableOnlyInQueue
+                            end
+                            upgrade.disabledInQueue = orig.disabledInQueue
+                        end
+                    end
+                end
+                table.clear(savedTierData)
+            end
+        end,
+        Tooltip = 'Bypasses queue/tier locks on team upgrades. F4 for debug.'
+    })
+end)
+
+run(function()
     local StaffDetector
     local Mode
     local Clans
