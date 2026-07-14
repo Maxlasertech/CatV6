@@ -9597,9 +9597,11 @@ run(function()
 
     local function applyPart(part, colorOverride)
         if saved[part] or part.Material == Enum.Material.Neon or part.Material == Enum.Material.ForceField then return end
-        for _, child in part:GetChildren() do
-            if child:IsA('SurfaceAppearance') or child:IsA('Decal') or child:IsA('Texture') then
-                pcall(function() child:Destroy() end)
+        if part.Name ~= 'Handle' then
+            for _, child in part:GetChildren() do
+                if child:IsA('SurfaceAppearance') or child:IsA('Decal') or child:IsA('Texture') then
+                    pcall(function() child:Destroy() end)
+                end
             end
         end
         local origMat   = part.Material
