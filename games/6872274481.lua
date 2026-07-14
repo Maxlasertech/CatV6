@@ -11574,7 +11574,6 @@ run(function()
     local savedTiered, savedNextTier = {}, {}
     local oldGetShop, oldGetShopItem, oldClientGet
     local tierChains = {}
-    local debugConn
     local knownTiers = {
         {'wood_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe'},
         {'wood_axe', 'stone_axe', 'iron_axe', 'diamond_axe'},
@@ -11707,48 +11706,6 @@ run(function()
                         return remote
                     end
 
-                    debugConn = inputService.InputBegan:Connect(function(input, gpe)
-                        if gpe then return end
-                        if input.KeyCode == Enum.KeyCode.F4 and ShopTierBypass.Enabled then
-                            local lines = {'[ShopTierBypass Debug]'}
-                            table.insert(lines, 'Tier chains found: ')
-                            local seen = {}
-                            for itemType, chain in tierChains do
-                                local key = table.concat(chain.items, ' > ')
-                                if not seen[key] then
-                                    seen[key] = true
-                                    table.insert(lines, '  ' .. key)
-                                end
-                            end
-                            table.insert(lines, '')
-                            table.insert(lines, 'Inventory check:')
-                            for _, item in store.inventory.inventory.items do
-                                table.insert(lines, '  item: ' .. item.itemType)
-                            end
-                            local armor = store.inventory.inventory.armor
-                            if armor then
-                                for slot, a in armor do
-                                    if type(a) == 'table' then
-                                        table.insert(lines, '  armor[' .. slot .. ']: ' .. a.itemType)
-                                    end
-                                end
-                            end
-                            table.insert(lines, '')
-                            table.insert(lines, 'Block status:')
-                            for itemType in tierChains do
-                                if shouldBlock(itemType) then
-                                    local reason = isDowngrade(itemType) and 'downgrade' or 'already owned'
-                                    table.insert(lines, '  BLOCKED ' .. itemType .. ' (' .. reason .. ')')
-                                end
-                            end
-                            local text = table.concat(lines, '\n')
-                            if setclipboard then
-                                setclipboard(text)
-                            end
-                            print(text)
-                            notif('ShopTierBypass', 'Debug copied to clipboard & console', 3, 'info')
-                        end
-                    end)
                 end
             else
                 if oldGetShop then
@@ -11762,10 +11719,6 @@ run(function()
                 if oldClientGet then
                     bedwars.Client.Get = oldClientGet
                     oldClientGet = nil
-                end
-                if debugConn then
-                    debugConn:Disconnect()
-                    debugConn = nil
                 end
                 for i, v in savedTiered do
                     i.tiered = v
