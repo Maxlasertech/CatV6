@@ -11570,9 +11570,8 @@ end)
 run(function()
     local ShopTierBypass
     local savedTiered, savedNextTier = {}, {}
-    local oldGetShop, oldGetShopItem, oldInvokeServer
+    local oldGetShop, oldGetShopItem, oldClientGet
     local tierChains = {}
-    local purchaseInstance
     local knownTiers = {
         {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'},
         {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'},
@@ -11691,22 +11690,36 @@ run(function()
                         return result
                     end
 
-                    purchaseInstance = bedwars.Client:Get('BedwarsPurchaseItem').instance
-                    oldInvokeServer = purchaseInstance.InvokeServer
-                    purchaseInstance.InvokeServer = function(self, data, ...)
-                        if data and data.shopItem and data.shopItem.itemType then
-                            local itemType = data.shopItem.itemType
-                            if shouldBlock(itemType) then
-                                local displayName = bedwars.ItemMeta[itemType] and bedwars.ItemMeta[itemType].displayName or itemType
-                                if isDowngrade(itemType) then
-                                    notif('ShopTierBypass', 'Blocked downgrade: '..displayName, 3, 'alert')
-                                else
-                                    notif('ShopTierBypass', 'Already owned: '..displayName, 3, 'alert')
+                    oldClientGet = bedwars.Client.Get
+                    bedwars.Client.Get = function(self, name, ...)
+                        local remote = oldClientGet(self, name, ...)
+                        if name == 'BedwarsPurchaseItem' then
+                            local wrapper = {}
+                            setmetatable(wrapper, {
+                                __index = function(_, key)
+                                    if key == 'CallServerAsync' then
+                                        return function(_, data, ...)
+                                            if data and data.shopItem and data.shopItem.itemType then
+                                                local itemType = data.shopItem.itemType
+                                                if shouldBlock(itemType) then
+                                                    local displayName = bedwars.ItemMeta[itemType] and bedwars.ItemMeta[itemType].displayName or itemType
+                                                    if isDowngrade(itemType) then
+                                                        notif('ShopTierBypass', 'Blocked downgrade: '..displayName, 3, 'alert')
+                                                    else
+                                                        notif('ShopTierBypass', 'Already owned: '..displayName, 3, 'alert')
+                                                    end
+                                                    return {andThen = function() end}
+                                                end
+                                            end
+                                            return remote:CallServerAsync(data, ...)
+                                        end
+                                    end
+                                    return remote[key]
                                 end
-                                return false
-                            end
+                            })
+                            return wrapper
                         end
-                        return oldInvokeServer(self, data, ...)
+                        return remote
                     end
                 end
             else
@@ -11718,10 +11731,9 @@ run(function()
                     bedwars.Shop.getShopItem = oldGetShopItem
                     oldGetShopItem = nil
                 end
-                if purchaseInstance and oldInvokeServer then
-                    purchaseInstance.InvokeServer = oldInvokeServer
-                    oldInvokeServer = nil
-                    purchaseInstance = nil
+                if oldClientGet then
+                    bedwars.Client.Get = oldClientGet
+                    oldClientGet = nil
                 end
                 for i, v in savedTiered do
                     i.tiered = v
