@@ -1,5 +1,5 @@
 local canDebug = true
-local VERSION = 38
+local VERSION = 39
 local run = function(func)
 	func()
 end
@@ -15673,7 +15673,7 @@ end)
 run(function()
     local KingDraco
     local RangeSetting, SpeedSetting, TickRate, BreakMode
-    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, LockedTarget, BaseOre, BreakerFallback, DebugMode
+    local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, BaseOre, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
@@ -15964,7 +15964,23 @@ run(function()
             end
         end
 
-        return best.entry, best.route, best.anchor
+        return best.entry, best.route, best.anchor, best.cost
+    end
+
+    local function getRouteCost(positions, origin)
+        local useDistance = BreakMode and BreakMode.Value == 'Distance'
+        local total = 0
+        for _, pos in positions do
+            local block = getPlacedBlock(pos)
+            if block and not block:GetAttribute('NoBreak') then
+                if useDistance and origin then
+                    total += (origin - Vector3.new(pos.X, origin.Y, pos.Z)).Magnitude
+                else
+                    total += getBlockHits(block, pos)
+                end
+            end
+        end
+        return total
     end
 
     local function drawPath(route, entry, anchor)
@@ -16024,6 +16040,8 @@ run(function()
 
     local function fullCleanup()
         store._lockedDefenseBlock = nil
+        store._routePositions = nil
+        store._routeAnchor = nil
         killBar()
         for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
         table.clear(pathParts)
@@ -16074,6 +16092,9 @@ run(function()
                         killBar()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
+                        store._routePositions = nil
+                        store._routeAnchor = nil
+                        store._lockedDefenseBlock = nil
                         task.wait(0.1)
                         continue
                     end
@@ -16093,6 +16114,8 @@ run(function()
 
                     if not bestBed then
                         store._lockedDefenseBlock = nil
+                        store._routePositions = nil
+                        store._routeAnchor = nil
                         clearPath()
                         killBar()
                         bedGlow.Adornee = nil
@@ -16142,6 +16165,9 @@ run(function()
                     end
 
                     if bedVis and store.damageBlockFail <= tick() then
+                        store._routePositions = nil
+                        store._routeAnchor = nil
+                        store._lockedDefenseBlock = nil
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
                         strike(bestBed)
@@ -16161,34 +16187,69 @@ run(function()
                         end
                     end
 
-                    local lockedBlock = LockedTarget and LockedTarget.Enabled and store._lockedDefenseBlock
-                    if lockedBlock and lockedBlock.Parent and (lockedBlock.Position - origin).Magnitude <= RangeSetting.Value then
-                        if isVisible(lockedBlock.Position) then
-                            targetGlow.Adornee = lockedBlock
-                            equipFor(lockedBlock)
-                            strike(lockedBlock)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike locked defense') end
+                    if store._routePositions then
+                        local advanced = {}
+                        for _, pos in store._routePositions do
+                            local blk = getPlacedBlock(pos)
+                            if blk and not blk:GetAttribute('NoBreak') then
+                                table.insert(advanced, pos)
+                            end
+                        end
+                        if #advanced == 0 then
+                            store._routePositions = nil
+                            store._routeAnchor = nil
+                            store._lockedDefenseBlock = nil
+                        else
+                            store._routePositions = advanced
+                        end
+                    end
+
+                    local freshEntry, freshRoute, freshAnchor, freshCost = planAttack(bestBed, origin)
+
+                    local useStored = false
+                    if store._routePositions and #store._routePositions > 0 then
+                        local storedCost = getRouteCost(store._routePositions, origin)
+                        if freshRoute then
+                            if storedCost <= freshCost then
+                                useStored = true
+                            end
+                        else
+                            useStored = true
+                        end
+                        if DebugMode and DebugMode.Enabled then
+                            dbg('[KD] route compare: stored=' .. string.format('%.1f', storedCost) .. ' (' .. #store._routePositions .. ' blocks) fresh=' .. (freshRoute and string.format('%.1f', freshCost) or 'none') .. ' -> ' .. (useStored and 'keep' or 'switch'))
+                        end
+                    end
+
+                    if useStored then
+                        local hitPos = store._routePositions[1]
+                        local hitBlock = getPlacedBlock(hitPos)
+                        if hitBlock and isVisible(hitPos) and (hitPos - origin).Magnitude <= RangeSetting.Value then
+                            store._lockedDefenseBlock = hitBlock
+                            targetGlow.Adornee = hitBlock
+                            if PathOverlay.Enabled then drawPath(store._routePositions, hitPos, store._routeAnchor) end
+                            equipFor(hitBlock)
+                            strike(hitBlock)
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike stored route (' .. hitBlock.Name .. ')') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
-                    elseif lockedBlock and (not lockedBlock.Parent or (lockedBlock.Position - origin).Magnitude > RangeSetting.Value) then
-                        store._lockedDefenseBlock = nil
                     end
 
-                    local entry, route, anchor = planAttack(bestBed, origin)
-                    if entry then
-                        local entryBlock = getPlacedBlock(entry)
+                    if freshEntry then
+                        local entryBlock = getPlacedBlock(freshEntry)
                         if DebugMode and DebugMode.Enabled then
-                            dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
+                            dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(freshEntry)))
                         end
-                        if entryBlock and isVisible(entry) then
-                            if LockedTarget and LockedTarget.Enabled then
-                                store._lockedDefenseBlock = entryBlock
-                            end
+                        if entryBlock and isVisible(freshEntry) then
+                            store._routePositions = freshRoute
+                            store._routeAnchor = freshAnchor
+                            store._lockedDefenseBlock = entryBlock
                             targetGlow.Adornee = entryBlock
-                            if PathOverlay.Enabled then drawPath(route, entry, anchor) end
+                            if PathOverlay.Enabled then drawPath(freshRoute, freshEntry, freshAnchor) end
+                            equipFor(entryBlock)
                             strike(entryBlock)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike defense') end
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike fresh route (' .. entryBlock.Name .. ')') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
@@ -16278,10 +16339,6 @@ run(function()
     })
     BreakSelf = KingDraco:CreateToggle({Name = 'Self break'})
     QuickBreak = KingDraco:CreateToggle({Name = 'Instant break'})
-    LockedTarget = KingDraco:CreateToggle({
-        Name = 'Locked target',
-        Tooltip = 'Stays on a defense block until it breaks or goes out of range'
-    })
     BaseOre = KingDraco:CreateToggle({
         Name = 'Base ore',
         Tooltip = 'Mines iron ore near your own bed when idle'
