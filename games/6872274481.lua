@@ -11738,56 +11738,35 @@ end)
 run(function()
     local UpgradeShopBypass
     local debugConn
-    local oldRequestPurchase
+    local savedRequire = {}
     local savedTierData = {}
 
     UpgradeShopBypass = vape.Categories.Utility:CreateModule({
         Name = 'Upgrade Shop Bypass',
         Function = function(callback)
             if callback then
-                repeat task.wait() until next(bedwars.TeamUpgradeMeta) or not UpgradeShopBypass.Enabled
+                repeat task.wait() until store.shopLoaded or not UpgradeShopBypass.Enabled
                 if not UpgradeShopBypass.Enabled then return end
 
+                for _, v in bedwars.Shop.ShopItems do
+                    if v.require and v.require.teamUpgrade then
+                        savedRequire[v] = v.require
+                        v.require = nil
+                    end
+                end
+
                 for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
-                    savedTierData[upgradeType] = {}
+                    savedTierData[upgradeType] = {
+                        disabledInQueue = upgrade.disabledInQueue,
+                        tiers = {}
+                    }
+                    upgrade.disabledInQueue = nil
                     for i, tier in upgrade.tiers do
-                        savedTierData[upgradeType][i] = {
-                            availableOnlyInQueue = tier.availableOnlyInQueue,
-                            disabledInQueue = upgrade.disabledInQueue
+                        savedTierData[upgradeType].tiers[i] = {
+                            availableOnlyInQueue = tier.availableOnlyInQueue
                         }
                         tier.availableOnlyInQueue = nil
                     end
-                    upgrade.disabledInQueue = nil
-                end
-
-                oldRequestPurchase = bedwars.Client.Get
-                bedwars.Client.Get = function(self, name, ...)
-                    local remote = oldRequestPurchase(self, name, ...)
-                    if name == 'RequestPurchaseTeamUpgrade' then
-                        local wrapper = {}
-                        setmetatable(wrapper, {
-                            __index = function(_, key)
-                                if key == 'CallServerAsync' then
-                                    return function(_, upgradeType, ...)
-                                        local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
-                                        local team = lplr:GetAttribute('Team')
-                                        local currentUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
-                                        local currentTier = (currentUpgrades[upgradeType] or 0) + 1
-                                        local upgradeName = upgrade and (upgrade.name == 'Armor' and 'Protection' or upgrade.name) or upgradeType
-                                        if upgrade and currentTier > #upgrade.tiers then
-                                            notif('UpgradeShopBypass', 'Already maxed: '..upgradeName, 3, 'alert')
-                                            return {andThen = function() end}
-                                        end
-                                        notif('UpgradeShopBypass', 'Purchasing '..upgradeName..' tier '..currentTier, 3, 'info')
-                                        return remote:CallServerAsync(upgradeType, ...)
-                                    end
-                                end
-                                return remote[key]
-                            end
-                        })
-                        return wrapper
-                    end
-                    return remote
                 end
 
                 debugConn = inputService.InputBegan:Connect(function(input, gpe)
@@ -11798,60 +11777,44 @@ run(function()
                         local teamUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
                         table.insert(lines, 'Team: '..(team or 'none'))
                         table.insert(lines, 'Queue: '..(store.queueType or 'unknown'))
+
                         table.insert(lines, '')
-                        table.insert(lines, 'Available upgrades:')
+                        table.insert(lines, 'Items with upgrade requirement BYPASSED:')
+                        local bypassCount = 0
+                        for item, req in savedRequire do
+                            local tu = req.teamUpgrade
+                            local displayName = item.itemType and bedwars.ItemMeta[item.itemType] and bedwars.ItemMeta[item.itemType].displayName or (item.itemType or '?')
+                            local currentLevel = teamUpgrades[tu.upgradeId] or 0
+                            local needed = tu.lowestTierIndex
+                            local wouldBlock = currentLevel < needed
+                            local upgradeName = bedwars.TeamUpgradeMeta[tu.upgradeId] and bedwars.TeamUpgradeMeta[tu.upgradeId].name or tu.upgradeId
+                            table.insert(lines, '  '..displayName..' - needs '..upgradeName..' tier '..needed..' (have '..currentLevel..')'..(wouldBlock and ' [BYPASSED]' or ' [met]'))
+                            if wouldBlock then bypassCount += 1 end
+                        end
+                        if not next(savedRequire) then
+                            table.insert(lines, '  (no items had upgrade requirements)')
+                        else
+                            table.insert(lines, '  '..bypassCount..' item(s) actively bypassed')
+                        end
+
+                        table.insert(lines, '')
+                        table.insert(lines, 'Team upgrades:')
                         for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
                             local currentTier = teamUpgrades[upgradeType] or 0
                             local maxTier = #upgrade.tiers
                             local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
-                            local status = currentTier >= maxTier and 'MAXED' or ('tier '..currentTier..'/'..maxTier)
-                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..'] - '..status)
-
+                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..']: '..currentTier..'/'..maxTier)
                             for i, tier in upgrade.tiers do
                                 local owned = i <= currentTier and ' [OWNED]' or ''
                                 local queueLock = ''
-                                if savedTierData[upgradeType] and savedTierData[upgradeType][i] then
-                                    local orig = savedTierData[upgradeType][i]
-                                    if orig.availableOnlyInQueue then
-                                        queueLock = ' (queue-locked: '..table.concat(orig.availableOnlyInQueue, ',')..')'
-                                    end
-                                    if orig.disabledInQueue then
-                                        queueLock = queueLock..' (disabled-in: '..table.concat(orig.disabledInQueue, ',')..')'
-                                    end
+                                local saved = savedTierData[upgradeType]
+                                if saved and saved.tiers[i] and saved.tiers[i].availableOnlyInQueue then
+                                    queueLock = ' (queue-lock REMOVED: '..table.concat(saved.tiers[i].availableOnlyInQueue, ',')..')'
+                                end
+                                if i == 1 and saved and saved.disabledInQueue then
+                                    queueLock = queueLock..' (disabled-in REMOVED: '..table.concat(saved.disabledInQueue, ',')..')'
                                 end
                                 table.insert(lines, '    tier '..i..': '..tier.cost..' diamonds'..owned..queueLock)
-                            end
-                        end
-
-                        table.insert(lines, '')
-                        table.insert(lines, 'Raw teamUpgrades state:')
-                        for k, v in teamUpgrades do
-                            if type(v) == 'table' then
-                                for uk, uv in v do
-                                    table.insert(lines, '  '..tostring(k)..'.'..tostring(uk)..' = '..tostring(uv))
-                                end
-                            else
-                                table.insert(lines, '  '..tostring(k)..' = '..tostring(v))
-                            end
-                        end
-
-                        table.insert(lines, '')
-                        table.insert(lines, 'Bypass status:')
-                        for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
-                            local bypassed = {}
-                            if savedTierData[upgradeType] then
-                                for i, orig in savedTierData[upgradeType] do
-                                    if orig.availableOnlyInQueue then
-                                        table.insert(bypassed, 'tier '..i..' queue-lock removed')
-                                    end
-                                end
-                                if savedTierData[upgradeType][1] and savedTierData[upgradeType][1].disabledInQueue then
-                                    table.insert(bypassed, 'disabledInQueue removed')
-                                end
-                            end
-                            if #bypassed > 0 then
-                                local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
-                                table.insert(lines, '  '..upgradeName..': '..table.concat(bypassed, ', '))
                             end
                         end
 
@@ -11864,29 +11827,29 @@ run(function()
                     end
                 end)
             else
-                if oldRequestPurchase then
-                    bedwars.Client.Get = oldRequestPurchase
-                    oldRequestPurchase = nil
-                end
                 if debugConn then
                     debugConn:Disconnect()
                     debugConn = nil
                 end
-                for upgradeType, tiers in savedTierData do
+                for item, req in savedRequire do
+                    item.require = req
+                end
+                table.clear(savedRequire)
+                for upgradeType, saved in savedTierData do
                     local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
                     if upgrade then
-                        for i, orig in tiers do
+                        upgrade.disabledInQueue = saved.disabledInQueue
+                        for i, tierSaved in saved.tiers do
                             if upgrade.tiers[i] then
-                                upgrade.tiers[i].availableOnlyInQueue = orig.availableOnlyInQueue
+                                upgrade.tiers[i].availableOnlyInQueue = tierSaved.availableOnlyInQueue
                             end
-                            upgrade.disabledInQueue = orig.disabledInQueue
                         end
                     end
                 end
                 table.clear(savedTierData)
             end
         end,
-        Tooltip = 'Bypasses queue/tier locks on team upgrades. F4 for debug.'
+        Tooltip = 'Strips team-upgrade requirements from shop items & queue locks from upgrades. F4 for debug.'
     })
 end)
 
