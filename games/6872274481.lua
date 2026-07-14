@@ -11740,6 +11740,9 @@ run(function()
     local debugConn
     local savedRequire = {}
     local savedTierData = {}
+    local oldClientGet
+    local myHook
+    local buying = false
 
     UpgradeShopBypass = vape.Categories.Utility:CreateModule({
         Name = 'Upgrade Shop Bypass',
@@ -11769,6 +11772,53 @@ run(function()
                     end
                 end
 
+                oldClientGet = bedwars.Client.Get
+                myHook = function(self, name, ...)
+                    local remote = oldClientGet(self, name, ...)
+                    if name == 'RequestPurchaseTeamUpgrade' and UpgradeShopBypass.Enabled and not buying then
+                        local wrapper = {}
+                        setmetatable(wrapper, {
+                            __index = function(_, key)
+                                if key == 'CallServerAsync' then
+                                    return function(_, upgradeType, ...)
+                                        local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
+                                        if not upgrade then return remote:CallServerAsync(upgradeType, ...) end
+                                        local team = lplr:GetAttribute('Team')
+                                        local currentTier = (bedwars.Store:getState().Bedwars.teamUpgrades[team] or {})[upgradeType] or 0
+                                        local maxTier = #upgrade.tiers
+                                        if currentTier >= maxTier then
+                                            notif('UpgradeShopBypass', 'Already maxed', 3, 'alert')
+                                            return {andThen = function() end}
+                                        end
+                                        buying = true
+                                        local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
+                                        local bought = 0
+                                        for i = currentTier + 1, maxTier do
+                                            local tier = upgrade.tiers[i]
+                                            local diamonds = getItem('diamond')
+                                            if not diamonds or diamonds.amount < tier.cost then break end
+                                            remote:CallServerAsync(upgradeType)
+                                            bought += 1
+                                            if i < maxTier then task.wait(0.15) end
+                                        end
+                                        buying = false
+                                        if bought > 1 then
+                                            notif('UpgradeShopBypass', 'Jumped '..upgradeName..' +'..bought..' tiers', 3, 'info')
+                                        elseif bought == 1 then
+                                            notif('UpgradeShopBypass', 'Bought '..upgradeName..' tier '..(currentTier + 1), 3, 'info')
+                                        end
+                                        return {andThen = function() end}
+                                    end
+                                end
+                                return remote[key]
+                            end
+                        })
+                        return wrapper
+                    end
+                    return remote
+                end
+                bedwars.Client.Get = myHook
+
                 debugConn = inputService.InputBegan:Connect(function(input, gpe)
                     if gpe then return end
                     if input.KeyCode == Enum.KeyCode.F4 and UpgradeShopBypass.Enabled then
@@ -11787,8 +11837,8 @@ run(function()
                             local currentLevel = teamUpgrades[tu.upgradeId] or 0
                             local needed = tu.lowestTierIndex
                             local wouldBlock = currentLevel < needed
-                            local upgradeName = bedwars.TeamUpgradeMeta[tu.upgradeId] and bedwars.TeamUpgradeMeta[tu.upgradeId].name or tu.upgradeId
-                            table.insert(lines, '  '..displayName..' - needs '..upgradeName..' tier '..needed..' (have '..currentLevel..')'..(wouldBlock and ' [BYPASSED]' or ' [met]'))
+                            local uName = bedwars.TeamUpgradeMeta[tu.upgradeId] and bedwars.TeamUpgradeMeta[tu.upgradeId].name or tu.upgradeId
+                            table.insert(lines, '  '..displayName..' - needs '..uName..' tier '..needed..' (have '..currentLevel..')'..(wouldBlock and ' [BYPASSED]' or ' [met]'))
                             if wouldBlock then bypassCount += 1 end
                         end
                         if not next(savedRequire) then
@@ -11798,12 +11848,17 @@ run(function()
                         end
 
                         table.insert(lines, '')
-                        table.insert(lines, 'Team upgrades:')
+                        table.insert(lines, 'Team upgrades (click UPGRADE to jump to max):')
                         for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
                             local currentTier = teamUpgrades[upgradeType] or 0
                             local maxTier = #upgrade.tiers
                             local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
-                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..']: '..currentTier..'/'..maxTier)
+                            local totalCost = 0
+                            for i = currentTier + 1, maxTier do
+                                totalCost += upgrade.tiers[i].cost
+                            end
+                            local status = currentTier >= maxTier and 'MAXED' or ('tier '..currentTier..'/'..maxTier..' ('..totalCost..' diamonds to max)')
+                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..']: '..status)
                             for i, tier in upgrade.tiers do
                                 local owned = i <= currentTier and ' [OWNED]' or ''
                                 local queueLock = ''
@@ -11827,6 +11882,11 @@ run(function()
                     end
                 end)
             else
+                if bedwars.Client.Get == myHook then
+                    bedwars.Client.Get = oldClientGet
+                end
+                oldClientGet = nil
+                myHook = nil
                 if debugConn then
                     debugConn:Disconnect()
                     debugConn = nil
@@ -11849,7 +11909,7 @@ run(function()
                 table.clear(savedTierData)
             end
         end,
-        Tooltip = 'Strips team-upgrade requirements from shop items & queue locks from upgrades. F4 for debug.'
+        Tooltip = 'Click UPGRADE once to buy all tiers to max. Strips upgrade requirements from items. F4 debug.'
     })
 end)
 
