@@ -11737,7 +11737,6 @@ end)
 
 run(function()
     local UpgradeShopBypass
-    local TargetTier
     local debugConn
     local savedRequire = {}
     local savedTierData = {}
@@ -11792,7 +11791,7 @@ run(function()
                                         if not upgrade then return remote:CallServerAsync(upgradeType, ...) end
                                         local startTier = getTier(upgradeType)
                                         local maxTier = #upgrade.tiers
-                                        local target = math.min(TargetTier.Value, maxTier)
+                                        local target = maxTier
                                         local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
                                         if startTier >= target then
                                             notif('UpgradeShopBypass', upgradeName..' already at tier '..startTier, 3, 'alert')
@@ -11865,7 +11864,7 @@ run(function()
                         local teamUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
                         table.insert(lines, 'Team: '..(team or 'none'))
                         table.insert(lines, 'Queue: '..(store.queueType or 'unknown'))
-                        table.insert(lines, 'Target tier slider: '..TargetTier.Value)
+                        table.insert(lines, 'Target: max tier')
 
                         table.insert(lines, '')
                         table.insert(lines, 'Team upgrades:')
@@ -11943,13 +11942,6 @@ run(function()
         Tooltip = 'Attempts to skip upgrade tiers directly. Set target tier with slider, click UPGRADE. F4 for skip log.'
     })
 
-    TargetTier = UpgradeShopBypass:CreateSlider({
-        Name = 'Target Tier',
-        Min = 2,
-        Max = 10,
-        Default = 3,
-        Tooltip = 'Which tier to jump to when clicking UPGRADE'
-    })
 end)
 
 run(function()
