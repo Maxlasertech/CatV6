@@ -2182,7 +2182,7 @@ run(function()
     				if projmeta and tick() - update < 0.1 and lastent and lastent.RootPart then
     					local meta = projmeta:getProjectileMeta()
     					local gravity = (meta.gravitationalAcceleration or 196.2) * projmeta.gravityMultiplier
-    					local calc = prediction.SolveTrajectory(entitylib.character.RootPart.Position, (meta.launchVelocity or 100) * (1 - lplr:GetNetworkPing()), gravity, lastent.RootPart.Position, lastent.RootPart.Velocity, workspace.Gravity, entitylib.character.HipHeight, nil, rayCheck)
+    					local calc = prediction.SolveTrajectory(entitylib.character.RootPart.Position, (meta.launchVelocity or 100) * projmeta.velocityMultiplier, gravity, lastent.RootPart.Position, lastent.RootPart.Velocity, workspace.Gravity, entitylib.character.HipHeight, nil, rayCheck, lastent.RootPart)
     					predicted = calc
     					lastpredicted = tick()
     				else
@@ -5488,7 +5488,8 @@ run(function()
     rayCheck.FilterType = Enum.RaycastFilterType.Include
     rayCheck.FilterDescendantsInstances = {workspace:FindFirstChild('Map')}
     local launchHook
-    
+    local stickyTarget, stickyTime = nil, 0
+
     local function getMousePosition()
     	if inputService.TouchEnabled then
     		return gameCamera.ViewportSize / 2
@@ -5537,27 +5538,36 @@ run(function()
     			oldd = bedwars.BlockKickerKitController.getKickBlockProjectileOriginPosition
     			launchHook = bedwars.ProjectileLaunchHook:Add('ProjectileAimbot', 100, function(nextLaunch, ...)
     				local self, projmeta, worldmeta, origin, shootpos = ...
-    				local plr = entitylib.EntityMouse({
-    					Part = 'RootPart',
-    					Range = FOV.Value,
-    					Players = Targets.Players.Enabled,
-    					NPCs = Targets.NPCs.Enabled,
-    					Wallcheck = Targets.Walls.Enabled,
-    					Sort = sortmethods[Sort.Value or 'Distance'],
-    					Origin = entitylib.isAlive and (shootpos or entitylib.character.RootPart.Position) or Vector3.zero,
-    				})
-    
+
+    				if (not OtherProjectiles.Enabled) and not projmeta.projectile:find('arrow') then
+    					return nextLaunch(...)
+    				end
+
+    				if table.find(Blacklist.ListEnabled or {}, ((projmeta.projectile == 'glue_trap' or projmeta.projectile == 'glue_projectile') and 'gloop' or projmeta.projectile)) then
+    					return nextLaunch(...)
+    				end
+
+    				local now = tick()
+    				local plr
+    				if stickyTarget and (now - stickyTime) < 0.5 and stickyTarget.Humanoid and stickyTarget.Humanoid.Health > 0 and stickyTarget.RootPart and stickyTarget.RootPart.Parent then
+    					plr = stickyTarget
+    				else
+    					plr = entitylib.EntityMouse({
+    						Part = 'RootPart',
+    						Range = FOV.Value,
+    						Players = Targets.Players.Enabled,
+    						NPCs = Targets.NPCs.Enabled,
+    						Wallcheck = Targets.Walls.Enabled,
+    						Sort = sortmethods[Sort.Value or 'Distance'],
+    						Origin = entitylib.isAlive and (shootpos or entitylib.character.RootPart.Position) or Vector3.zero,
+    					})
+    					stickyTarget = plr
+    				end
+    				stickyTime = now
+
     				if plr then
     					local pos = shootpos or self:getLaunchPosition(origin)
     					if not pos then
-    						return nextLaunch(...)
-    					end
-    
-    					if (not OtherProjectiles.Enabled) and not projmeta.projectile:find('arrow') then
-    						return nextLaunch(...)
-    					end
-    
-    					if table.find(Blacklist.ListEnabled or {}, ((projmeta.projectile == 'glue_trap' or projmeta.projectile == 'glue_projectile') and 'gloop' or projmeta.projectile)) then
     						return nextLaunch(...)
     					end
     
@@ -5587,11 +5597,13 @@ run(function()
     
     					local targetpos = getPosition(plr.Character) or plr[TargetPart.Value].Position
     					local newlook = CFrame.new(offsetpos, targetpos) * CFrame.new(projmeta.projectile == 'owl_projectile' and Vector3.zero or Vector3.new(bedwars.BowConstantsTable.RelX, bedwars.BowConstantsTable.RelY, bedwars.BowConstantsTable.RelZ))
-    					local calc = prediction.SolveTrajectory(newlook.p, projSpeed * Prediction.Value, gravity, targetpos, projmeta.projectile == 'telepearl' and Vector3.zero or plr.RootPart.Velocity, playerGravity, plr.HipHeight, plr.Jumping and 42.6 or nil, rayCheck)
+    					local actualSpeed = projSpeed * (AutoCharge.Enabled and 1 or projmeta.velocityMultiplier)
+    					local targetVel = projmeta.projectile == 'telepearl' and Vector3.zero or plr.RootPart.Velocity
+    					local calc = prediction.SolveTrajectory(newlook.p, actualSpeed, gravity, targetpos, targetVel, playerGravity, plr.HipHeight, plr.Jumping and 42.6 or nil, rayCheck, plr.RootPart)
     					if calc then
     						targetinfo.Targets[plr] = tick() + 1
     						return {
-    							initialVelocity = CFrame.new(newlook.Position, calc).LookVector * (projSpeed * (AutoCharge.Enabled and 1 or projmeta.velocityMultiplier)),
+    							initialVelocity = CFrame.new(newlook.Position, calc).LookVector * actualSpeed,
     							positionFrom = offsetpos,
     							deltaT = lifetime,
     							gravitationalAcceleration = gravity,
@@ -5607,6 +5619,7 @@ run(function()
     				launchHook()
     				launchHook = nil
     			end
+    			stickyTarget = nil
     		end
     	end,
     	Tooltip = 'Silently adjusts your aim towards the enemy',
