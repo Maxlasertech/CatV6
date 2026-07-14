@@ -11574,8 +11574,6 @@ run(function()
     local tierChains = {}
     local debugConn
     local knownTiers = {
-        {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'},
-        {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'},
         {'wood_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe'},
         {'wood_axe', 'stone_axe', 'iron_axe', 'diamond_axe'},
         {'leather_chestplate', 'iron_chestplate', 'diamond_chestplate', 'emerald_chestplate'},
@@ -11625,31 +11623,10 @@ run(function()
                         end
                     end
 
-                    local visited = {}
-                    for itemType, v in itemsByType do
-                        if not visited[itemType] and not v.tiered then
-                            local chain = {items = {}, index = {}}
-                            local current = v
-                            local currentType = itemType
-                            while current do
-                                table.insert(chain.items, currentType)
-                                chain.index[currentType] = #chain.items
-                                visited[currentType] = true
-                                currentType = current.nextTier
-                                current = currentType and itemsByType[currentType] or nil
-                            end
-                            if #chain.items > 1 then
-                                for _, it in chain.items do
-                                    tierChains[it] = chain
-                                end
-                            end
-                        end
-                    end
-
                     for _, group in knownTiers do
                         local hasAny = false
                         for _, it in group do
-                            if itemsByType[it] and not tierChains[it] then
+                            if itemsByType[it] then
                                 hasAny = true
                                 break
                             end
