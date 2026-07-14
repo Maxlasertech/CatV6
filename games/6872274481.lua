@@ -11737,12 +11737,19 @@ end)
 
 run(function()
     local UpgradeShopBypass
+    local TargetTier
     local debugConn
     local savedRequire = {}
     local savedTierData = {}
     local oldClientGet
     local myHook
     local buying = false
+    local skipLog = {}
+
+    local function getTier(upgradeType)
+        local team = lplr:GetAttribute('Team')
+        return (bedwars.Store:getState().Bedwars.teamUpgrades[team] or {})[upgradeType] or 0
+    end
 
     UpgradeShopBypass = vape.Categories.Utility:CreateModule({
         Name = 'Upgrade Shop Bypass',
@@ -11783,30 +11790,61 @@ run(function()
                                     return function(_, upgradeType, ...)
                                         local upgrade = bedwars.TeamUpgradeMeta[upgradeType]
                                         if not upgrade then return remote:CallServerAsync(upgradeType, ...) end
-                                        local team = lplr:GetAttribute('Team')
-                                        local currentTier = (bedwars.Store:getState().Bedwars.teamUpgrades[team] or {})[upgradeType] or 0
+                                        local startTier = getTier(upgradeType)
                                         local maxTier = #upgrade.tiers
-                                        if currentTier >= maxTier then
-                                            notif('UpgradeShopBypass', 'Already maxed', 3, 'alert')
+                                        local target = math.min(TargetTier.Value, maxTier)
+                                        local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
+                                        if startTier >= target then
+                                            notif('UpgradeShopBypass', upgradeName..' already at tier '..startTier, 3, 'alert')
                                             return {andThen = function() end}
                                         end
+
                                         buying = true
-                                        local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
-                                        local bought = 0
-                                        for i = currentTier + 1, maxTier do
-                                            local tier = upgrade.tiers[i]
-                                            local diamonds = getItem('diamond')
-                                            if not diamonds or diamonds.amount < tier.cost then break end
-                                            remote:CallServerAsync(upgradeType)
-                                            bought += 1
-                                            if i < maxTier then task.wait(0.15) end
+                                        local entry = {upgrade = upgradeName, from = startTier, target = target, attempts = {}}
+
+                                        local suc, result = pcall(function()
+                                            return remote:CallServerAsync(upgradeType, target)
+                                        end)
+                                        task.wait(0.3)
+                                        local afterDirect = getTier(upgradeType)
+                                        table.insert(entry.attempts, {
+                                            method = 'direct(type, '..target..')',
+                                            sent = target,
+                                            before = startTier,
+                                            after = afterDirect,
+                                            result = suc and tostring(result) or 'error: '..tostring(result)
+                                        })
+
+                                        if afterDirect < target then
+                                            local suc2, result2 = pcall(function()
+                                                return remote:CallServerAsync({upgradeType = upgradeType, tier = target})
+                                            end)
+                                            task.wait(0.3)
+                                            local afterTable = getTier(upgradeType)
+                                            table.insert(entry.attempts, {
+                                                method = 'direct({upgradeType, tier='..target..'})',
+                                                sent = target,
+                                                before = afterDirect,
+                                                after = afterTable,
+                                                result = suc2 and tostring(result2) or 'error: '..tostring(result2)
+                                            })
                                         end
+
+                                        local finalTier = getTier(upgradeType)
+                                        if finalTier >= target then
+                                            notif('UpgradeShopBypass', 'SKIP WORKED! '..upgradeName..' jumped '..startTier..' -> '..finalTier, 5, 'info')
+                                        else
+                                            local skipped = finalTier - startTier
+                                            if skipped > 0 then
+                                                notif('UpgradeShopBypass', upgradeName..' partial: '..startTier..' -> '..finalTier..' (target was '..target..')', 5, 'warning')
+                                            else
+                                                notif('UpgradeShopBypass', 'Skip failed for '..upgradeName..'. Server validates tier order. F4 for log.', 5, 'alert')
+                                            end
+                                        end
+
+                                        entry.final = getTier(upgradeType)
+                                        table.insert(skipLog, entry)
                                         buying = false
-                                        if bought > 1 then
-                                            notif('UpgradeShopBypass', 'Jumped '..upgradeName..' +'..bought..' tiers', 3, 'info')
-                                        elseif bought == 1 then
-                                            notif('UpgradeShopBypass', 'Bought '..upgradeName..' tier '..(currentTier + 1), 3, 'info')
-                                        end
                                         return {andThen = function() end}
                                     end
                                 end
@@ -11827,49 +11865,41 @@ run(function()
                         local teamUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
                         table.insert(lines, 'Team: '..(team or 'none'))
                         table.insert(lines, 'Queue: '..(store.queueType or 'unknown'))
+                        table.insert(lines, 'Target tier slider: '..TargetTier.Value)
 
                         table.insert(lines, '')
-                        table.insert(lines, 'Items with upgrade requirement BYPASSED:')
-                        local bypassCount = 0
-                        for item, req in savedRequire do
-                            local tu = req.teamUpgrade
-                            local displayName = item.itemType and bedwars.ItemMeta[item.itemType] and bedwars.ItemMeta[item.itemType].displayName or (item.itemType or '?')
-                            local currentLevel = teamUpgrades[tu.upgradeId] or 0
-                            local needed = tu.lowestTierIndex
-                            local wouldBlock = currentLevel < needed
-                            local uName = bedwars.TeamUpgradeMeta[tu.upgradeId] and bedwars.TeamUpgradeMeta[tu.upgradeId].name or tu.upgradeId
-                            table.insert(lines, '  '..displayName..' - needs '..uName..' tier '..needed..' (have '..currentLevel..')'..(wouldBlock and ' [BYPASSED]' or ' [met]'))
-                            if wouldBlock then bypassCount += 1 end
-                        end
-                        if not next(savedRequire) then
-                            table.insert(lines, '  (no items had upgrade requirements)')
-                        else
-                            table.insert(lines, '  '..bypassCount..' item(s) actively bypassed')
-                        end
-
-                        table.insert(lines, '')
-                        table.insert(lines, 'Team upgrades (click UPGRADE to jump to max):')
+                        table.insert(lines, 'Team upgrades:')
                         for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
                             local currentTier = teamUpgrades[upgradeType] or 0
                             local maxTier = #upgrade.tiers
                             local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
-                            local totalCost = 0
-                            for i = currentTier + 1, maxTier do
-                                totalCost += upgrade.tiers[i].cost
-                            end
-                            local status = currentTier >= maxTier and 'MAXED' or ('tier '..currentTier..'/'..maxTier..' ('..totalCost..' diamonds to max)')
-                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..']: '..status)
+                            table.insert(lines, '  '..upgradeName..' ['..upgradeType..']: '..currentTier..'/'..maxTier)
                             for i, tier in upgrade.tiers do
                                 local owned = i <= currentTier and ' [OWNED]' or ''
-                                local queueLock = ''
-                                local saved = savedTierData[upgradeType]
-                                if saved and saved.tiers[i] and saved.tiers[i].availableOnlyInQueue then
-                                    queueLock = ' (queue-lock REMOVED: '..table.concat(saved.tiers[i].availableOnlyInQueue, ',')..')'
+                                table.insert(lines, '    tier '..i..': '..tier.cost..' diamonds'..owned)
+                            end
+                        end
+
+                        table.insert(lines, '')
+                        table.insert(lines, 'Items with upgrade req stripped:')
+                        for item, req in savedRequire do
+                            local tu = req.teamUpgrade
+                            local displayName = item.itemType and bedwars.ItemMeta[item.itemType] and bedwars.ItemMeta[item.itemType].displayName or (item.itemType or '?')
+                            local currentLevel = teamUpgrades[tu.upgradeId] or 0
+                            table.insert(lines, '  '..displayName..' needs '..tu.upgradeId..' tier '..tu.lowestTierIndex..' (have '..currentLevel..')')
+                        end
+                        if not next(savedRequire) then
+                            table.insert(lines, '  (none)')
+                        end
+
+                        if #skipLog > 0 then
+                            table.insert(lines, '')
+                            table.insert(lines, 'Skip attempt log:')
+                            for _, entry in skipLog do
+                                table.insert(lines, '  '..entry.upgrade..': wanted '..entry.from..' -> '..entry.target..', got '..entry.final)
+                                for _, a in entry.attempts do
+                                    table.insert(lines, '    '..a.method..': tier '..a.before..' -> '..a.after..' | server said: '..a.result)
                                 end
-                                if i == 1 and saved and saved.disabledInQueue then
-                                    queueLock = queueLock..' (disabled-in REMOVED: '..table.concat(saved.disabledInQueue, ',')..')'
-                                end
-                                table.insert(lines, '    tier '..i..': '..tier.cost..' diamonds'..owned..queueLock)
                             end
                         end
 
@@ -11907,9 +11937,18 @@ run(function()
                     end
                 end
                 table.clear(savedTierData)
+                table.clear(skipLog)
             end
         end,
-        Tooltip = 'Click UPGRADE once to buy all tiers to max. Strips upgrade requirements from items. F4 debug.'
+        Tooltip = 'Attempts to skip upgrade tiers directly. Set target tier with slider, click UPGRADE. F4 for skip log.'
+    })
+
+    TargetTier = UpgradeShopBypass:CreateSlider({
+        Name = 'Target Tier',
+        Min = 2,
+        Max = 10,
+        Default = 3,
+        Tooltip = 'Which tier to jump to when clicking UPGRADE'
     })
 end)
 
