@@ -15575,50 +15575,12 @@ run(function()
     local ToolSwitch, ItemLimit, BreakSelf, QuickBreak, LockedTarget, BaseOre, BreakerFallback, DebugMode
     local EffectsOn, HealthDisplay, Anim, PathOverlay
 
-    local LowHealthThreshold, HealthRetreat
-
     local hp = {gui = nil, fill = nil, block = nil, current = -1, max = -1}
     local targetGlow, bedGlow
     local pathParts = {}
     local losFilter
     local debugLog = {}
     local MAX_LOG = 200
-
-    local committedPath = {
-        bed = nil,
-        anchor = nil,
-        route = nil,
-        entry = nil,
-        positions = {},
-        originalHits = 0,
-        tick = 0,
-    }
-
-    local function clearCommitted()
-        committedPath.bed = nil
-        committedPath.anchor = nil
-        committedPath.route = nil
-        committedPath.entry = nil
-        table.clear(committedPath.positions)
-        committedPath.originalHits = 0
-        committedPath.tick = 0
-    end
-
-    local function hasTool(breaktype)
-        return store.tools[breaktype] ~= nil
-    end
-
-    local function getPlayerHealthPct()
-        if not entitylib.isAlive then return 0 end
-        local h = lplr.Character and lplr.Character:GetAttribute('Health') or 0
-        local m = lplr.Character and lplr.Character:GetAttribute('MaxHealth') or 100
-        return m > 0 and (h / m) or 0
-    end
-
-    local function isLowHealth()
-        if not LowHealthThreshold then return false end
-        return getPlayerHealthPct() <= (LowHealthThreshold.Value / 100)
-    end
 
     local function dbg(msg)
         warn(msg)
@@ -15701,28 +15663,6 @@ run(function()
     local function readHP(block, gridPos)
         local data = bedwars.BlockController:getStore():getBlockData(gridPos)
         return data and (data:GetAttribute('1') or data:GetAttribute('Health')) or block:GetAttribute('Health') or block:GetAttribute('MaxHealth') or 0
-    end
-
-    local function getBreakTime(block, gridPos)
-        if not block then return 0 end
-        local meta = bedwars.ItemMeta[block.Name]
-        if not meta or not meta.block then return 0 end
-        local breaktype = meta.block.breakType
-        local tool = store.tools[breaktype]
-        local dmgPerHit = tool and bedwars.ItemMeta[tool.itemType].breakBlock[breaktype] or 2
-        local health = readHP(block, gridPos)
-        return math.ceil(health / dmgPerHit)
-    end
-
-    local function routeBreakTime(route)
-        local total = 0
-        for _, pos in route do
-            local block = getPlacedBlock(pos)
-            if block then
-                total = total + getBreakTime(block, bedwars.BlockController:getBlockPosition(pos))
-            end
-        end
-        return total
     end
 
     local function spawnBar(block)
@@ -15867,7 +15807,7 @@ run(function()
     local function planAttack(bed, origin)
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(bed.Name)
         local contained = handler and handler:getContainedPositions(bed) or {bed.Position / 3}
-        local best = {entry = nil, cost = math.huge, route = nil, anchor = nil, hits = math.huge}
+        local best = {entry = nil, cost = math.huge, route = nil, anchor = nil}
         local useDistance = BreakMode and BreakMode.Value == 'Distance'
 
         for _, cp in contained do
@@ -15918,54 +15858,12 @@ run(function()
                         best.cost = pick[1]
                         best.route = route
                         best.anchor = anchor
-                        best.hits = routeBreakTime(route)
                     end
                 end
             end
         end
 
-        return best.entry, best.route, best.anchor, best.hits
-    end
-
-    local function evaluateCommittedPath()
-        if not committedPath.bed or not committedPath.bed.Parent then return nil end
-        local remaining = {}
-        for _, pos in committedPath.positions do
-            local block = getPlacedBlock(pos)
-            if block and not block:GetAttribute('NoBreak') then
-                table.insert(remaining, pos)
-            end
-        end
-        if #remaining == 0 then return nil end
-
-        local hits = 0
-        local missingTool = false
-        local firstVisible = nil
-        for _, pos in remaining do
-            local block = getPlacedBlock(pos)
-            if block then
-                local meta = bedwars.ItemMeta[block.Name]
-                if meta and meta.block and not hasTool(meta.block.breakType) then
-                    missingTool = true
-                end
-                hits = hits + getBreakTime(block, bedwars.BlockController:getBlockPosition(pos))
-                if not firstVisible and isVisible(pos) then
-                    firstVisible = pos
-                end
-            end
-        end
-
-        local orig = committedPath.originalHits
-        local progress = orig > 0 and math.clamp((orig - hits) / orig, 0, 1) or 0
-
-        return {
-            positions = remaining,
-            hits = hits,
-            entry = firstVisible or remaining[1],
-            progress = progress,
-            originalHits = orig,
-            missingTool = missingTool,
-        }
+        return best.entry, best.route, best.anchor
     end
 
     local function drawPath(route, entry, anchor)
@@ -16025,7 +15923,6 @@ run(function()
 
     local function fullCleanup()
         store._lockedDefenseBlock = nil
-        clearCommitted()
         killBar()
         for _, p in pathParts do p:ClearAllChildren() p:Destroy() end
         table.clear(pathParts)
@@ -16069,42 +15966,11 @@ run(function()
 
                 local lastBedVis = false
 
-                local function tryBreakBaseOre(origin)
-                    if not (BaseOre and BaseOre.Enabled) then return end
-                    if not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then return end
-                    local myTeam = lplr:GetAttribute('Team')
-                    local myBed
-                    if myTeam then
-                        for _, b in beds do
-                            if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
-                                myBed = b
-                                break
-                            end
-                        end
-                    end
-                    if not myBed then return end
-                    local baseOres = {}
-                    for _, ore in ironores do
-                        if (ore.Position - myBed.Position).Magnitude <= 40 then
-                            table.insert(baseOres, ore)
-                        end
-                    end
-                    for _, ore in baseOres do
-                        if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
-                            bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, false)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
-                            return true
-                        end
-                    end
-                end
-
                 repeat
                     if not KingDraco.Enabled then break end
                     if not entitylib.isAlive then
                         clearPath()
                         killBar()
-                        clearCommitted()
                         targetGlow.Adornee = nil
                         bedGlow.Adornee = nil
                         task.wait(0.1)
@@ -16113,17 +15979,6 @@ run(function()
 
                     local origin = entitylib.character.RootPart.Position
                     refreshFilter()
-
-                    if isLowHealth() and HealthRetreat and HealthRetreat.Enabled then
-                        clearPath()
-                        killBar()
-                        clearCommitted()
-                        targetGlow.Adornee = nil
-                        bedGlow.Adornee = nil
-                        if DebugMode and DebugMode.Enabled then dbg('[KD] low health (' .. math.floor(getPlayerHealthPct() * 100) .. '%) - backing off') end
-                        task.wait(0.2)
-                        continue
-                    end
 
                     local bestBed, bestDist = nil, math.huge
                     for _, b in beds do
@@ -16137,18 +15992,40 @@ run(function()
 
                     if not bestBed then
                         store._lockedDefenseBlock = nil
-                        clearCommitted()
                         clearPath()
                         killBar()
                         bedGlow.Adornee = nil
-                        tryBreakBaseOre(origin)
+                        if BaseOre and BaseOre.Enabled and store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock then
+                            local myTeam = lplr:GetAttribute('Team')
+                            local myBed
+                            if myTeam then
+                                for _, b in beds do
+                                    if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
+                                        myBed = b
+                                        break
+                                    end
+                                end
+                            end
+                            if myBed then
+                                local baseOres = {}
+                                for _, ore in ironores do
+                                    if (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        table.insert(baseOres, ore)
+                                    end
+                                end
+                                for _, ore in baseOres do
+                                    if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, false)
+                                        if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
+                                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                        break
+                                    end
+                                end
+                            end
+                        end
                         targetGlow.Adornee = nil
                         task.wait(0.1)
                         continue
-                    end
-
-                    if committedPath.bed and committedPath.bed ~= bestBed then
-                        clearCommitted()
                     end
 
                     bedGlow.Adornee = bestBed
@@ -16160,14 +16037,12 @@ run(function()
                     lastBedVis = bedVis
                     if DebugMode and DebugMode.Enabled then
                         local dist = (bestBed.Position - origin).Magnitude
-                        local hpPct = math.floor(getPlayerHealthPct() * 100)
-                        dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' hp=' .. hpPct .. '% failCD=' .. tostring(store.damageBlockFail > tick()))
+                        dbg('[KD] bed=' .. bestBed.Name .. ' dist=' .. math.floor(dist) .. ' visible=' .. tostring(bedVis) .. ' failCD=' .. tostring(store.damageBlockFail > tick()))
                     end
 
                     if bedVis and store.damageBlockFail <= tick() then
                         targetGlow.Adornee = bestBed
                         if PathOverlay.Enabled then clearPath() end
-                        clearCommitted()
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (visible)') end
                         task.wait(QuickBreak.Enabled and 0 or 0.25)
@@ -16178,43 +16053,9 @@ run(function()
                         if not ItemLimit.Enabled or (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then
                             targetGlow.Adornee = bestBed
                             if PathOverlay.Enabled then clearPath() end
-                            clearCommitted()
                             bedwars.breakBlock(bestBed, EffectsOn.Enabled, Anim.Enabled, nil, ToolSwitch.Enabled)
                             if DebugMode and DebugMode.Enabled then dbg('[KD] breaker bed') end
                             task.wait(QuickBreak.Enabled and 0 or 0.25)
-                            continue
-                        end
-                    end
-
-                    local committed = evaluateCommittedPath()
-                    local newEntry, newRoute, newAnchor, newHits = planAttack(bestBed, origin)
-
-                    local useCommitted = false
-                    if committed and committed.entry then
-                        if not newEntry then
-                            useCommitted = true
-                        else
-                            local progressBonus = committed.missingTool and 0 or (committed.progress * committed.originalHits * 0.5)
-                            useCommitted = committed.hits - progressBonus <= newHits
-                        end
-                        if DebugMode and DebugMode.Enabled then
-                            local pct = math.floor(committed.progress * 100)
-                            local toolWarn = committed.missingTool and ' [NO TOOL]' or ''
-                            dbg('[KD] path compare: committed=' .. committed.hits .. ' hits (' .. pct .. '% done)' .. toolWarn .. ', new=' .. (newEntry and tostring(newHits) or 'none') .. ' -> ' .. (useCommitted and 'continue' or 'switch'))
-                        end
-                    end
-
-                    if useCommitted and committed then
-                        local block = getPlacedBlock(committed.entry)
-                        if block and isVisible(committed.entry) then
-                            store._lockedDefenseBlock = block
-                            targetGlow.Adornee = block
-                            if PathOverlay.Enabled then drawPath(committed.positions, committed.entry, committedPath.anchor) end
-                            equipFor(block)
-                            strike(block)
-                            committedPath.tick = tick()
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike committed path: ' .. block.Name) end
-                            task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
                     end
@@ -16233,42 +16074,58 @@ run(function()
                         store._lockedDefenseBlock = nil
                     end
 
-                    if newEntry then
-                        local entryBlock = getPlacedBlock(newEntry)
+                    local entry, route, anchor = planAttack(bestBed, origin)
+                    if entry then
+                        local entryBlock = getPlacedBlock(entry)
                         if DebugMode and DebugMode.Enabled then
-                            dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' hits=' .. newHits .. ' entryVis=' .. tostring(entryBlock and isVisible(newEntry)))
+                            dbg('[KD] defense: ' .. tostring(entryBlock and entryBlock.Name) .. ' entryVis=' .. tostring(entryBlock and isVisible(entry)))
                         end
-                        if entryBlock and isVisible(newEntry) then
-                            committedPath.bed = bestBed
-                            committedPath.anchor = newAnchor
-                            committedPath.route = newRoute
-                            committedPath.entry = newEntry
-                            table.clear(committedPath.positions)
-                            for _, pos in newRoute do
-                                table.insert(committedPath.positions, pos)
-                            end
-                            committedPath.originalHits = newHits
-                            committedPath.tick = tick()
-
+                        if entryBlock and isVisible(entry) then
                             if LockedTarget and LockedTarget.Enabled then
                                 store._lockedDefenseBlock = entryBlock
                             end
                             targetGlow.Adornee = entryBlock
-                            if PathOverlay.Enabled then drawPath(newRoute, newEntry, newAnchor) end
+                            if PathOverlay.Enabled then drawPath(route, entry, anchor) end
                             strike(entryBlock)
-                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike defense (new path)') end
+                            if DebugMode and DebugMode.Enabled then dbg('[KD] strike defense') end
                             task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
                             continue
                         end
                     elseif bedVis then
                         targetGlow.Adornee = bestBed
-                        clearCommitted()
                         strike(bestBed)
                         if DebugMode and DebugMode.Enabled then dbg('[KD] strike bed (no defense found)') end
                         task.wait(QuickBreak.Enabled and 0 or 0.25)
                         continue
                     else
-                        tryBreakBaseOre(origin)
+                        if BaseOre and BaseOre.Enabled and store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name] and bedwars.ItemMeta[store.hand.tool.Name].breakBlock then
+                            local myTeam = lplr:GetAttribute('Team')
+                            local myBed
+                            if myTeam then
+                                for _, b in beds do
+                                    if b and b.Parent and tonumber(b:GetAttribute('TeamId')) == tonumber(myTeam) then
+                                        myBed = b
+                                        break
+                                    end
+                                end
+                            end
+                            if myBed then
+                                local baseOres = {}
+                                for _, ore in ironores do
+                                    if (ore.Position - myBed.Position).Magnitude <= 40 then
+                                        table.insert(baseOres, ore)
+                                    end
+                                end
+                                for _, ore in baseOres do
+                                    if (ore.Position - origin).Magnitude < RangeSetting.Value and bedwars.BlockController:isBlockBreakable({blockPosition = ore.Position / 3}, lplr) then
+                                        bedwars.breakBlock(ore, EffectsOn.Enabled, Anim.Enabled, nil, false)
+                                        if DebugMode and DebugMode.Enabled then dbg('[KD] break base ore') end
+                                        task.wait(QuickBreak.Enabled and 0 or SpeedSetting.Value)
+                                        break
+                                    end
+                                end
+                            end
+                        end
                         if DebugMode and DebugMode.Enabled then dbg('[KD] no action') end
                     end
 
@@ -16336,17 +16193,6 @@ run(function()
         Name = 'Breaker',
         Default = true,
         Tooltip = 'When server cancels bed strike, use Breaker to pathfind through defense. Uses Auto tool and Limit to items'
-    })
-    LowHealthThreshold = KingDraco:CreateSlider({
-        Name = 'Low health %',
-        Min = 0, Max = 100, Default = 0,
-        Suffix = '%',
-        Tooltip = 'Health percentage at which the module becomes less aggressive. 0 = disabled'
-    })
-    HealthRetreat = KingDraco:CreateToggle({
-        Name = 'Health retreat',
-        Tooltip = 'Stop breaking when below the low-health threshold',
-        Darker = true
     })
     DebugMode = KingDraco:CreateToggle({
         Name = 'Debug',
