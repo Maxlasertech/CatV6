@@ -16209,15 +16209,34 @@ run(function()
                     local useStored = false
                     if store._routePositions and #store._routePositions > 0 then
                         local storedCost = getRouteCost(store._routePositions, origin)
+                        local firstBlock = getPlacedBlock(store._routePositions[1])
+                        local damaged = false
+                        if firstBlock then
+                            local blockData = bedwars.BlockController:getStore():getBlockData(bedwars.BlockController:getBlockPosition(store._routePositions[1]))
+                            local curHp = blockData and (blockData:GetAttribute('1') or blockData:GetAttribute('Health')) or firstBlock:GetAttribute('Health')
+                            local maxHp = firstBlock:GetAttribute('MaxHealth') or curHp
+                            if maxHp > 0 and curHp < maxHp then
+                                damaged = true
+                            end
+                        end
                         if freshRoute then
-                            if storedCost <= freshCost then
-                                useStored = true
+                            if damaged then
+                                useStored = storedCost <= freshCost * 1.5
+                            else
+                                useStored = storedCost <= freshCost
                             end
                         else
                             useStored = true
                         end
                         if DebugMode and DebugMode.Enabled then
-                            dbg('[KD] route compare: stored=' .. string.format('%.1f', storedCost) .. ' (' .. #store._routePositions .. ' blocks) fresh=' .. (freshRoute and string.format('%.1f', freshCost) or 'none') .. ' -> ' .. (useStored and 'keep' or 'switch'))
+                            local hpStr = ''
+                            if firstBlock then
+                                local blockData = bedwars.BlockController:getStore():getBlockData(bedwars.BlockController:getBlockPosition(store._routePositions[1]))
+                                local curHp = blockData and (blockData:GetAttribute('1') or blockData:GetAttribute('Health')) or firstBlock:GetAttribute('Health')
+                                local maxHp = firstBlock:GetAttribute('MaxHealth') or curHp
+                                hpStr = ' hp=' .. string.format('%.0f/%.0f', curHp, maxHp)
+                            end
+                            dbg('[KD] route compare: stored=' .. string.format('%.1f', storedCost) .. ' (' .. #store._routePositions .. ' blocks)' .. hpStr .. (damaged and ' [damaged]' or '') .. ' fresh=' .. (freshRoute and string.format('%.1f', freshCost) or 'none') .. ' -> ' .. (useStored and 'keep' or 'switch'))
                         end
                     end
 
