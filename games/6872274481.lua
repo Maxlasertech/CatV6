@@ -11858,13 +11858,76 @@ run(function()
 
                 debugConn = inputService.InputBegan:Connect(function(input, gpe)
                     if gpe then return end
+                    if input.KeyCode == Enum.KeyCode.F5 and UpgradeShopBypass.Enabled and not buying then
+                        buying = true
+                        notif('UpgradeShopBypass', 'Attempting skip on all upgrades...', 3, 'info')
+                        for upgradeType, upgrade in bedwars.TeamUpgradeMeta do
+                            local startTier = getTier(upgradeType)
+                            local maxTier = #upgrade.tiers
+                            if startTier >= maxTier then continue end
+                            local upgradeName = upgrade.name == 'Armor' and 'Protection' or upgrade.name
+                            local entry = {upgrade = upgradeName, from = startTier, target = maxTier, attempts = {}}
+                            local remote = oldClientGet(bedwars.Client, 'RequestPurchaseTeamUpgrade')
+
+                            local suc, result = pcall(function()
+                                return remote:CallServerAsync(upgradeType, maxTier)
+                            end)
+                            task.wait(0.3)
+                            local afterDirect = getTier(upgradeType)
+                            table.insert(entry.attempts, {
+                                method = 'CallServerAsync(type, '..maxTier..')',
+                                before = startTier, after = afterDirect,
+                                result = suc and tostring(result) or 'err: '..tostring(result)
+                            })
+
+                            if afterDirect < maxTier then
+                                local suc2, result2 = pcall(function()
+                                    return remote:CallServerAsync({upgradeType = upgradeType, tier = maxTier})
+                                end)
+                                task.wait(0.3)
+                                local afterTable = getTier(upgradeType)
+                                table.insert(entry.attempts, {
+                                    method = 'CallServerAsync({type, tier='..maxTier..'})',
+                                    before = afterDirect, after = afterTable,
+                                    result = suc2 and tostring(result2) or 'err: '..tostring(result2)
+                                })
+                            end
+
+                            if getTier(upgradeType) < maxTier then
+                                local suc3, result3 = pcall(function()
+                                    return remote:CallServerAsync(upgradeType)
+                                end)
+                                task.wait(0.3)
+                                local afterNormal = getTier(upgradeType)
+                                table.insert(entry.attempts, {
+                                    method = 'CallServerAsync(type) [normal]',
+                                    before = getTier(upgradeType) - (afterNormal > startTier and 1 or 0), after = afterNormal,
+                                    result = suc3 and tostring(result3) or 'err: '..tostring(result3)
+                                })
+                            end
+
+                            entry.final = getTier(upgradeType)
+                            table.insert(skipLog, entry)
+
+                            if entry.final >= maxTier then
+                                notif('UpgradeShopBypass', 'SKIP WORKED: '..upgradeName..' -> '..entry.final, 3, 'info')
+                            elseif entry.final > startTier then
+                                notif('UpgradeShopBypass', upgradeName..': '..startTier..' -> '..entry.final..' (partial)', 3, 'warning')
+                            else
+                                notif('UpgradeShopBypass', upgradeName..': skip failed', 3, 'alert')
+                            end
+                        end
+                        buying = false
+                        notif('UpgradeShopBypass', 'Done. Press F4 for full log.', 5, 'info')
+                    end
+
                     if input.KeyCode == Enum.KeyCode.F4 and UpgradeShopBypass.Enabled then
                         local lines = {'[UpgradeShopBypass Debug]'}
                         local team = lplr:GetAttribute('Team')
                         local teamUpgrades = bedwars.Store:getState().Bedwars.teamUpgrades[team] or {}
                         table.insert(lines, 'Team: '..(team or 'none'))
                         table.insert(lines, 'Queue: '..(store.queueType or 'unknown'))
-                        table.insert(lines, 'Target: max tier')
+                        table.insert(lines, 'F5 = attempt skip on all upgrades')
 
                         table.insert(lines, '')
                         table.insert(lines, 'Team upgrades:')
