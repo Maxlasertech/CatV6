@@ -3676,7 +3676,7 @@ run(function()
     	arrow.BackgroundTransparency = 1
     	arrow.BorderSizePixel = 0
     	arrow.Visible = false
-    	arrow.Image = getcustomasset('newvape/assets/new/arrowmodule.png')
+    	arrow.Image = getcustomasset('catrewrite/assets/new/arrowmodule.png')
     	arrow.ImageColor3 = entitylib.getEntityColor(ent) or Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
     	arrow.Parent = Folder
     	Reference[ent] = arrow
@@ -5448,7 +5448,7 @@ run(function()
 
     Radar = vape:CreateOverlay({
     	Name = 'Radar',
-    	Icon = getcustomasset('newvape/assets/new/radaricon.png'),
+    	Icon = getcustomasset('catrewrite/assets/new/radaricon.png'),
     	Size = UDim2.fromOffset(14, 14),
     	Position = UDim2.fromOffset(12, 13),
     	Function = function(callback)
@@ -5669,7 +5669,7 @@ run(function()
 
     SessionInfo = vape:CreateOverlay({
     	Name = 'Session Info',
-    	Icon = getcustomasset('newvape/assets/new/textguiicon.png'),
+    	Icon = getcustomasset('catrewrite/assets/new/textguiicon.png'),
     	Size = UDim2.fromOffset(16, 12),
     	Position = UDim2.fromOffset(12, 14),
     	Function = function(callback)
@@ -5739,8 +5739,8 @@ run(function()
     Hide = SessionInfo:CreateTextList({
     	Name = 'Blacklist',
     	Tooltip = 'Name of entry to hide.',
-    	Icon = getcustomasset('newvape/assets/new/blockedicon.png'),
-    	Tab = getcustomasset('newvape/assets/new/blockedtab.png'),
+    	Icon = getcustomasset('catrewrite/assets/new/blockedicon.png'),
+    	Tab = getcustomasset('catrewrite/assets/new/blockedtab.png'),
     	TabSize = UDim2.fromOffset(21, 16),
     	Color = Color3.fromRGB(250, 50, 56)
     })
