@@ -1,5 +1,6 @@
 local license = ... or {}
-license.Key = script_key or license.Key or nil
+license.Key = script_key or license.Key or '_key'
+getgenv().license = license
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
