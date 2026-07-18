@@ -1077,10 +1077,6 @@ run(function()
 				return {
 					instance = call.instance,
 					SendToServer = function(_, attackTable, ...)
-						local suc, plr = pcall(function()
-							return playersService:GetPlayerFromCharacter(attackTable.entityInstance)
-						end)
-
 						local selfpos = attackTable.validate.selfPosition.value
 						local targetpos = attackTable.validate.targetPosition.value
 						store.attackReach = ((selfpos - targetpos).Magnitude * 100) // 1 / 100
@@ -1089,10 +1085,6 @@ run(function()
 						if Reach.Enabled or HitBoxes.Enabled then
 							attackTable.validate.raycast = attackTable.validate.raycast or {}
 							attackTable.validate.selfPosition.value += CFrame.lookAt(selfpos, targetpos).LookVector * math.max((selfpos - targetpos).Magnitude - 14.399, 0)
-						end
-
-						if suc and plr then
-							if not select(2, whitelist:get(plr)) then return end
 						end
 
 						return call:SendToServer(attackTable, ...)
@@ -1191,8 +1183,7 @@ run(function()
 			cache[blockpos] = {
 				pos,
 				cost,
-				path,
-				tick() + 0.1
+				path
 			}
 			return pos, cost, path
 		end
