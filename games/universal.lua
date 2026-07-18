@@ -27,6 +27,9 @@ local function downloadFile(path, func)
 	return (func or readfile)(path)
 end
 local run = function(func)
+	if identifyexecutor() == "Opiumware" then
+		task.wait()
+	end
 	func()
 end
 local queue_on_teleport = queue_on_teleport or function() end
