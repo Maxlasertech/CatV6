@@ -1,6 +1,10 @@
 local license = ... or {}
 license.Key = script_key or license.Key or nil
-repeat task.wait() until game:IsLoaded()
+local Loaded = game:IsLoaded()
+if not Loaded then
+	repeat task.wait() until game:IsLoaded()
+	task.wait(identifyexecutor() == 'Opiumware' and 30 or 5)
+end
 if shared.vape then shared.vape:Uninject() end
 
 local vape
