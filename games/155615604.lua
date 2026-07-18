@@ -2122,7 +2122,7 @@ run(function()
     local DrawingToggle
     local drawingobjs = {}
     
-    BulletTracers = vape.Legit:CreateModule({
+    BulletTracers = vape.Categories.Legit:CreateModule({
         Name = 'Bullet Tracers',
         Function = function(callback)
             if callback then
@@ -2274,7 +2274,7 @@ run(function()
         end)
     end
     
-    DamageIndicator = vape.Legit:CreateModule({
+    DamageIndicator = vape.Categories.Legit:CreateModule({
         Name = 'Damage Indicator',
         Function = function(callback)
             if callback then
@@ -2348,7 +2348,7 @@ run(function()
     local Volume
     local sounds = {}
     
-    HitSound = vape.Legit:CreateModule({
+    HitSound = vape.Categories.Legit:CreateModule({
         Name = 'HitSound',
         Function = function(callback)
             if callback then
@@ -2401,7 +2401,7 @@ run(function()
     local Volume
     local sounds = {}
     
-    KillSound = vape.Legit:CreateModule({
+    KillSound = vape.Categories.Legit:CreateModule({
         Name = 'Kill Sound',
         Function = function(callback)
             if callback then
@@ -2502,7 +2502,7 @@ run(function()
         ToolAdded(ent.Character:FindFirstChildWhichIsA('Tool'))
     end
     
-    Viewmodel = vape.Legit:CreateModule({
+    Viewmodel = vape.Categories.Legit:CreateModule({
         Name = 'Viewmodel',
         Function = function(callback)
             if callback then

@@ -2210,29 +2210,27 @@ run(function()
     local function jump()
     	local state = entitylib.isAlive and entitylib.character.Humanoid:GetState() or nil
 
-    	if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed then
-    		local root = entitylib.character.RootPart
+    	local root = entitylib.character.RootPart
 
-    		if Mode.Value == 'Velocity' then
-    			entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    			root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, Value.Value, root.AssemblyLinearVelocity.Z)
-    		elseif Mode.Value == 'Impulse' then
-    			entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    			task.delay(0, function()
-    				root:ApplyImpulse(Vector3.new(0, Value.Value - root.AssemblyLinearVelocity.Y, 0) * root.AssemblyMass)
-    			end)
-    		else
-    			local yLevel = math.max(Value.Value - entitylib.character.Humanoid.JumpHeight, 0)
+    	if Mode.Value == 'Velocity' then
+    		entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    		root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, Value.Value, root.AssemblyLinearVelocity.Z)
+    	elseif Mode.Value == 'Impulse' then
+    		entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    		task.delay(0, function()
+    			root:ApplyImpulse(Vector3.new(0, Value.Value - root.AssemblyLinearVelocity.Y, 0) * root.AssemblyMass)
+    		end)
+    	else
+    		local yLevel = math.max(Value.Value - entitylib.character.Humanoid.JumpHeight, 0)
 
-    			repeat
-    				root.CFrame += Vector3.new(0, yLevel * 0.016, 0)
-    				yLevel = yLevel - (workspace.Gravity * 0.016)
+    		repeat
+    			root.CFrame += Vector3.new(0, yLevel * 0.016, 0)
+    			yLevel = yLevel - (workspace.Gravity * 0.016)
 
-    				if Mode.Value == 'CFrame' then
-    					task.wait()
-    				end
-    			until yLevel <= 0
-    		end
+    			if Mode.Value == 'CFrame' then
+    				task.wait()
+    			end
+    		until yLevel <= 0
     	end
     end
 
@@ -6749,6 +6747,50 @@ run(function()
     })
 end)
 
+run(function()
+    local StateSpoofer
+    local State
+    local hook
+    
+    StateSpoofer = vape.Categories.Utility:CreateModule({
+    	Name = 'State Disabler',
+    	Function = function(callback)
+    		if callback then
+    			if not rakNetCheck('StateDisabler') then
+    				StateSpoofer:Toggle()
+    				return
+    			end
+    
+    			hook = function(packet)
+    				if packet.AsArray[1] == 0x1B then
+    					local data = packet.AsBuffer
+                        if buffer.readu8(data, 25) == Enum.HumanoidStateType[State.Value].Value + 32 then
+                            buffer.writeu32(data, 25, 0xFFFFFFFF)
+                            packet:SetData(data)
+                        end
+    				end
+    			end
+    
+    			raknet.add_send_hook(hook)
+    		elseif hook then
+    			raknet.remove_send_hook(hook)
+    			hook = nil
+    		end
+    	end,
+    	Tooltip = 'Disable humanoid states on the server.'
+    })
+    local states = {}
+    for _, v in Enum.HumanoidStateType:GetEnumItems() do
+    	if v.Name ~= 'None' then
+    		table.insert(states, v.Name)
+    	end
+    end
+    State = StateSpoofer:CreateDropdown({
+    	Name = 'Humanoid State',
+    	List = states
+    })
+end)
+
 --[[
     World
 ]]
@@ -7235,7 +7277,7 @@ run(function()
     	end
     end
 
-    Atmosphere = vape.Legit:CreateModule({
+    Atmosphere = vape.Categories.Legit:CreateModule({
     	Name = 'Atmosphere',
     	Function = function(callback)
     		if callback then
@@ -7332,7 +7374,7 @@ run(function()
     local FadeOut
     local trail, point, point2
 
-    Breadcrumbs = vape.Legit:CreateModule({
+    Breadcrumbs = vape.Categories.Legit:CreateModule({
     	Name = 'Breadcrumbs',
     	Function = function(callback)
     		if callback then
@@ -7451,7 +7493,7 @@ run(function()
     	motor.Parent = part
     end
 
-    Cape = vape.Legit:CreateModule({
+    Cape = vape.Categories.Legit:CreateModule({
     	Name = 'Cape',
     	Function = function(callback)
     		if callback then
@@ -7519,7 +7561,7 @@ run(function()
     local Color
     local hat
 
-    ChinaHat = vape.Legit:CreateModule({
+    ChinaHat = vape.Categories.Legit:CreateModule({
     	Name = 'China Hat',
     	Function = function(callback)
     		if callback then
@@ -7600,7 +7642,7 @@ run(function()
     local TwentyFourHour
     local label
 
-    Clock = vape.Legit:CreateModule({
+    Clock = vape.Categories.Legit:CreateModule({
     	Name = 'Clock',
     	Category = 'Hud',
     	Function = function(callback)
@@ -7795,7 +7837,7 @@ run(function()
     	end
     end
 
-    Disguise = vape.Legit:CreateModule({
+    Disguise = vape.Categories.Legit:CreateModule({
     	Name = 'Disguise',
     	Function = function(callback)
     		if callback then
@@ -7830,11 +7872,60 @@ run(function()
 end)
 
 run(function()
+    local FFlag
+    local Flags
+    
+    local function ChangeFFlag(suc)
+    	if not suc or not FFlag.Enabled then
+    		return
+    	end
+    	local success, json = pcall(function()
+    		return httpService:JSONDecode(Flags.Value)
+    	end)
+    
+    	if not success or typeof(json) ~= 'table' then
+    		notif('Vape', 'Invalid json format for fflag', 12, 'warning')
+    		return
+    	end
+    
+    	for i, v in json do
+    		i = i:gsub('DFInt', '')
+    			:gsub('DFFlag', '')
+    			:gsub('FFlag', '')
+    			:gsub('FInt', '')
+    			:gsub('DFString', '')
+    			:gsub('FString', '')
+    
+    		pcall(setfflag, i, tostring(v))
+    	end
+    
+    	notif('Vape', 'FFlags applied, Go in a new game to take effect', 12, 'info')
+    end
+    
+    FFlag = vape.Categories.Legit:CreateModule({
+    	Name = 'FFlag Editor',
+    	Function = function(call)
+    		if call then
+    			ChangeFFlag(true)
+    		else
+    			notif('Vape', 'Inorder to disable fflags you have applied, You need to restart roblox', 20, 'info')
+    		end
+    	end
+    })
+    
+    Flags = FFlag:CreateTextBox({
+    	Name = 'FFlags',
+    	Placeholder = 'json format only',
+    	Function = ChangeFFlag
+    })
+end)
+
+run(function()
     local FOV
     local Value
     local oldfov
 
-    FOV = vape.Legit:CreateModule({
+    FOV = vape.Categories.Legit:CreateModule({
     	Name = 'FOV',
     	Function = function(callback)
     		if callback then
@@ -7864,7 +7955,7 @@ run(function()
     local FPS
     local label
 
-    FPS = vape.Legit:CreateModule({
+    FPS = vape.Categories.Legit:CreateModule({
     	Name = 'FPS',
     	Category = 'Hud',
     	Function = function(callback)
@@ -7982,7 +8073,7 @@ run(function()
     	end
     end
 
-    Keystrokes = vape.Legit:CreateModule({
+    Keystrokes = vape.Categories.Legit:CreateModule({
     	Name = 'Keystrokes',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8046,7 +8137,7 @@ run(function()
     local Memory
     local label
 
-    Memory = vape.Legit:CreateModule({
+    Memory = vape.Categories.Legit:CreateModule({
     	Name = 'Memory',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8094,7 +8185,7 @@ run(function()
     local Ping
     local label
 
-    Ping = vape.Legit:CreateModule({
+    Ping = vape.Categories.Legit:CreateModule({
     	Name = 'Ping',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8188,7 +8279,7 @@ run(function()
     	end
     end
 
-    SongBeats = vape.Legit:CreateModule({
+    SongBeats = vape.Categories.Legit:CreateModule({
     	Name = 'Song Beats',
     	Function = function(callback)
     		if callback then
@@ -8274,7 +8365,7 @@ run(function()
     local Speedmeter
     local label
 
-    Speedmeter = vape.Legit:CreateModule({
+    Speedmeter = vape.Categories.Legit:CreateModule({
     	Name = 'Speedmeter',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8325,7 +8416,7 @@ run(function()
     local Value
     local old
 
-    TimeChanger = vape.Legit:CreateModule({
+    TimeChanger = vape.Categories.Legit:CreateModule({
     	Name = 'Time Changer',
     	Function = function(callback)
     		if callback then

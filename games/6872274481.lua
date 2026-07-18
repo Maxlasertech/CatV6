@@ -860,6 +860,8 @@ run(function()
 		end,
 		HudAliveCount = require(lplr.PlayerScripts.TS.controllers.global['top-bar'].ui.game['hud-alive-player-counts']).HudAlivePlayerCounts,
 		ItemMeta = require(replicatedStorage.TS.item['item-meta']).items,
+		ItemSkinType = require(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-types']).ItemSkinType,
+		ItemType = require(replicatedStorage.TS.item['item-type']).ItemType,
 		KillEffectMeta = require(replicatedStorage.TS.locker['kill-effect']['kill-effect-meta']).KillEffectMeta,
 		KillFeedController = Flamework.resolveDependency('client/controllers/game/kill-feed/kill-feed-controller@KillFeedController'),
 		Knit = Knit,
@@ -882,6 +884,7 @@ run(function()
 		StatusEffectMeta = require(replicatedStorage.TS['status-effect']['status-effect-type']).StatusEffectType,
 		SharedConstants = canDebug and require(replicatedStorage.TS['shared-constants']).CpsConstants or {},
 		SoundList = require(replicatedStorage.TS.sound['game-sound']).GameSound,
+		SettingsMeta = require(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
 		SoundManager = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).SoundManager,
 		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
 		TeamUpgradeMeta = canDebug and debug.getupvalue(require(replicatedStorage.TS.games.bedwars['team-upgrade']['team-upgrade-meta']).getTeamUpgradeMetaForQueue, 7) or {},
@@ -1554,6 +1557,7 @@ run(function()
 		storeChanged = nil
 	end)
 end)
+getgenv().sides = sides
 
 for _, v in {'Anti Ragdoll', 'Trigger Bot', 'Silent Aim', 'Auto Rejoin', 'Rejoin', 'Disabler', 'Timer', 'Server Hop', 'Mouse TP', 'Murder Mystery'} do
 	vape:Remove(v)
@@ -3359,6 +3363,80 @@ run(function()
 end)
 
 run(function()
+    local InfiniteFly
+    local HiddenPart = Instance.new('Part')
+    local falling
+    local lastUp = os.clock()
+    HiddenPart.Parent = workspace
+    HiddenPart.Transparency = 1
+    HiddenPart.CanQuery = false
+    HiddenPart.CanTouch = false
+    HiddenPart.CanCollide = false
+    HiddenPart.Anchored = true
+    
+    local oldTransparency = {}
+    local function doCharacterThing()
+        if entitylib.isAlive then
+            for index, value in entitylib.character.Character:GetDescendants() do
+                if value:IsA('Part') or value:IsA('BasePart') then
+                    oldTransparency[value] = value.Transparency
+    
+                    value.Transparency = 1
+                end
+            end
+        end
+    end
+    
+    local function revertCharacter()
+        if entitylib.isAlive then
+            for index, value in entitylib.character.Character:GetDescendants() do
+                if value:IsA('Part') or value:IsA('BasePart') then
+                    value.Transparency = oldTransparency[value]
+                end
+            end
+        end
+    end
+    
+    InfiniteFly = vape.Categories.Blatant:CreateModule({
+        Name = 'InfiniteFly',
+        Function = function(callback)
+            gameCamera.CameraSubject = callback and HiddenPart or entitylib.character.Character
+    
+            if callback then
+                doCharacterThing()
+                HiddenPart.CFrame = entitylib.character.Character.Head.CFrame
+    
+                entitylib.character.RootPart.CFrame = CFrame.new(Vector3.new(entitylib.character.RootPart.CFrame.X, 175, entitylib.character.RootPart.CFrame.Z))
+    
+                InfiniteFly:Clean(runService.PreSimulation:Connect(function(dt: number)
+                    if not entitylib.isAlive then
+                        return
+                    end
+    
+                    if os.clock() - lastUp < 0.35 then
+                        entitylib.character.RootPart.AssemblyLinearVelocity *= Vector3.new(1, 0, 1)
+                        entitylib.character.RootPart.CFrame -= Vector3.new(0, 0.3 * dt)
+                    end
+    
+                    HiddenPart.CFrame = CFrame.new(Vector3.new(entitylib.character.RootPart.Position.X, HiddenPart.CFrame.Y, entitylib.character.RootPart.Position.Z))
+    
+                    if entitylib.character.RootPart.CFrame.Y < -75 then
+                        entitylib.character.RootPart.AssemblyLinearVelocity *= Vector3.new(1, 0, 1)
+                        entitylib.character.RootPart.CFrame = CFrame.new(Vector3.new(entitylib.character.RootPart.CFrame.X, 210, entitylib.character.RootPart.CFrame.Z))
+                        lastUp = os.clock()
+                    end
+                end))
+            else
+                revertCharacter()
+            end
+        end,
+        ExtraText = function()
+            return 'Heatseeker'
+        end
+    })
+end)
+
+run(function()
     local InstantKill
     local Mode
     local Range
@@ -3582,7 +3660,7 @@ run(function()
         end
     
         if LegitAura.Enabled then
-            if (tick() - bedwars.SwordController.lastSwing) > math.clamp(SwingTime.Value + 0.1, 0.12, 0.3) then return false end
+            if (tick() - bedwars.SwordController.lastSwing) > 0.3 then return false end
         end
     
         return sword, meta
@@ -9328,6 +9406,7 @@ run(function()
     local Mode
     local Clans
     local Party
+    local Leave
     local Profile
     local Users
     local blacklistedclans = {'gg', 'gg2', 'DV', 'DV2'}
@@ -9355,6 +9434,12 @@ run(function()
         if Party.Enabled and not checktype:find('clan') then
             bedwars.PartyController:leaveParty()
         end
+    
+        StaffDetector:Clean(plr.PlayerRemoved:Once(function()
+            if Leave.Enabled then
+                notify('StaffDetector', 'Staff '.. plr.Name..' ('..plr.UserId..')'.. ' has left the server', 20, 'alert')
+            end
+        end))
     
         if Mode.Value == 'Uninject' then
             task.spawn(function()
@@ -9468,6 +9553,11 @@ run(function()
                 Profile.Object.Visible = val == 'Profile'
             end
         end
+    })
+    Leave = StaffDetector:CreateToggle({
+        Name = 'Notify on leave',
+        Tooltip = 'Notifies when a flagged player leaves the game.',
+        Default = true
     })
     Clans = StaffDetector:CreateToggle({
         Name = 'Blacklist clans',
@@ -9958,6 +10048,7 @@ run(function()
     local Bedfinder
     local LimitItem
     local UseBlacklist
+    local Notify
     local Blacklist
     
     local function isBlacklisted(itemType)
@@ -10132,6 +10223,9 @@ run(function()
     								task.wait(delay)
     							end
     						end
+    						if Notify.Enabled then
+    							notif('BlockIn', 'Done', 2, 'info')
+    						end
     					end
     
     					if #blocks < 1 then
@@ -10168,12 +10262,13 @@ run(function()
     	Max = 5,
     	DefaultMin = 0.07,
     	DefaultMax = 0.1,
-    	Decimal = 5,
+    	Decimal = 5
     })
+    Notify = BlockIn:CreateToggle({Name = 'Notify on finish'})
     Bedfinder = BlockIn:CreateToggle({ Name = 'Bed finder' })
     LimitItem = BlockIn:CreateToggle({
     	Name = 'Limit to items',
-    	Tooltip = 'Only block-in with the block you are holding',
+    	Tooltip = 'Only block-in with the block you are holding'
     })
     UseBlacklist = BlockIn:CreateToggle({
     	Name = 'Use blacklist',
@@ -10182,7 +10277,7 @@ run(function()
     		if Blacklist then
     			Blacklist.Object.Visible = call
     		end
-    	end,
+    	end
     })
     Blacklist = BlockIn:CreateTextList({
     	Name = 'Blacklists',
@@ -10191,7 +10286,7 @@ run(function()
     		'cannon',
     		'tnt',
     		'siege_tnt',
-    	},
+    	}
     })
 end)
 
@@ -12169,7 +12264,7 @@ run(function()
     		local blockimage = Instance.new('ImageLabel')
     		blockimage.Size = UDim2.fromOffset(32, 32)
     		blockimage.BackgroundTransparency = 1
-    		blockimage.Image = bedwars.getIcon({ itemType = block }, true)
+    		blockimage.Image = bedwars.getIcon({itemType = block}, true)
     		blockimage.Parent = v.Frame
     		if amount > 1 and (not LayerCounter or LayerCounter.Enabled) then
     			local amounttext = Instance.new('TextLabel')
@@ -13159,7 +13254,7 @@ run(function()
     local Color
     local Type
     
-    ArmorTrims = vape.Legit:CreateModule({
+    ArmorTrims = vape.Categories.Legit:CreateModule({
         Name = 'Armor Trims',
         Function = function(callback)
             if callback then
@@ -13223,7 +13318,7 @@ run(function()
     	return
     end
     
-    BedAlarm = vape.Legit:CreateModule({
+    BedAlarm = vape.Categories.Legit:CreateModule({
     	Name = 'Bed Alarm',
     	Function = function(callback)
     		if callback then
@@ -13299,7 +13394,7 @@ run(function()
     local List
     local NameToId = {}
     
-    BedBreakEffect = vape.Legit:CreateModule({
+    BedBreakEffect = vape.Categories.Legit:CreateModule({
         Name = 'Bed Break Effect',
         Function = function(callback)
             if callback then
@@ -13333,7 +13428,7 @@ run(function()
     local Fill
     local Outline
     
-    BlockOverlay = vape.Legit:CreateModule({
+    BlockOverlay = vape.Categories.Legit:CreateModule({
         Name = 'Block Overlay',
         Function = function(callback)
             if callback then
@@ -13362,7 +13457,7 @@ run(function()
 end)
 
 run(function()
-    vape.Legit:CreateModule({
+    vape.Categories.Legit:CreateModule({
         Name = 'Clean Kit',
         Function = function(callback)
             if callback then
@@ -13382,7 +13477,7 @@ run(function()
     local old
     local Image
     
-    local Crosshair = vape.Legit:CreateModule({
+    local Crosshair = vape.Categories.Legit:CreateModule({
         Name = 'Crosshair',
         Function = function(callback)
             if callback then
@@ -13427,7 +13522,7 @@ run(function()
     tab = suc and tab or {}
     local oldvalues, oldfont = {}
     
-    DamageIndicator = vape.Legit:CreateModule({
+    DamageIndicator = vape.Categories.Legit:CreateModule({
         Name = 'Damage Indicator',
         Function = function(callback)
             if callback then
@@ -13514,7 +13609,7 @@ run(function()
     local DeviceSpoofer
     local Device
     
-    DeviceSpoofer = vape.Legit:CreateModule({
+    DeviceSpoofer = vape.Categories.Legit:CreateModule({
         Name = 'Device Spoofer',
         Function = function(callback)
             if callback then
@@ -13543,7 +13638,7 @@ run(function()
     local Value
     local old, old2
     
-    FOV = vape.Legit:CreateModule({
+    FOV = vape.Categories.Legit:CreateModule({
         Name = 'FOV',
         Function = function(callback)
             if callback then
@@ -13582,7 +13677,7 @@ run(function()
     local Visualizer
     local effects, util = {}, {}
     
-    FPSBoost = vape.Legit:CreateModule({
+    FPSBoost = vape.Categories.Legit:CreateModule({
         Name = 'FPS Boost',
         Function = function(callback)
             if callback then
@@ -13659,7 +13754,7 @@ run(function()
     local Color
     local done = {}
     
-    HitColor = vape.Legit:CreateModule({
+    HitColor = vape.Categories.Legit:CreateModule({
         Name = 'Hit Color',
         Function = function(callback)
             if callback then 
@@ -13693,7 +13788,7 @@ run(function()
 end)
 
 run(function()
-    vape.Legit:CreateModule({
+    vape.Categories.Legit:CreateModule({
         Name = 'Hit Fix',
         Function = function(callback)
             debug.setconstant(bedwars.SwordController.swingSwordAtMouse, 23, callback and 'raycast' or 'Raycast')
@@ -13742,7 +13837,7 @@ run(function()
             end
         end
     
-        Interface = vape.Legit:CreateModule({
+        Interface = vape.Categories.Legit:CreateModule({
             Name = 'Interface',
             Function = function(callback)
                 for i, v in (callback and new or old) do
@@ -13902,7 +13997,7 @@ run(function()
         end
     }
     
-    KillEffect = vape.Legit:CreateModule({
+    KillEffect = vape.Categories.Legit:CreateModule({
         Name = 'Kill Effect',
         Function = function(callback)
             if callback then
@@ -14042,7 +14137,7 @@ run(function()
         effect:Destroy()
     end
     
-    PotionStatus = vape.Legit:CreateModule({
+    PotionStatus = vape.Categories.Legit:CreateModule({
         Name = 'Potion Status',
         Tooltip = 'Shows you currently active effects',
         Function = function(callback)
@@ -14090,7 +14185,7 @@ run(function()
     local ReachDisplay
     local label
     
-    ReachDisplay = vape.Legit:CreateModule({
+    ReachDisplay = vape.Categories.Legit:CreateModule({
         Name = 'Reach Display',
         Function = function(callback)
             if callback then
@@ -14180,7 +14275,7 @@ run(function()
         end
     end
     
-    SongBeats = vape.Legit:CreateModule({
+    SongBeats = vape.Categories.Legit:CreateModule({
         Name = 'Song Beats',
         Function = function(callback)
             if callback then
@@ -14257,7 +14352,7 @@ run(function()
     local soundlist = {}
     local old
     
-    SoundChanger = vape.Legit:CreateModule({
+    SoundChanger = vape.Categories.Legit:CreateModule({
         Name = 'Sound Changer',
         Function = function(callback)
             if callback then
@@ -14296,7 +14391,7 @@ run(function()
     local TexturePacks
     local Pack
     
-    TexturePacks = vape.Legit:CreateModule({
+    TexturePacks = vape.Categories.Legit:CreateModule({
     	Name = 'Texture Pack',
     	Function = function(callback)
     		if callback then
@@ -14359,7 +14454,7 @@ run(function()
             end
         end
     
-        UICleanup = vape.Legit:CreateModule({
+        UICleanup = vape.Categories.Legit:CreateModule({
             Name = 'UI Cleanup',
             Function = function(callback)
                 for i, v in (callback and new or old) do
@@ -14481,7 +14576,7 @@ run(function()
     local Rots = {}
     local old, oldc1
     
-    Viewmodel = vape.Legit:CreateModule({
+    Viewmodel = vape.Categories.Legit:CreateModule({
         Name = 'Viewmodel',
         Function = function(callback)
             local viewmodel = gameCamera:FindFirstChild('Viewmodel')
@@ -14582,7 +14677,7 @@ run(function()
     local List
     local NameToId = {}
     
-    WinEffect = vape.Legit:CreateModule({
+    WinEffect = vape.Categories.Legit:CreateModule({
         Name = 'Win Effect',
         Function = function(callback)
             if callback then

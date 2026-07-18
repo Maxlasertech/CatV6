@@ -5722,7 +5722,11 @@ function mainapi:Load(skipgui, profile)
 		button.BackgroundColor3 = Color3.new()
 		button.BackgroundTransparency = hide and 1 or 0.35
 		button.Text = ''
-		button.Parent = game.GameId == 2619619496 and cloneref(game:GetService('Players')).LocalPlayer.PlayerGui.TopBarAppGui.TopBarApp or gui
+		local topbar = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui:WaitForChild("TopBarAppGui", 15)
+		if topbar then
+			topbar = topbar:WaitForChild("TopBarApp", 5)
+		end
+		button.Parent = game.GameId == 2619619496 and topbar or gui
 		local image = Instance.new('ImageLabel')
 		image.AnchorPoint = Vector2.new(0.5, 0.5)
 		image.Size = UDim2.fromOffset(22, 22)
@@ -6047,6 +6051,11 @@ if game.GameId == 2619619496 then
 		Size = UDim2.fromOffset(15, 15)
 	})
 end
+mainapi:CreateCategory({
+	Name = 'Legit',
+	Icon = getcustomasset('catrewrite/assets/new/legittab.png'),
+	Size = UDim2.fromOffset(16, 16)
+})
 
 mainapi.Categories.Main:CreateDivider('misc')
 
@@ -6214,9 +6223,9 @@ general:CreateButton({
 	Function = function()
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('catrewrite/loader.lua'), 'loader')()
+			loadstring(readfile('catrewrite/main.lua'), 'main')()
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true))(license)
 		end
 	end,
 	Tooltip = 'Reloads vape for debugging purposes'

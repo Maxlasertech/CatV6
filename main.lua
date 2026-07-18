@@ -1,6 +1,5 @@
 local license = ... or {}
-license.Key = script_key or license.Key or '_key'
-getgenv().license = license
+license.Key = script_key or license.Key or nil
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 
@@ -13,6 +12,7 @@ local loadstring = function(...)
 	return res
 end
 local queue_on_teleport = queue_on_teleport or function() end
+local clear_teleport_queue = clear_teleport_queue or clearteleportqueue or function() end
 local isfile = isfile or function(file)
 	local suc, res = pcall(function()
 		return readfile(file)
@@ -77,8 +77,8 @@ local function finishLoading()
 	end)
 
 	local teleportedServers
-	vape:Clean(playersService.LocalPlayer.OnTeleport:Connect(function(state)
-		if (not teleportedServers) and (not shared.VapeIndependent) then
+	(function()
+		if (not shared.VapeIndependent) then
 			teleportedServers = true
 			local teleportScript = [[
 				shared.vapereload = true
@@ -105,7 +105,7 @@ local function finishLoading()
 			end
 			queue_on_teleport(teleportScript)
 		end
-	end))
+	end)()
 
 	if not vape.Categories then return end
 	if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
