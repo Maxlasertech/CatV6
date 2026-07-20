@@ -5893,20 +5893,20 @@ function mainapi:Uninject()
 end
 
 gui = Instance.new('ScreenGui')
-gui.Name = 'Roact'
+gui.Name = randomString()
 gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
 if false then
-	gui.Parent = (gethui and gethui()) or cloneref(game:GetService('CoreGui'))
+	gui.Parent = cloneref(game:GetService('CoreGui'))--(gethui and gethui()) or cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
 	gui.ResetOnSpawn = false
 end
 mainapi.gui = gui
 scaledgui = Instance.new('Frame')
-scaledgui.Name = 'NotificationApp'
+scaledgui.Name = 'ScaledGui'
 scaledgui.Size = UDim2.fromScale(1, 1)
 scaledgui.BackgroundTransparency = 1
 scaledgui.Parent = gui
