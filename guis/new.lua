@@ -20,7 +20,7 @@ local mainapi = {
 	Scale = {Value = 1},
 	ThreadFix = setthreadidentity and true or false,
 	ToggleNotifications = {},
-	Version = '4.18',
+	Version = '6.11',
 	ToggleMode = {Value = 'Toggle'},
 	Windows = {}
 }
@@ -2164,7 +2164,7 @@ components = {
 				optionsettings.Function(self.Enabled)
 			end, function(err)
 				if shared.VapeDeveloper then
-					mainapi:CreateNotification('Vape', 'gui error: '.. err, 15, 'warning')
+					mainapi:CreateNotification('Vape', optionsettings.Name.. ' error: '.. err, 15, 'warning')
 					task.defer(error, err)
 				end	
 			end)
@@ -3725,7 +3725,10 @@ function mainapi:CreateCategory(categorysettings)
 	windowlist.Parent = children
 
 	function categoryapi:CreateModule(modulesettings)
-		mainapi:Remove(modulesettings.Name)
+		if mainapi.ThreadFix then
+			setthreadidentity(8)
+		end
+		pcall(function() mainapi:Remove(modulesettings.Name) end)
 		local moduleapi = {
 			Enabled = false,
 			Options = {},
@@ -5898,8 +5901,8 @@ gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
-if false then
-	gui.Parent = cloneref(game:GetService('CoreGui'))--(gethui and gethui()) or cloneref(game:GetService('CoreGui'))
+if mainapi.ThreadFix then
+	gui.Parent = (gethui and gethui()) or cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
 	gui.ResetOnSpawn = false
