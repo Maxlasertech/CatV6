@@ -5893,7 +5893,7 @@ function mainapi:Uninject()
 end
 
 gui = Instance.new('ScreenGui')
-gui.Name = ''
+gui.Name = 'Roact'
 gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
