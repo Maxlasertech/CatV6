@@ -27,7 +27,7 @@ local function downloadFile(path, func)
 	return (func or readfile)(path)
 end
 local run = function(func)
-	if identifyexecutor() == "Opiumware" then
+	if shared.vapesmooth then
 		task.wait()
 	end
 	func()
@@ -6750,50 +6750,6 @@ run(function()
     })
 end)
 
-run(function()
-    local StateSpoofer
-    local State
-    local hook
-    
-    StateSpoofer = vape.Categories.Utility:CreateModule({
-    	Name = 'State Disabler',
-    	Function = function(callback)
-    		if callback then
-    			if not rakNetCheck('StateDisabler') then
-    				StateSpoofer:Toggle()
-    				return
-    			end
-    
-    			hook = function(packet)
-    				if packet.AsArray[1] == 0x1B then
-    					local data = packet.AsBuffer
-                        if buffer.readu8(data, 25) == Enum.HumanoidStateType[State.Value].Value + 32 then
-                            buffer.writeu32(data, 25, 0xFFFFFFFF)
-                            packet:SetData(data)
-                        end
-    				end
-    			end
-    
-    			raknet.add_send_hook(hook)
-    		elseif hook then
-    			raknet.remove_send_hook(hook)
-    			hook = nil
-    		end
-    	end,
-    	Tooltip = 'Disable humanoid states on the server.'
-    })
-    local states = {}
-    for _, v in Enum.HumanoidStateType:GetEnumItems() do
-    	if v.Name ~= 'None' then
-    		table.insert(states, v.Name)
-    	end
-    end
-    State = StateSpoofer:CreateDropdown({
-    	Name = 'Humanoid State',
-    	List = states
-    })
-end)
-
 --[[
     World
 ]]
@@ -7645,7 +7601,7 @@ run(function()
     local TwentyFourHour
     local label
 
-    Clock = vape.Categories.Legit:CreateModule({
+    Clock = vape.Legit:CreateModule({
     	Name = 'Clock',
     	Category = 'Hud',
     	Function = function(callback)
@@ -7958,7 +7914,7 @@ run(function()
     local FPS
     local label
 
-    FPS = vape.Categories.Legit:CreateModule({
+    FPS = vape.Legit:CreateModule({
     	Name = 'FPS',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8076,7 +8032,7 @@ run(function()
     	end
     end
 
-    Keystrokes = vape.Categories.Legit:CreateModule({
+    Keystrokes = vape.Legit:CreateModule({
     	Name = 'Keystrokes',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8140,7 +8096,7 @@ run(function()
     local Memory
     local label
 
-    Memory = vape.Categories.Legit:CreateModule({
+    Memory = vape.Legit:CreateModule({
     	Name = 'Memory',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8188,7 +8144,7 @@ run(function()
     local Ping
     local label
 
-    Ping = vape.Categories.Legit:CreateModule({
+    Ping = vape.Legit:CreateModule({
     	Name = 'Ping',
     	Category = 'Hud',
     	Function = function(callback)
@@ -8368,7 +8324,7 @@ run(function()
     local Speedmeter
     local label
 
-    Speedmeter = vape.Categories.Legit:CreateModule({
+    Speedmeter = vape.Legit:CreateModule({
     	Name = 'Speedmeter',
     	Category = 'Hud',
     	Function = function(callback)

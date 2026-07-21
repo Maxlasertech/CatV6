@@ -3726,7 +3726,7 @@ function mainapi:CreateCategory(categorysettings)
 
 	function categoryapi:CreateModule(modulesettings)
 		if mainapi.ThreadFix then
-			setthreadidentity(8)
+			--setthreadidentity(8)
 		end
 		pcall(function() mainapi:Remove(modulesettings.Name) end)
 		local moduleapi = {
@@ -5901,7 +5901,7 @@ gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
-if mainapi.ThreadFix then
+if false then
 	gui.Parent = (gethui and gethui()) or cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
@@ -7298,7 +7298,7 @@ local function keybindStart(inputObj)
 			if checkKeybinds(mainapi.HeldKeybinds, v.Bind, inputObj.KeyCode.Name) then
 				toggled = true
 				if mainapi.ToggleNotifications.Enabled then
-					mainapi:CreateNotification('Module Toggled', i.."<font color='#FFFFFF'> has been </font>"..(not v.Enabled and "<font color='#5AFF5A'>Enabled</font>" or "<font color='#FF5A5A'>Disabled</font>").."<font color='#FFFFFF'>!</font>", 0.75)
+					mainapi:CreateNotification(i, (not v.Enabled and "<font color='#5AFF5A'>Enabled</font>" or "<font color='#FF5A5A'>Disabled</font>"), 0.75)
 				end
 				v:Toggle(true)
 			end

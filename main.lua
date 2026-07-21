@@ -3,7 +3,7 @@ license.Key = script_key or license.Key or nil
 local Loaded = game:IsLoaded()
 if not Loaded then
 	repeat task.wait() until game:IsLoaded()
-	task.wait(identifyexecutor() == 'Opiumware' and 30 or 5)
+	task.wait(5)
 end
 if shared.vape then shared.vape:Uninject() end
 
@@ -145,6 +145,7 @@ getgenv().used_init = true
 vape = loadstring(downloadFile('catrewrite/guis/'..gui..'.lua'), 'gui')(license)
 _G.vape = vape
 shared.vape = vape
+shared.vapesmooth = table.find({'Opiumware', 'Madium', 'Potassium'}, ({identifyexecutor()})[1]) and true or false
 
 if shared.maincat then
 	redirect()
@@ -165,6 +166,9 @@ if not shared.VapeIndependent then
 				loadstring(downloadFile('catrewrite/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
 			end
 		end
+	end
+	if vape.ThreadFix then
+		setthreadidentity(8)
 	end
 	loadstring(downloadFile('catrewrite/libraries/premium.lua'), 'premium')(license)
 	finishLoading()

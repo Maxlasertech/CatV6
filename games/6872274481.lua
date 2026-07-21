@@ -1,6 +1,6 @@
 local canDebug = true
 local run = function(func)
-	if identifyexecutor() == "Opiumware" then
+	if shared.vapesmooth then
 		task.wait()
 	end
 	func()
@@ -524,6 +524,10 @@ local kitorder = {
 }
 
 local getBlockHits
+local function getBlockDistance(a)
+	local pos = (entitylib.isAlive and (entitylib.character.RootPart.Position - Vector3.new(0, 1, 0)) or Vector3.zero)
+	return (pos - Vector3.new(a.Position.X, pos.Y, a.Position.Z)).Magnitude
+end
 local sortmethods, breakmethods = {
 	Damage = function(a, b)
 		return a.Entity.Character:GetAttribute('LastDamageTakenTime') < b.Entity.Character:GetAttribute('LastDamageTakenTime')
@@ -555,13 +559,10 @@ local sortmethods, breakmethods = {
         return (dista == dista and dista or math.huge) < (distb == distb and distb or math.huge)
 	end
 }, {
-	Health = function(...)
-		return getBlockHits(...)
+	Health = function(a, b)
+		return getBlockHits(a, b) + getBlockDistance(a) * 0.1
 	end,
-	Distance = function(a)
-		local pos = (entitylib.isAlive and (entitylib.character.RootPart.Position - Vector3.new(0, 1, 0)) or Vector3.zero)
-		return (pos - Vector3.new(a.Position.X, pos.Y, a.Position.Z)).Magnitude
-	end
+	Distance = getBlockDistance
 }
 getgenv().sortmethods = sortmethods
 getgenv().breakmethods = breakmethods
@@ -620,6 +621,18 @@ run(function()
 			end)
 		}
 	end
+
+	vape:Clean(playersService.PlayerRemoving:Connect(function(plr)
+		local connections = entitylib.PlayerConnections[plr]
+		if connections then
+			for _, connection in connections do
+				connection:Disconnect()
+			end
+			entitylib.PlayerConnections[plr] = nil
+		end
+		store.inventories[plr] = nil
+		rankCache[plr] = nil
+	end))
 
 	entitylib.addEntity = function(char, plr, teamfunc)
 		if not char then return end
@@ -801,6 +814,9 @@ end)
 
 local calculatePath
 local CheatersFlagged = {}
+vape:Clean(playersService.PlayerRemoving:Connect(function(plr)
+	CheatersFlagged[plr] = nil
+end))
 run(function()
 	local KnitInit, Knit
 	repeat
@@ -844,6 +860,8 @@ run(function()
 		DamageIndicator = Knit.Controllers.DamageIndicatorController.spawnDamageIndicator,
 		DefaultKillEffect = require(lplr.PlayerScripts.TS.controllers.global.locker['kill-effect'].effects['default-kill-effect']),
 		EnchantMeta = require(replicatedStorage.TS.enchant['enchant-meta']).EnchantMeta,
+		EmoteDisplayMeta = require(replicatedStorage.TS.locker.emote['emote-display-meta']).EmoteDisplayMeta,
+		EmoteMeta = require(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
 		EmoteType = require(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
 		Flamework = Flamework,
 		GamePlayer = require(replicatedStorage.TS.player['game-player']),
@@ -870,6 +888,7 @@ run(function()
 		Knit = Knit,
 		KnockbackUtil = require(replicatedStorage.TS.damage['knockback-util']).KnockbackUtil,
 		MageKitUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.mage['mage-kit-util']).MageKitUtil,
+		MatchDraftPhase = require(replicatedStorage.TS.match.draft['match-draft-phase']).MatchDraftPhase,
 		ModeratorApp = require(lplr.PlayerScripts.TS.controllers.global['match-history'].ui['match-history-moderation-app']).MatchHistoryModerationApp,
 		NotificationController = Flamework.resolveDependency('@easy-games/game-core:client/controllers/notification-controller@NotificationController'),
 		NametagController = Knit.Controllers.NametagController,
@@ -1077,6 +1096,10 @@ run(function()
 				return {
 					instance = call.instance,
 					SendToServer = function(_, attackTable, ...)
+						local suc, plr = pcall(function()
+							return playersService:GetPlayerFromCharacter(attackTable.entityInstance)
+						end)
+
 						local selfpos = attackTable.validate.selfPosition.value
 						local targetpos = attackTable.validate.targetPosition.value
 						store.attackReach = ((selfpos - targetpos).Magnitude * 100) // 1 / 100
@@ -1085,6 +1108,10 @@ run(function()
 						if Reach.Enabled or HitBoxes.Enabled then
 							attackTable.validate.raycast = attackTable.validate.raycast or {}
 							attackTable.validate.selfPosition.value += CFrame.lookAt(selfpos, targetpos).LookVector * math.max((selfpos - targetpos).Magnitude - 14.399, 0)
+						end
+
+						if suc and plr then
+							if not select(2, whitelist:get(plr)) then return end
 						end
 
 						return call:SendToServer(attackTable, ...)
@@ -1134,14 +1161,22 @@ run(function()
 		Pathfinding using a luau version of dijkstra's algorithm
 		Source: https://stackoverflow.com/questions/39355587/speeding-up-dijkstras-algorithm-to-solve-a-3d-maze
 	]]
-	calculatePath = function(target, blockpos, method, angle)
+	calculatePath = function(target, blockpos, method, angle, legitCheck)
         if ((cache[blockpos] or {})[4] or 0) > tick() then
             return unpack(cache[blockpos])
         end
 
-		local visited, unvisited, distances, air, path = {}, {{0, blockpos}}, {[blockpos] = 0}, {}, {}
+		local visited, unvisited, distances, air, path = {}, {{0, blockpos, 0}}, {[blockpos] = 0}, {}, {}
+		local depths, visibility = {[blockpos] = 0}, {}
 
-		for _ = 1, 10000 do
+		local function isNodeVisible(pos)
+			if visibility[pos] == nil then
+				visibility[pos] = not legitCheck or legitCheck(pos)
+			end
+			return visibility[pos]
+		end
+
+		for _ = 1, (legitCheck and 300 or 10000) do
 			local _, node = next(unvisited)
 			if not node then break end
 			table.remove(unvisited, 1)
@@ -1153,7 +1188,7 @@ run(function()
 
 				local block = getPlacedBlock(side)
 				if not block or block:GetAttribute('NoBreak') or block == target then
-					if not block then
+					if not block and isNodeVisible(node[2]) then
 						air[node[2]] = true
 					end
 					continue
@@ -1165,8 +1200,9 @@ run(function()
 
 				local curdist = (method and method(block, side) or getBlockHits(block, side)) + node[1]
 				if curdist < (distances[side] or math.huge) then
-					table.insert(unvisited, {curdist, side})
+					table.insert(unvisited, {curdist, side, node[3] + 1})
 					distances[side] = curdist
+					depths[side] = node[3] + 1
 					path[side] = node[2]
 				end
 			end
@@ -1174,8 +1210,32 @@ run(function()
 
 		local pos, cost = nil, math.huge
 		for node in air do
-			if distances[node] < cost then
-				pos, cost = node, distances[node]
+			local dcost = distances[node]
+			if dcost < cost then
+				local ok, cur, guard = true, node, 0
+				while cur ~= blockpos do
+					guard += 1
+					if guard > 10000 or not isNodeVisible(cur) then
+						ok = false
+						break
+					end
+					cur = path[cur]
+				end
+				if ok then
+					pos, cost = node, dcost
+				end
+			end
+		end
+
+		if not pos and legitCheck then
+			local depth = math.huge
+			for node, dcost in distances do
+				if node ~= blockpos and isNodeVisible(node) then
+					local d = depths[node]
+					if d < depth or (d == depth and dcost < cost) then
+						pos, cost, depth = node, dcost, d
+					end
+				end
 			end
 		end
 
@@ -1199,14 +1259,14 @@ run(function()
 		end
 	end
 
-	bedwars.breakBlock = function(block, effects, anim, customHealthbar, visualise, sort, angle)
+	bedwars.breakBlock = function(block, effects, anim, customHealthbar, visualise, sort, angle, legitCheck)
 		if lplr:GetAttribute('DenyBlockBreak') or not entitylib.isAlive or InfiniteFly.Enabled then return end
 
 		local handler = bedwars.BlockController:getHandlerRegistry():getHandler(block.Name)
 		local cost, pos, target, path = math.huge, nil, nil, nil
 
 		for _, v in (handler and handler:getContainedPositions(block) or {block.Position / 3}) do
-			local dpos, dcost, dpath = calculatePath(block, v * 3, sort, angle or 360)
+			local dpos, dcost, dpath = calculatePath(block, v * 3, sort, angle or 360, legitCheck)
 			if dpos and dcost < cost then
 				cost, pos, target, path = dcost, dpos, v * 3, dpath
 			end
@@ -1274,9 +1334,7 @@ run(function()
 				end
 			end)
 
-			if effects then
-				return pos, path, target
-			end
+			return pos, effects and path or nil, effects and target or nil
 		end
 		return nil
 	end
@@ -1379,7 +1437,7 @@ run(function()
 				player = select(5, ...)
 			}
 			for i, v in cache do
-				if ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
+				if (v[4] or 0) <= tick() or ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
 					table.clear(v[3])
 					table.clear(v)
 					cache[i] = nil
@@ -1448,7 +1506,7 @@ run(function()
 								player = playersService:GetPlayerByUserId(v:GetAttribute('PlacedByUserId')),
 							}
 							for i, v in cache do
-								if ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
+								if (v[4] or 0) <= tick() or ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
 									table.clear(v[3])
 									table.clear(v)
 									cache[i] = nil
@@ -1589,7 +1647,7 @@ run(function()
     	return t < 0.5 and 4 * t * t * t or 1 - math.pow(-2 * t + 2, 3) / 2
     end
     
-    local cache = {}
+    local cache = setmetatable({}, { __mode = 'k' })
     local function getMousePosition()
     	if inputService.TouchEnabled then
     		return gameCamera.ViewportSize / 2
@@ -2262,11 +2320,6 @@ run(function()
         Name = 'Sprint',
         Function = function(callback)
             if callback then
-                if inputService.TouchEnabled then 
-                    pcall(function() 
-                        lplr.PlayerGui.MobileUI['4'].Visible = false 
-                    end) 
-                end
                 old = bedwars.SprintController.stopSprinting
                 bedwars.SprintController.stopSprinting = function(...)
                     local call = old(...)
@@ -3300,7 +3353,7 @@ run(function()
                     set = true
                 else
                     HitBoxes:Clean(entitylib.Events.EntityAdded:Connect(createHitbox))
-                    HitBoxes:Clean(entitylib.Events.EntityRemoving:Connect(function(ent)
+                    HitBoxes:Clean(entitylib.Events.EntityRemoved:Connect(function(ent)
                         if objects[ent] then
                             objects[ent]:Destroy()
                             objects[ent] = nil
@@ -3390,6 +3443,7 @@ run(function()
                 end
             end
         end
+        table.clear(oldTransparency)
     end
     
     InfiniteFly = vape.Categories.Blatant:CreateModule({
@@ -3977,7 +4031,7 @@ run(function()
             if callback then
                 local owls = collection('Owl', OwlAura, function(self, obj)
                     task.delay(1, function()
-                        if obj and obj.Parent and obj:GetAttribute('Owner') == lplr.UserId then
+                        if obj and obj.Parent and collectionService:HasTag(obj, 'Owl') and obj:GetAttribute('Owner') == lplr.UserId then
                             table.insert(self, obj)
                         end
                     end)
@@ -4810,6 +4864,21 @@ run(function()
     local Boots, Helmet, Chestplate, UseParts
     
     local Instances, Decoys = {}, {}
+    local charChildConnection
+    
+    local function pruneDead()
+        for i = #Instances, 1, -1 do
+            if not Instances[i].Parent then
+                table.remove(Instances, i)
+            end
+        end
+        for i = #Decoys, 1, -1 do
+            if not (Decoys[i].Main and Decoys[i].Main.Parent) then
+                table.remove(Decoys, i)
+            end
+        end
+    end
+    
     local Properties = {
         OutlineTransparency = 'Slider',
         FillTransparency = 'Slider',
@@ -4833,7 +4902,11 @@ run(function()
         Function = function(call)
             if call then
                 ArmorHighlight:Clean(lplr.CharacterAdded:Connect(function(char)
-                    ArmorHighlight:Clean(char.ChildAdded:Connect(function(part)
+                    pruneDead()
+                    if charChildConnection then
+                        charChildConnection:Disconnect()
+                    end
+                    charChildConnection = char.ChildAdded:Connect(function(part)
                         task.wait(1)
                         local armor = getArmor(part)
                         if armor then
@@ -4865,7 +4938,7 @@ run(function()
                                 table.insert(Instances, highlight)
                             end
                         end
-                    end))
+                    end)
                     for _, part in char:GetChildren() do
                         local armor = getArmor(part)
                         if armor then
@@ -4978,6 +5051,15 @@ run(function()
             else
                 for i,v in Instances do
                     v:Destroy()
+                end
+                for _, data in Decoys do
+                    if data.Main then
+                        data.Main:Destroy()
+                    end
+                end
+                if charChildConnection then
+                    charChildConnection:Disconnect()
+                    charChildConnection = nil
                 end
                 table.clear(Decoys)
                 table.clear(Instances)
@@ -6918,6 +7000,14 @@ run(function()
     
     local Instances = {}
     
+    local function pruneDead()
+        for i = #Instances, 1, -1 do
+            if not Instances[i].Parent then
+                table.remove(Instances, i)
+            end
+        end
+    end
+    
     ViewmodelVisuals = vape.Categories.Render:CreateModule({
         Name = 'Viewmodel Visuals',
         Function = function(call)
@@ -6943,6 +7033,7 @@ run(function()
                 end
     
                 ViewmodelVisuals:Clean(viewmodel.ChildAdded:Connect(function(visual)
+                    pruneDead()
                     if visual:IsA('Accessory') then
                         local highlight = visual.Handle:FindFirstChildOfClass('Highlight') or Instance.new('Highlight', visual.Handle)
                         highlight.FillColor = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
@@ -6961,6 +7052,8 @@ run(function()
                         ViewmodelVisuals:Toggle()
                     end
                 end))
+            else
+                table.clear(Instances)
             end
         end
     })
@@ -6995,9 +7088,13 @@ run(function()
     local AntiLasso
     local Chance
     local Check
+    local currentConnection
     
     local function Added(ent)
-        AntiLasso:Clean(ent.ChildAdded:Connect(function(v)
+        if currentConnection then
+            currentConnection:Disconnect()
+        end
+        currentConnection = ent.ChildAdded:Connect(function(v)
             if v:IsA('Accessory') and v:FindFirstChild('Rope') and Random.new(os.clock()):NextNumber(1, 100) < Chance.Value and (not Check.Enabled or entitylib.EntityPosition({
                 Range = 50,
                 Part = 'RootPart',
@@ -7008,7 +7105,7 @@ run(function()
                     ent.PrimaryPart.Anchored = false
                 end)
             end
-        end))
+        end)
     end
     
     AntiLasso = vape.Categories.Utility:CreateModule({
@@ -7022,6 +7119,11 @@ run(function()
                 end))
                 if entitylib.isAlive then
                     Added(lplr.Character)
+                end
+            else
+                if currentConnection then
+                    currentConnection:Disconnect()
+                    currentConnection = nil
                 end
             end
         end,
@@ -7130,21 +7232,27 @@ run(function()
                 AutoCounter:Clean(workspace.ChildAdded:Connect(function(v)
                     if v.Name == 'tnt' then
                         table.insert(tnts, v)
-                        AutoCounter:Clean(v.Destroying:Connect(function()
+                        v.Destroying:Once(function()
                             local index = table.find(tnts, v)
                             if index then
                                 table.remove(tnts, index)
                             end
-                        end))
+                        end)
                     end
                 end))
                 repeat
+                    for pos, expiry in placed do
+                        if expiry <= tick() then
+                            placed[pos] = nil
+                        end
+                    end
                     if entitylib.isAlive then
                         local item = getAttackData()
                         if item then
                             local localPosition = entitylib.character.RootPart.Position
                             for _, v in tnts do
-                                if v.Velocity.Y >= 0 and not table.find(placed, Vector3.new(math.round(v.Position.X), math.round(v.Position.Y), math.round(v.Position.Z))) and (localPosition - v.Position).Magnitude <= Range.Value then
+                                local roundedPos = Vector3.new(math.round(v.Position.X), math.round(v.Position.Y), math.round(v.Position.Z))
+                                if v.Velocity.Y >= 0 and not placed[roundedPos] and (localPosition - v.Position).Magnitude <= Range.Value then
                                     if not Limit.Enabled and AutoSwitch.Enabled then
                                         local hotbar = getHotbar(item)
                                         switchItem(item)
@@ -7152,7 +7260,7 @@ run(function()
                                             hotbarSwitch(hotbar)
                                         end
                                     end
-                                    table.insert(placed, Vector3.new(math.round(v.Position.X), math.round(v.Position.Y), math.round(v.Position.Z)))
+                                    placed[roundedPos] = tick() + 3
                                     task.spawn(bedwars.placeBlock, v.Position, item.Name)
                                     task.wait(0.12)
                                 end
@@ -8777,6 +8885,9 @@ run(function()
         Function = function(callback)
             if callback then
                 StaffDetector:Clean(playersService.PlayerAdded:Connect(playerAdded))
+                StaffDetector:Clean(playersService.PlayerRemoving:Connect(function(plr)
+                    joined[plr.UserId] = nil
+                end))
                 for _, v in playersService:GetPlayers() do
                     task.spawn(playerAdded, v)
                 end
@@ -11671,7 +11782,9 @@ run(function()
     local InstantBreak
     local LimitItem
     local Closest
+    local BreakerType
     local customlist, parts = {}, {}
+    local losFilter
     
     local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
         xpcall(function()
@@ -11802,6 +11915,35 @@ run(function()
         return (pos - block.Position).Magnitude
     end
     
+    losFilter = RaycastParams.new()
+    losFilter.FilterType = Enum.RaycastFilterType.Exclude
+    losFilter.RespectCanCollide = false
+    losFilter.IgnoreWater = true
+    
+    local function refreshFilter()
+        losFilter.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    end
+    
+    local VISIBILITY_PROBES = {
+        Vector3.zero,
+        Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
+        Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
+        Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
+    }
+    
+    local function isVisible(worldPos)
+        local eye = gameCamera.CFrame.Position
+        for _, offset in VISIBILITY_PROBES do
+            local probe = worldPos + offset
+            local ray = probe - eye
+            local hit = workspace:Raycast(eye, ray, losFilter)
+            if not hit or (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then
+                return true
+            end
+        end
+        return false
+    end
+    
     local function attemptBreak(tab, localPosition)
         if not tab then return end
         for _, v in tab do
@@ -11810,7 +11952,9 @@ run(function()
                 if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
                 if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
     
-                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, Closest.Enabled)
+                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, BreakerType.Value == 'Legit' and isVisible or nil)
+                if not target then continue end
+    
                 if path then
                     local currentnode = target
                     for _, part in parts do
@@ -11883,6 +12027,9 @@ run(function()
                     if not Breaker.Enabled then break end
                     if entitylib.isAlive then
                         local localPosition = entitylib.character.RootPart.Position
+                        if BreakerType.Value == 'Legit' then
+                            refreshFilter()
+                        end
                         if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
                         if attemptBreak(Tesla.Enabled and teslas, localPosition) then continue end
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
@@ -11902,7 +12049,10 @@ run(function()
                 table.clear(parts)
             end
         end,
-        Tooltip = 'Break blocks around you automatically'
+        Tooltip = 'Break blocks around you automatically',
+        ExtraText = function()
+            return BreakerType.Value
+        end
     })
     local methods = {}
     for i in breakmethods do
@@ -11993,6 +12143,12 @@ run(function()
     SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
     InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
     AutoTool = Breaker:CreateToggle({Name = 'Auto Tool'})
+    BreakerType = Breaker:CreateDropdown({
+        Name = 'Breaker Type',
+        List = {'Blatant', 'Legit'},
+        Default = 'Blatant',
+        Tooltip = 'Blatant breaks any block in range regardless of visibility\nLegit only breaks blocks that are actually visible from your camera, never blindly through walls'
+    })
     Closest = Breaker:CreateToggle({
         Name = 'Closest break',
         Tooltip = 'Uses ur mouse\'s position to get the closest block to you',
@@ -12018,11 +12174,20 @@ run(function()
     local originalProperties = {}
     local workspaceConnection
     
+    local function pruneDead()
+        for part in pairs(originalProperties) do
+            if not part.Parent then
+                originalProperties[part] = nil
+            end
+        end
+    end
+    
     -- Helper function to expand the hitbox of a specific battery model
     local function expandBattery(obj, size)
         if obj.Name == "Open" and obj:IsA("Model") then
             -- Verify it is a Cobalt battery
             if obj:FindFirstChild("Invertedneon") or obj:FindFirstChild("Top") then
+                pruneDead()
                 task.wait(0.1)
                 -- Stop execution if the module was toggled off during wait
                 if not AutoCobalt.Enabled then return end
@@ -12998,13 +13163,18 @@ run(function()
     HitColor = vape.Categories.Legit:CreateModule({
         Name = 'Hit Color',
         Function = function(callback)
-            if callback then 
+            if callback then
                 repeat
-                    for i, v in entitylib.List do 
+                    for i = #done, 1, -1 do
+                        if not done[i].Parent then
+                            table.remove(done, i)
+                        end
+                    end
+                    for i, v in entitylib.List do
                         local highlight = v.Character and v.Character:FindFirstChild('_DamageHighlight_')
-                        if highlight then 
-                            if not table.find(done, highlight) then 
-                                table.insert(done, highlight) 
+                        if highlight then
+                            if not table.find(done, highlight) then
+                                table.insert(done, highlight)
                             end
                             highlight.FillColor = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
                             highlight.FillTransparency = Color.Opacity
@@ -13378,7 +13548,7 @@ run(function()
         effect:Destroy()
     end
     
-    PotionStatus = vape.Categories.Legit:CreateModule({
+    PotionStatus = vape.Legit:CreateModule({
         Name = 'Potion Status',
         Tooltip = 'Shows you currently active effects',
         Function = function(callback)
@@ -13426,7 +13596,7 @@ run(function()
     local ReachDisplay
     local label
     
-    ReachDisplay = vape.Categories.Legit:CreateModule({
+    ReachDisplay = vape.Legit:CreateModule({
         Name = 'Reach Display',
         Function = function(callback)
             if callback then
