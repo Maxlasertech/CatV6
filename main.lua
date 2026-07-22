@@ -153,6 +153,15 @@ if shared.maincat then
 	return
 end
 
+if hookmetamethod then -- potential detection, very rare tho
+	local old; old = hookmetamethod(game, '__namecall', newcclosure(function(...)
+		if getnamecallmethod() == 'FireServer' and tostring(select(2, ...)) == 'TabFreezeAnticheat_ClientToServerReport ' then
+			return nil
+		end
+		return old(...)
+	end))
+end
+
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catrewrite/games/universal.lua'), 'universal')(license)
 	if isfile('catrewrite/games/'..game.PlaceId..'.lua') then
