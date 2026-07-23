@@ -145,21 +145,12 @@ getgenv().used_init = true
 vape = loadstring(downloadFile('catrewrite/guis/'..gui..'.lua'), 'gui')(license)
 _G.vape = vape
 shared.vape = vape
-shared.vapesmooth = table.find({'Opiumware', 'Madium', 'Potassium'}, ({identifyexecutor()})[1]) and true or false
+shared.vapesmooth = true--table.find({'Opiumware', 'Madium', 'Potassium'}, ({identifyexecutor()})[1]) and true or false
 
 if shared.maincat then
 	redirect()
 	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
 	return
-end
-
-if hookmetamethod then -- potential detection, very rare tho
-	local old; old = hookmetamethod(game, '__namecall', newcclosure(function(...)
-		if getnamecallmethod() == 'FireServer' and tostring(select(2, ...)) == 'TabFreezeAnticheat_ClientToServerReport ' then
-			return nil
-		end
-		return old(...)
-	end))
 end
 
 if not shared.VapeIndependent then

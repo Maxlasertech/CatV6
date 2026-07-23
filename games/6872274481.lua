@@ -787,7 +787,7 @@ run(function()
 		end
 		if ent.NPC then return true end
 		if isFriend(ent.Player) then return false end
-		if not select(2, whitelist:get(ent.Player)) then return false end
+		--if not select(2, whitelist:get(ent.Player)) then return false end
 		return lplr:GetAttribute('Team') ~= ent.Player:GetAttribute('Team')
 	end
 	vape:Clean(entitylib.Events.LocalAdded:Connect(updateVelocity))
@@ -1111,7 +1111,7 @@ run(function()
 						end
 
 						if suc and plr then
-							if not select(2, whitelist:get(plr)) then return end
+							--if not select(2, whitelist:get(plr)) then return end
 						end
 
 						return call:SendToServer(attackTable, ...)
@@ -1128,13 +1128,13 @@ run(function()
 	bedwars.BlockController.isBlockBreakable = function(self, breakTable, plr)
 		local obj = bedwars.BlockController:getStore():getBlockAt(breakTable.blockPosition)
 
-		if obj and obj.Name == 'bed' then
+		--[[if obj and obj.Name == 'bed' then
 			for _, plr in playersService:GetPlayers() do
 				if obj:GetAttribute('Team'..(plr:GetAttribute('Team') or 0)..'NoBreak') and not select(2, whitelist:get(plr)) then
 					return false
 				end
 			end
-		end
+		end]]
 
 		return OldBreak(self, breakTable, plr)
 	end
@@ -1767,18 +1767,24 @@ run(function()
     						end
     						targetinfo.Targets[ent] = tick() + 1
     
-    						local cframe, speed = aimfuncs[Mode.Value](gameCamera.CFrame, ent, dt)
-    						if AimMode.Value == 'First person' or AimMode.Value == 'Dynamic' and entitylib.character.Head.LocalTransparencyModifier == 1 then
-    							gameCamera.CFrame = cframe
-    						elseif AimMode.Value == 'Third person' or AimMode.Value == 'Dynamic' and entitylib.character.Head.LocalTransparencyModifier ~= 1 then
-    							cframe, speed = aimfuncs[Mode.Value](root.CFrame, ent, dt)
-    							entitylib.character.Humanoid.AutoRotate = false
-    							root.CFrame = CFrame.lookAlong(root.Position, cframe.LookVector * Vector3.new(1, 0, 1))
-    							rotate = tick() + 0.1
-    						elseif AimMode.Value == 'Mouse' then
+    						local firstPerson = entitylib.character.Head.LocalTransparencyModifier == 1
+    						local perspective = AimMode.Value
+    
+    						if perspective == 'Mouse' then
+    							local cframe, speed = aimfuncs[Mode.Value](gameCamera.CFrame, ent, dt)
     							local viewport = gameCamera:WorldToViewportPoint(cframe.Position)
     							local pos = (Vector2.new(viewport.X, viewport.Y) - inputService:GetMouseLocation()) * (speed / 15)
     							mousemoverel(pos.X, pos.Y)
+    						elseif perspective == 'First person' or (perspective == 'Dynamic' and firstPerson) then
+    							if not firstPerson then return end
+    							local cframe = aimfuncs[Mode.Value](gameCamera.CFrame, ent, dt)
+    							gameCamera.CFrame = cframe
+    						elseif perspective == 'Third person' or (perspective == 'Dynamic' and not firstPerson) then
+    							if firstPerson then return end
+    							local cframe = aimfuncs[Mode.Value](root.CFrame, ent, dt)
+    							entitylib.character.Humanoid.AutoRotate = false
+    							root.CFrame = CFrame.lookAlong(root.Position, cframe.LookVector * Vector3.new(1, 0, 1))
+    							rotate = tick() + 0.1
     						end
     					end
     				end
@@ -1916,6 +1922,13 @@ run(function()
     	Name = 'Auto Clicker',
     	Function = function(callback)
     		if callback then
+    			local function stopClick()
+    				if Thread then
+    					task.cancel(Thread)
+    					Thread = nil
+    				end
+    			end
+    
     			AutoClicker:Clean(inputService.InputBegan:Connect(function(input)
     				if input.UserInputType == Enum.UserInputType.MouseButton1 then
     					AutoClick()
@@ -1923,24 +1936,24 @@ run(function()
     			end))
     
     			AutoClicker:Clean(inputService.InputEnded:Connect(function(input)
-    				if input.UserInputType == Enum.UserInputType.MouseButton1 and Thread then
-    					task.cancel(Thread)
-    					Thread = nil
+    				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    					stopClick()
     				end
     			end))
     
     			if inputService.TouchEnabled then
-    				for _, v in { '2', '5' } do
-    					pcall(function()
-    						AutoClicker:Clean(lplr.PlayerGui.MobileUI[v].MouseButton1Down:Connect(AutoClick))
-    						AutoClicker:Clean(lplr.PlayerGui.MobileUI[v].MouseButton1Up:Connect(function()
-    							if Thread then
-    								task.cancel(Thread)
-    								Thread = nil
-    							end
-    						end))
-    					end)
-    				end
+    				AutoClicker:Clean(task.spawn(function()
+    					local mobileUI = lplr.PlayerGui:WaitForChild('MobileUI', 10)
+    					if not mobileUI then return end
+    
+    					for _, name in {'2', '5'} do
+    						local button = mobileUI:WaitForChild(name, 5)
+    						if button then
+    							AutoClicker:Clean(button.MouseButton1Down:Connect(AutoClick))
+    							AutoClicker:Clean(button.MouseButton1Up:Connect(stopClick))
+    						end
+    					end
+    				end))
     			end
     		else
     			if Thread then
@@ -8705,22 +8718,120 @@ end)
 
 run(function()
     local ShopTierBypass
+    local AntiDowngrade = {}
     local tiered, nexttier = {}, {}
     local old
-    
+    local hooked, oldNamecall, purchaseRemote
+    local superiorMap
+    local lastNotif = 0
+
+    local tierMaps = {}
+    local function registerTier(category, list)
+        for i, item in list do
+            tierMaps[item] = {category = category, tier = i}
+        end
+    end
+    registerTier('sword', {'wood_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'emerald_sword'})
+    registerTier('sword', {'wood_dao', 'stone_dao', 'iron_dao', 'diamond_dao', 'emerald_dao'})
+    registerTier('armor', {'leather_chestplate', 'iron_chestplate', 'diamond_chestplate', 'emerald_chestplate'})
+    registerTier('axe', {'wood_axe', 'stone_axe', 'iron_axe', 'diamond_axe'})
+    registerTier('pickaxe', {'wood_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe'})
+
+    local function getCurrentTier(category)
+        local itemType
+        if category == 'sword' then
+            itemType = store.tools.sword and store.tools.sword.itemType
+        elseif category == 'axe' then
+            itemType = store.tools.wood and store.tools.wood.itemType
+        elseif category == 'pickaxe' then
+            itemType = store.tools.stone and store.tools.stone.itemType
+        elseif category == 'armor' then
+            local armor = store.inventory.inventory.armor[2]
+            itemType = armor and armor ~= 'empty' and armor.itemType or nil
+        end
+        local info = itemType and tierMaps[itemType]
+        return info and info.tier or 0
+    end
+
+    local function ownsItem(itemType)
+        for _, item in store.inventory.inventory.items do
+            if item.itemType == itemType then
+                return true
+            end
+        end
+        for _, armor in store.inventory.inventory.armor do
+            if type(armor) == 'table' and armor.itemType == itemType then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isDowngrade(itemType)
+        local info = tierMaps[itemType]
+        if info and info.tier < getCurrentTier(info.category) then
+            return true
+        end
+
+        if superiorMap then
+            local seen, stack = {}, {itemType}
+            while #stack > 0 do
+                local cur = table.remove(stack)
+                for _, better in superiorMap[cur] or {} do
+                    if not seen[better] then
+                        seen[better] = true
+                        if ownsItem(better) then
+                            return true
+                        end
+                        table.insert(stack, better)
+                    end
+                end
+            end
+        end
+
+        return false
+    end
+
     ShopTierBypass = vape.Categories.Utility:CreateModule({
         Name = 'Shop Tier Bypass',
         Function = function(callback)
             if callback then
                 repeat task.wait() until store.shopLoaded or not ShopTierBypass.Enabled
                 if ShopTierBypass.Enabled then
+                    superiorMap = {}
+                    for _, v in bedwars.Shop.ShopItems do
+                        if v.itemType and v.superiorItems then
+                            superiorMap[v.itemType] = v.superiorItems
+                        end
+                    end
+
+                    if not hooked then
+                        hooked = true
+                        purchaseRemote = bedwars.Client:Get('BedwarsPurchaseItem').instance
+                        oldNamecall = hookmetamethod(game, '__namecall', newcclosure(function(self, ...)
+                            if self == purchaseRemote and ShopTierBypass.Enabled and AntiDowngrade.Enabled and not checkcaller() and getnamecallmethod() == 'InvokeServer' then
+                                local payload = ...
+                                local itemType = type(payload) == 'table' and type(payload.shopItem) == 'table' and payload.shopItem.itemType
+                                if itemType and isDowngrade(itemType) then
+                                    if tick() - lastNotif > 1 then
+                                        lastNotif = tick()
+                                        local meta = bedwars.ItemMeta[itemType]
+                                        notif('Shop Tier Bypass', 'You can\'t downgrade to '..(meta and meta.displayName or itemType), 3, 'alert')
+                                    end
+                                    return
+                                end
+                            end
+                            return oldNamecall(self, ...)
+                        end))
+                    end
+
                     for _, v in bedwars.Shop.ShopItems do
                         tiered[v] = v.tiered
                         nexttier[v] = v.nextTier
                         v.nextTier = nil
                         v.tiered = nil
                     end
-    
+
                     old = bedwars.Shop.getShop
     				bedwars.Shop.getShop = function(...)
     					local res = {old(...)}
@@ -8746,7 +8857,12 @@ run(function()
                 table.clear(tiered)
             end
         end,
-        Tooltip = 'Lets you buy things like armor early.'
+        Tooltip = 'Lets you buy things like armor early. Works in the black market (Wren) shop too.'
+    })
+    AntiDowngrade = ShopTierBypass:CreateToggle({
+        Name = 'Anti Downgrade',
+        Default = true,
+        Tooltip = 'Blocks buying an item that is lower tier than one you already own and notifies you',
     })
 end)
 
@@ -8969,70 +9085,82 @@ run(function()
     local AutoSuffocate
     local Range
     local LimitItem
-    
+    local Targets
+
     local function fixPosition(pos)
         return bedwars.BlockController:getBlockPosition(pos) * 3
     end
-    
+
+    local horizontals = {
+        Vector3.new(3, 0, 0), Vector3.new(-3, 0, 0),
+        Vector3.new(0, 0, 3), Vector3.new(0, 0, -3),
+    }
+
+    local function getBlockItem()
+        if store.hand.toolType == 'block' then
+            return store.hand.tool.Name
+        elseif not LimitItem.Enabled then
+            return (getWool())
+        end
+        return nil
+    end
+
     AutoSuffocate = vape.Categories.World:CreateModule({
         Name = 'Auto Suffocate',
         Function = function(callback)
             if callback then
                 repeat
-                    local item = store.hand.toolType == 'block' and store.hand.tool.Name or not LimitItem.Enabled and getWool()
-    
+                    local item = entitylib.isAlive and getBlockItem()
+
                     if item then
-                        local plrs = entitylib.AllPosition({
+                        for _, ent in entitylib.AllPosition({
                             Part = 'RootPart',
                             Range = Range.Value,
-                            Players = true
-                        })
-    
-                        for _, ent in plrs do
-                            local needPlaced = {}
-    
-                            for _, side in Enum.NormalId:GetEnumItems() do
-                                side = Vector3.fromNormalId(side)
-                                if side.Y ~= 0 then continue end
-    
-                                side = fixPosition(ent.RootPart.Position + side * 2)
-                                if not getPlacedBlock(side) then
-                                    table.insert(needPlaced, side)
+                            Players = Targets.Players.Enabled,
+                            NPCs = Targets.NPCs.Enabled,
+                        }) do
+                            if ent.Targetable and (not ent.Player or not select(2, whitelist:get(ent.Player))) then
+                                local root = ent.RootPart.Position
+                                local head = ent.Head.Position
+
+                                local cells = {
+                                    fixPosition(head),
+                                    fixPosition(head + Vector3.new(0, 3, 0)),
+                                    fixPosition(root - Vector3.new(0, 3, 0)),
+                                }
+                                for _, offset in horizontals do
+                                    table.insert(cells, fixPosition(root + offset))
+                                    table.insert(cells, fixPosition(head + offset))
                                 end
-                            end
-    
-                            if #needPlaced < 3 then
-                                table.insert(needPlaced, fixPosition(ent.Head.Position))
-                                table.insert(needPlaced, fixPosition(ent.RootPart.Position - Vector3.new(0, 1, 0)))
-    
-                                for _, pos in needPlaced do
+
+                                for _, pos in cells do
                                     if not getPlacedBlock(pos) then
                                         task.spawn(bedwars.placeBlock, pos, item)
-                                        break
                                     end
                                 end
                             end
                         end
                     end
-    
-                    task.wait(0.09)
+
+                    task.wait(0.1)
                 until not AutoSuffocate.Enabled
             end
         end,
-        Tooltip = 'Places blocks on nearby confined entities'
+        Tooltip = 'Traps nearby enemies in blocks and suffocates them by sealing a block into their head'
     })
     Range = AutoSuffocate:CreateSlider({
         Name = 'Range',
         Min = 1,
         Max = 20,
-        Default = 20,
+        Default = 14,
         Suffix = function(val)
             return val == 1 and 'stud' or 'studs'
         end
     })
+    Targets = AutoSuffocate:CreateTargets({Players = true})
     LimitItem = AutoSuffocate:CreateToggle({
         Name = 'Limit to Items',
-        Default = true
+        Tooltip = 'Only place while holding a block instead of auto-grabbing wool'
     })
 end)
 
@@ -10600,135 +10728,6 @@ run(function()
 end)
 
 run(function()
-    local AutoFish
-    local Show
-    local Blacklist
-    local Minigame
-    local CompleteDelay
-    local Cast
-    local CastDelay
-    
-    local old
-    local function getBait()
-    	for _, v in workspace:GetChildren() do
-    		if v.Name == 'fisherman_bobber' and v:GetAttribute('ProjectileShooter') == lplr.UserId then
-    			return v
-    		end
-    	end
-    
-    	return
-    end
-    
-    AutoFish = vape.Categories.Inventory:CreateModule({
-    	Name = 'Auto Fish',
-    	Function = function(call)
-    		if call then
-    			old = bedwars.FishingMinigameController.startMinigame
-    			bedwars.FishingMinigameController.startMinigame = function(_, _, complete)
-    				if Minigame.Enabled then
-    					task.wait(CompleteDelay:GetRandomValue())
-    					complete({win = true})
-    				end
-    			end
-    
-    			AutoFish:Clean(bedwars.Client:Get('FishFound'):Connect(function(data)
-    				if data.dropData and data.dropData.drops then
-    					for _, v in data.dropData.drops do
-    						if Show.Enabled then
-    							local itemDisplay = bedwars.ItemMeta[v.itemType] and bedwars.ItemMeta[v.itemType].displayName or v.itemType
-    
-    							notif('AutoFish', `You can get {v.amount} {itemDisplay:lower()}{v.amount >= 2 and 's' or ''} on ur next fish`, 20, 'info')
-    						end
-    
-    						if entitylib.isAlive and table.find(Blacklist.ListEnabled, v.itemType) then
-    							lplr.Character.Humanoid.Jump = true
-    						end
-    					end
-    				end
-    			end))
-    
-    			repeat
-    				if
-    					entitylib.isAlive
-    					and Cast.Enabled
-    					and (store.hand.tool and store.hand.tool.Name == 'fishing_rod')
-    				then
-    					local position = workspace.CurrentCamera.ViewportSize / 2
-    					local ray = cloneref(lplr:GetMouse()).UnitRay
-    
-    					if
-    						not getBait()
-    						and not workspace:Raycast(entitylib.character.Head.Position + (ray.Direction * 6), Vector3.new(0, -20, 0))
-    					then
-    						task.wait(CastDelay:GetRandomValue())
-    
-    						for _, v in {true, false} do
-    							virtualInputManager:SendMouseButtonEvent(position.X, position.Y, 0, v, game, 1)
-    							task.wait()
-    						end
-    						task.wait(0.5)
-    					end
-    				end
-    				task.wait(0.1)
-    			until not AutoFish.Enabled
-    		else
-    			bedwars.FishingMinigameController.startMinigame = old
-    			old = nil
-    		end
-    	end,
-    	Tooltip = 'Automatically fishes with fishing rod'
-    })
-    
-    Blacklist = AutoFish:CreateTextList({
-    	Name = 'Blacklisted loot',
-    	Tooltip = 'Automatically jumps if u found a fish with the blacklisted item',
-    	Default = {'iron'},
-    })
-    Show = AutoFish:CreateToggle({
-    	Name = 'Show loot drops',
-    	Tooltip = 'Notifies ur next lootdrops',
-    })
-    Minigame = AutoFish:CreateToggle({
-    	Name = 'Auto Minigame',
-    	Tooltip = 'Automatically completes the minigame',
-    	Default = true,
-    	Function = function(call)
-    		pcall(function()
-    			CompleteDelay.Object.Visible = call
-    		end)
-    	end,
-    })
-    CompleteDelay = AutoFish:CreateTwoSlider({
-    	Name = 'Complete delay',
-    	Min = 0,
-    	Max = 25,
-    	Decimal = 5,
-    	DefaultMin = 0.1,
-    	DefaultMax = 0.9,
-    	Darker = true,
-    })
-    Cast = AutoFish:CreateToggle({
-    	Name = 'Auto Cast',
-    	Tooltip = 'Automatically casts ur fishng rod',
-    	Function = function(call)
-    		pcall(function()
-    			CastDelay.Object.Visible = call
-    		end)
-    	end,
-    })
-    CastDelay = AutoFish:CreateTwoSlider({
-    	Name = 'Cast delay',
-    	Min = 0,
-    	Max = 5,
-    	Decimal = 5,
-    	DefaultMin = 0.3,
-    	DefaultMax = 1.2,
-    	Darker = true,
-    	Visible = false,
-    })
-end)
-
-run(function()
     local AutoHotbar
     local Mode
     local Clear
@@ -11803,7 +11802,6 @@ run(function()
                 part.Anchored = true
                 part.CanCollide = false
                 part.Parent = workspace
-                bedwars.QueryUtil:setQueryIgnored(blcokRef, true)
                 bedwars.QueryUtil:setQueryIgnored(part, true)
                 self.healthbarPart = part
         
@@ -11967,7 +11965,6 @@ run(function()
                 end
     
                 task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
-                print('ye')
                 return true
             end
         end
