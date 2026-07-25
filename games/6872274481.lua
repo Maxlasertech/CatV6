@@ -1966,121 +1966,130 @@ end)
 
 run(function()
     local AutoClicker
-    local CPS
-    local BlockCPS
-    local Thread
-    
-    local function AutoClick()
-    	if Thread then
-    		task.cancel(Thread)
-    	end
-    
-    	Thread = task.delay(1 / (store.hand.toolType == 'block' and BlockCPS or CPS).GetRandomValue(), function()
-    		repeat
-    			if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
-    				local blockPlacer = bedwars.BlockPlacementController.blockPlacer
-    				if store.hand.toolType == 'block' and blockPlacer then
-    					if inputService.TouchEnabled then
-    						task.spawn(function()
-    							blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
-    						end)
-    					else
-    						if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
-    							local mouseinfo
-    							if canDebug then
-    								mouseinfo = blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
-    							else
-    								mouseinfo = {placementPosition = lplr:GetMouse().Hit.Position}
-    							end
-    							if mouseinfo and mouseinfo.placementPosition == mouseinfo.placementPosition then
-    								if canDebug then
-    									task.spawn(blockPlacer.placeBlock, blockPlacer, mouseinfo.placementPosition)
-    								else
-    									bedwars.placeBlock(({getPlacedBlock(mouseinfo.placementPosition)})[2])
-    								end
-    							end
-    						end
-    					end
-    				elseif store.hand.toolType == 'sword' then
-    					bedwars.SwordController:swingSwordAtMouse(0.39)
-    				end
-    			end
-    
-    			task.wait(1 / (store.hand.toolType == 'block' and BlockCPS or CPS).GetRandomValue()) --
-    		until not AutoClicker.Enabled
-    	end)
-    end
-    
-    AutoClicker = vape.Categories.Combat:CreateModule({
-    	Name = 'Auto Clicker',
-    	Function = function(callback)
-    		if callback then
-    			local function stopClick()
-    				if Thread then
-    					task.cancel(Thread)
-    					Thread = nil
-    				end
-    			end
-    
-    			AutoClicker:Clean(inputService.InputBegan:Connect(function(input)
-    				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-    					AutoClick()
-    				end
-    			end))
-    
-    			AutoClicker:Clean(inputService.InputEnded:Connect(function(input)
-    				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-    					stopClick()
-    				end
-    			end))
-    
-    			if inputService.TouchEnabled then
-    				AutoClicker:Clean(task.spawn(function()
-    					local mobileUI = lplr.PlayerGui:WaitForChild('MobileUI', 10)
-    					if not mobileUI then return end
-    
-    					for _, name in {'2', '5'} do
-    						local button = mobileUI:WaitForChild(name, 5)
-    						if button then
-    							AutoClicker:Clean(button.MouseButton1Down:Connect(AutoClick))
-    							AutoClicker:Clean(button.MouseButton1Up:Connect(stopClick))
-    						end
-    					end
-    				end))
-    			end
-    		else
-    			if Thread then
-    				task.cancel(Thread)
-    				Thread = nil
-    			end
-    		end
-    	end,
-    	Tooltip = 'Hold attack button to automatically click',
-    })
-    CPS = AutoClicker:CreateTwoSlider({
-    	Name = 'CPS',
-    	Min = 1,
-    	Max = 9,
-    	DefaultMin = 7,
-    	DefaultMax = 7,
-    })
-    AutoClicker:CreateToggle({
-    	Name = 'Place Blocks',
-    	Default = true,
-    	Function = function(callback)
-    		if BlockCPS and BlockCPS.Object then
-    			BlockCPS.Object.Visible = callback
-    		end
-    	end,
-    })
-    BlockCPS = AutoClicker:CreateTwoSlider({
-    	Name = 'Block CPS',
-    	Min = 1,
-    	Max = 20,
-    	DefaultMin = 12,
-    	DefaultMax = 12,
-    	Darker = true,
-    })
+	local CPS
+	local BlockCPS
+	local Wool
+	local Thread
+
+	local function AutoClick()
+		if Thread then
+			task.cancel(Thread)
+		end
+
+		Thread = task.delay(1 / (store.hand.toolType == 'block' and BlockCPS or CPS).GetRandomValue(), function()
+			repeat
+				if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
+					local blockPlacer = bedwars.BlockPlacementController.blockPlacer
+					if store.hand.toolType == 'block' and blockPlacer and (not Wool.Enabled or store.hand.tool.Name:find('wool')) then
+						if inputService.TouchEnabled then
+							task.spawn(function()
+								blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
+							end)
+						else
+							if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
+								local mouseinfo
+								if canDebug then
+									mouseinfo = blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
+								else
+									mouseinfo = {placementPosition = lplr:GetMouse().Hit.Position}
+								end
+								if mouseinfo and mouseinfo.placementPosition == mouseinfo.placementPosition then
+									if canDebug then
+										task.spawn(blockPlacer.placeBlock, blockPlacer, mouseinfo.placementPosition)
+									else
+										bedwars.placeBlock(({getPlacedBlock(mouseinfo.placementPosition)})[2])
+									end
+								end
+							end
+						end
+					elseif store.hand.toolType == 'sword' then
+						bedwars.SwordController:swingSwordAtMouse(0.39)
+					end
+				end
+
+				task.wait(1 / (store.hand.toolType == 'block' and BlockCPS or CPS).GetRandomValue()) --
+			until not AutoClicker.Enabled
+		end)
+	end
+
+	AutoClicker = vape.Categories.Combat:CreateModule({
+		Name = 'Auto Clicker',
+		Function = function(callback)
+			if callback then
+				local function stopClick()
+					if Thread then
+						task.cancel(Thread)
+						Thread = nil
+					end
+				end
+
+				AutoClicker:Clean(inputService.InputBegan:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+						AutoClick()
+					end
+				end))
+
+				AutoClicker:Clean(inputService.InputEnded:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+						stopClick()
+					end
+				end))
+
+				if inputService.TouchEnabled then
+					AutoClicker:Clean(task.spawn(function()
+						local mobileUI = lplr.PlayerGui:WaitForChild('MobileUI', 10)
+						if not mobileUI then return end
+
+						for _, name in {'2', '5'} do
+							local button = mobileUI:WaitForChild(name, 5)
+							if button then
+								AutoClicker:Clean(button.MouseButton1Down:Connect(AutoClick))
+								AutoClicker:Clean(button.MouseButton1Up:Connect(stopClick))
+							end
+						end
+					end))
+				end
+			else
+				if Thread then
+					task.cancel(Thread)
+					Thread = nil
+				end
+			end
+		end,
+		Tooltip = 'Hold attack button to automatically click',
+	})
+	CPS = AutoClicker:CreateTwoSlider({
+		Name = 'CPS',
+		Min = 1,
+		Max = 9,
+		DefaultMin = 7,
+		DefaultMax = 7,
+	})
+	AutoClicker:CreateToggle({
+		Name = 'Place Blocks',
+		Default = true,
+		Function = function(callback)
+			if BlockCPS and BlockCPS.Object then
+				BlockCPS.Object.Visible = callback
+			end
+			if Wool and Wool.Object then
+				Wool.Object.Visible = callback
+			end
+		end,
+	})
+	BlockCPS = AutoClicker:CreateTwoSlider({
+		Name = 'Block CPS',
+		Min = 1,
+		Max = 20,
+		DefaultMin = 12,
+		DefaultMax = 12,
+		Darker = true,
+	})
+	Wool = AutoClicker:CreateToggle({
+		Name = 'Wool only',
+		Darker = true,
+		Tooltip = 'Only autoclick placing with wool.'
+	})
 end)
 
 run(function()
