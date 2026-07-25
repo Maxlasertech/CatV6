@@ -3,7 +3,7 @@ license.Key = script_key or license.Key or nil
 local Loaded = game:IsLoaded()
 if not Loaded then
 	repeat task.wait() until game:IsLoaded()
-	task.wait(5)
+	task.wait(2)
 end
 if shared.vape then shared.vape:Uninject() end
 
@@ -73,12 +73,6 @@ end
 local function finishLoading()
 	vape.Init = nil
 	vape:Load()
-	task.spawn(function()
-		repeat
-			vape:Save()
-			task.wait(10)
-		until not vape.Loaded
-	end)
 
 	local teleportedServers
 	(function()

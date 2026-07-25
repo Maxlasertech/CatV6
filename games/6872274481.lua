@@ -812,7 +812,6 @@ run(function()
 	end
 end)
 
-local calculatePath
 local CheatersFlagged = {}
 vape:Clean(playersService.PlayerRemoving:Connect(function(plr)
 	CheatersFlagged[plr] = nil
@@ -879,6 +878,10 @@ run(function()
 				armor = {}
 			}
 		end,
+		setFriction = function(name, state)
+			frictionTable[name] = state or nil
+			updateVelocity()
+		end,
 		HudAliveCount = require(lplr.PlayerScripts.TS.controllers.global['top-bar'].ui.game['hud-alive-player-counts']).HudAlivePlayerCounts,
 		ItemMeta = require(replicatedStorage.TS.item['item-meta']).items,
 		ItemSkinType = require(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-types']).ItemSkinType,
@@ -913,6 +916,7 @@ run(function()
 		UILayers = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).UILayers,
 		VisualizerUtils = require(lplr.PlayerScripts.TS.lib.visualizer['visualizer-utils']).VisualizerUtils,
 		WeldTable = require(replicatedStorage.TS.util['weld-util']).WeldUtil,
+		WizardUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.wizard['wizard-util']).WizardUtil,
 		WinEffectMeta = require(replicatedStorage.TS.locker['win-effect']['win-effect-meta']).WinEffectMeta,
 		ZapNetworking = require(lplr.PlayerScripts.TS.lib.network)
 	}, {
@@ -1139,7 +1143,7 @@ run(function()
 		return OldBreak(self, breakTable, plr)
 	end
 
-	local cache, blockhealthbar = {}, {blockHealth = -1, breakingBlockPosition = Vector3.zero}
+	local blockhealthbar = {blockHealth = -1, breakingBlockPosition = Vector3.zero}
 	store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
 
 	local function getBlockHealth(block, blockpos)
@@ -1157,118 +1161,175 @@ run(function()
 	end
 	getgenv().getBlockHits = getBlockHits
 
-	--[[
-		Pathfinding using a luau version of dijkstra's algorithm
-		Source: https://stackoverflow.com/questions/39355587/speeding-up-dijkstras-algorithm-to-solve-a-3d-maze
-	]]
-	calculatePath = function(target, blockpos, method, angle, legitCheck)
-        if ((cache[blockpos] or {})[4] or 0) > tick() then
-            return unpack(cache[blockpos])
-        end
-
-		local visited, unvisited, distances, air, path = {}, {{0, blockpos, 0}}, {[blockpos] = 0}, {}, {}
-		local depths, visibility = {[blockpos] = 0}, {}
-
-		local function isNodeVisible(pos)
-			if visibility[pos] == nil then
-				visibility[pos] = not legitCheck or legitCheck(pos)
-			end
-			return visibility[pos]
-		end
-
-		for _ = 1, (legitCheck and 300 or 10000) do
-			local _, node = next(unvisited)
-			if not node then break end
-			table.remove(unvisited, 1)
-			visited[node[2]] = true
-
-			for _, side in sides do
-				side = node[2] + side
-				if visited[side] then continue end
-
-				local block = getPlacedBlock(side)
-				if not block or block:GetAttribute('NoBreak') or block == target then
-					if not block and isNodeVisible(node[2]) then
-						air[node[2]] = true
-					end
-					continue
-				end
-
-				if math.acos((gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)):Dot(((block.Position - entitylib.character.RootPart.Position) * Vector3.new(1, 0, 1)).Unit)) > (math.rad(angle) / 2) then
-					continue
-				end
-
-				local curdist = (method and method(block, side) or getBlockHits(block, side)) + node[1]
-				if curdist < (distances[side] or math.huge) then
-					table.insert(unvisited, {curdist, side, node[3] + 1})
-					distances[side] = curdist
-					depths[side] = node[3] + 1
-					path[side] = node[2]
-				end
-			end
-		end
-
-		local pos, cost = nil, math.huge
-		for node in air do
-			local dcost = distances[node]
-			if dcost < cost then
-				local ok, cur, guard = true, node, 0
-				while cur ~= blockpos do
-					guard += 1
-					if guard > 10000 or not isNodeVisible(cur) then
-						ok = false
-						break
-					end
-					cur = path[cur]
-				end
-				if ok then
-					pos, cost = node, dcost
-				end
-			end
-		end
-
-		if not pos and legitCheck then
-			local depth = math.huge
-			for node, dcost in distances do
-				if node ~= blockpos and isNodeVisible(node) then
-					local d = depths[node]
-					if d < depth or (d == depth and dcost < cost) then
-						pos, cost, depth = node, dcost, d
-					end
-				end
-			end
-		end
-
-		if pos then
-			cache[blockpos] = {
-				pos,
-				cost,
-				path,
-				tick() + 0.1
-			}
-			return pos, cost, path
-		end
-		return nil
-	end
-	getgenv().calculatePath = calculatePath
-
-	bedwars.placeBlock = function(pos, item)
+	bedwars.placeBlock = function(pos, item, animation)
 		if getItem(item) then
 			store.blockPlacer.blockType = item
-			return store.blockPlacer:placeBlock(bedwars.BlockController:getBlockPosition(pos))
+			local oldAnimation
+			if animation == false then
+				oldAnimation = bedwars.AnimationUtil.playAnimation
+				bedwars.AnimationUtil.playAnimation = function() end
+			end
+			local success, result = pcall(store.blockPlacer.placeBlock, store.blockPlacer, bedwars.BlockController:getBlockPosition(pos))
+			if oldAnimation then
+				bedwars.AnimationUtil.playAnimation = oldAnimation
+			end
+			if not success then
+				error(result, 0)
+			end
+			return result
 		end
 	end
 
-	bedwars.breakBlock = function(block, effects, anim, customHealthbar, visualise, sort, angle, legitCheck)
+	local function clearBreakRoute(routeState)
+		if routeState then
+			table.clear(routeState)
+		end
+	end
+
+	local function getBreakRouteBlock(pos)
+		local block, blockPosition = getPlacedBlock(pos)
+		if not block or block:GetAttribute('NoBreak')
+			or not bedwars.BlockController:isBlockBreakable({blockPosition = blockPosition}, lplr)
+		then
+			return nil, blockPosition
+		end
+		return block, blockPosition
+	end
+
+	local function buildBreakRoute(routeState, block, pos, cost, target, path, sort, angle, visibilityCheck)
+		local route, routePath, current, guard = {}, {}, pos, 0
+		while current do
+			guard += 1
+			if guard > 10000 then return false end
+			table.insert(route, current)
+			if current == target then break end
+			local nextPosition = path[current]
+			if not nextPosition then return false end
+			routePath[current] = nextPosition
+			current = nextPosition
+		end
+		if route[#route] ~= target then return false end
+
+		table.clear(routeState)
+		routeState.angle = angle
+		routeState.block = block
+		routeState.cost = cost
+		routeState.currentTarget = route[1]
+		routeState.path = routePath
+		routeState.patchRoute = {}
+		routeState.route = route
+		routeState.routeIndex = 1
+		routeState.sort = sort
+		routeState.target = target
+		routeState.visibilityCheck = visibilityCheck
+		return true
+	end
+
+	local function getBreakRoutePath(routeState, current)
+		local path = table.clone(routeState.path)
+		for i, pos in routeState.patchRoute do
+			path[pos] = i > 1 and routeState.patchRoute[i - 1] or current
+		end
+		return path
+	end
+
+	local function insertBreakRoutePatch(routeState, pos, blockingBlock)
+		if not routeState or typeof(blockingBlock) ~= 'Instance' or not blockingBlock:IsA('BasePart') or not blockingBlock.Parent then
+			return false
+		end
+		local blockingPosition = bedwars.BlockController:getWorldPosition(bedwars.BlockController:getBlockPosition(blockingBlock.Position))
+		if blockingPosition == pos or table.find(routeState.patchRoute, blockingPosition) or #routeState.patchRoute >= 8
+			or not getBreakRouteBlock(blockingPosition)
+			or (entitylib.character.RootPart.Position - blockingPosition).Magnitude > 30
+		then
+			return false
+		end
+		table.insert(routeState.patchRoute, blockingPosition)
+		return true
+	end
+
+	local function getBreakRoutePosition(routeState, block, sort, angle, visibilityCheck)
+		if not routeState or routeState.block ~= block or routeState.sort ~= sort or routeState.angle ~= angle
+			or routeState.visibilityCheck ~= visibilityCheck
+		then
+			clearBreakRoute(routeState)
+			return
+		end
+
+		for _ = 1, #routeState.route + 9 do
+			local current = routeState.route[routeState.routeIndex]
+			if not current then
+				clearBreakRoute(routeState)
+				return
+			end
+
+			local currentBlock = getPlacedBlock(current)
+			if not currentBlock then
+				routeState.routeIndex += 1
+				table.clear(routeState.patchRoute)
+				continue
+			end
+			if not getBreakRouteBlock(current) then
+				clearBreakRoute(routeState)
+				return
+			end
+
+			if visibilityCheck and #routeState.patchRoute > 0 and visibilityCheck(current) then
+				table.clear(routeState.patchRoute)
+			end
+			while #routeState.patchRoute > 0 and not getPlacedBlock(routeState.patchRoute[#routeState.patchRoute]) do
+				table.remove(routeState.patchRoute)
+			end
+
+			local pos = routeState.patchRoute[#routeState.patchRoute] or current
+			if (entitylib.character.RootPart.Position - pos).Magnitude > 30 or not getBreakRouteBlock(pos) then
+				clearBreakRoute(routeState)
+				return
+			end
+
+			if visibilityCheck then
+				local visible, _, _, _, blockingBlock = visibilityCheck(pos)
+				if not visible then
+					if insertBreakRoutePatch(routeState, pos, blockingBlock) then
+						continue
+					end
+					clearBreakRoute(routeState)
+					return
+				end
+			end
+
+			routeState.currentTarget = pos
+			return pos, getBreakRoutePath(routeState, current), routeState.target
+		end
+		clearBreakRoute(routeState)
+	end
+
+	bedwars.breakBlock = function(block, effects, anim, customHealthbar, visualise, sort, angle, visibilityCheck, routeState)
 		if lplr:GetAttribute('DenyBlockBreak') or not entitylib.isAlive or InfiniteFly.Enabled then return end
+		if visibilityCheck ~= nil and type(visibilityCheck) ~= 'function' then return end
+		local pathfinding = vape.Libraries.pathfinding
+		if not pathfinding then return end
 
-		local handler = bedwars.BlockController:getHandlerRegistry():getHandler(block.Name)
+		angle = angle or 360
 		local cost, pos, target, path = math.huge, nil, nil, nil
+		if routeState and routeState.block then
+			pos, path, target = getBreakRoutePosition(routeState, block, sort, angle, visibilityCheck)
+		end
 
-		for _, v in (handler and handler:getContainedPositions(block) or {block.Position / 3}) do
-			local dpos, dcost, dpath = calculatePath(block, v * 3, sort, angle or 360, legitCheck)
-			if dpos and dcost < cost then
-				cost, pos, target, path = dcost, dpos, v * 3, dpath
+		if not pos then
+			local handler = bedwars.BlockController:getHandlerRegistry():getHandler(block.Name)
+			for _, v in (handler and handler:getContainedPositions(block) or {block.Position / 3}) do
+				local dpos, dcost, dpath = pathfinding.calculatePath(block, v * 3, sort, angle, visibilityCheck)
+				if dpos and dcost < cost then
+					cost, pos, target, path = dcost, dpos, v * 3, dpath
+				end
+			end
+			if pos and routeState then
+				if not buildBreakRoute(routeState, block, pos, cost, target, path, sort, angle, visibilityCheck) then
+					clearBreakRoute(routeState)
+					return
+				end
+				path = routeState.path
 			end
 		end
 
@@ -1298,10 +1359,23 @@ run(function()
 				blockhealthbar.breakingBlockPosition = dpos
 			end
 
+			local hitPosition, hitNormal
+			if visibilityCheck then
+				local visible, _, blockingBlock
+				visible, hitPosition, hitNormal, _, blockingBlock = visibilityCheck(pos)
+				if not visible or typeof(hitPosition) ~= 'Vector3' or typeof(hitNormal) ~= 'Vector3' then
+					if not visible and insertBreakRoutePatch(routeState, pos, blockingBlock) then
+						return
+					end
+					pathfinding.clearPathCache(target)
+					clearBreakRoute(routeState)
+					return
+				end
+			end
 			bedwars.ClientDamageBlock:Get('DamageBlock'):CallServerAsync({
 				blockRef = {blockPosition = dpos},
-				hitPosition = pos,
-				hitNormal = Vector3.FromNormalId(Enum.NormalId.Top)
+				hitPosition = hitPosition or pos,
+				hitNormal = hitNormal or Vector3.FromNormalId(Enum.NormalId.Top)
 			}):andThen(function(result)
 				if result then
 					if result == 'cancelled' then
@@ -1317,7 +1391,7 @@ run(function()
 
 						if blockhealthbar.blockHealth <= 0 then
 							bedwars.BlockBreaker.breakEffect:playBreak(dblock.Name, dpos, lplr)
-							bedwars.BlockBreaker.healthbarMaid:DoCleaning()
+							bedwars.BlockBreaker.maid:DoCleaning()
 							blockhealthbar.breakingBlockPosition = Vector3.zero
 						else
 							bedwars.BlockBreaker.breakEffect:playHit(dblock.Name, dpos, lplr)
@@ -1411,6 +1485,13 @@ run(function()
 			knockbackId = select(7, ...),
 			disableDamageHighlight = select(13, ...)
 		}
+		if a.entityInstance
+			and (a.fromPosition or a.fromEntity)
+			and (not a.knockbackMultiplier or not a.knockbackMultiplier.disabled)
+			and prediction.markKnockback
+		then
+			prediction.markKnockback(a.entityInstance, a.knockbackMultiplier)
+		end
 		vapeEvents.EntityDamageEvent:Fire(a)
 	end))
 	
@@ -1436,12 +1517,9 @@ run(function()
 				},
 				player = select(5, ...)
 			}
-			for i, v in cache do
-				if (v[4] or 0) <= tick() or ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
-					table.clear(v[3])
-					table.clear(v)
-					cache[i] = nil
-				end
+			local pathfinding = vape.Libraries.pathfinding
+			if pathfinding then
+				pathfinding.invalidatePathCache(data.blockRef.blockPosition * 3)
 			end
 			vapeEvents[event]:Fire(data)
 		end))
@@ -1505,12 +1583,9 @@ run(function()
 								},
 								player = playersService:GetPlayerByUserId(v:GetAttribute('PlacedByUserId')),
 							}
-							for i, v in cache do
-								if (v[4] or 0) <= tick() or ((data.blockRef.blockPosition * 3) - v[1]).Magnitude <= 30 then
-									table.clear(v[3])
-									table.clear(v)
-									cache[i] = nil
-								end
+							local pathfinding = vape.Libraries.pathfinding
+							if pathfinding then
+								pathfinding.invalidatePathCache(data.blockRef.blockPosition * 3)
 							end
 							vapeEvents.PlaceBlockEvent:Fire(data)
 						end
@@ -1564,26 +1639,46 @@ run(function()
 		until vape.Loaded == nil
 	end)
 
+	local oldGetShop
+	local shopCache = {}
+	local function loadShop()
+		bedwars.Shop = require(replicatedStorage.TS.games.bedwars.shop['bedwars-shop']).BedwarsShop
+		oldGetShop = bedwars.Shop.getShop
+		bedwars.Shop.getShop = function(player, shopId, applyFilters, shopItems)
+			local state = bedwars.Store:getState().Bedwars
+			for _, cached in shopCache do
+				if cached[1] == player and cached[2] == shopId and cached[3] == applyFilters and cached[4] == shopItems and cached[5] == state then
+					return type(cached[6]) == 'table' and table.clone(cached[6]) or cached[6]
+				end
+			end
+
+			local result = oldGetShop(player, shopId, applyFilters, shopItems)
+			table.insert(shopCache, {player, shopId, applyFilters, shopItems, state, result})
+			return type(result) == 'table' and table.clone(result) or result
+		end
+		bedwars.ShopItems = debug.getupvalue(debug.getupvalue(bedwars.Shop.getShopItem, 1), 2)
+		store.shopLoaded = true
+		vape:Clean(runService.Heartbeat:Connect(function()
+			table.clear(shopCache)
+		end))
+	end
+
 	pcall(function()
 		if getthreadidentity and setthreadidentity or not canDebug then
 			local old = getthreadidentity()
 			setthreadidentity(2)
 
-			bedwars.Shop = require(replicatedStorage.TS.games.bedwars.shop['bedwars-shop']).BedwarsShop
-			bedwars.ShopItems = debug.getupvalue(debug.getupvalue(bedwars.Shop.getShopItem, 1), 2)
+			loadShop()
 			bedwars.Shop.getShopItem('iron_sword', lplr)
 
 			setthreadidentity(old)
-			store.shopLoaded = true
 		else
 			task.spawn(function()
 				repeat
 					task.wait(0.1)
 				until vape.Loaded == nil or bedwars.AppController:isAppOpen('BedwarsItemShopApp')
 
-				bedwars.Shop = require(replicatedStorage.TS.games.bedwars.shop['bedwars-shop']).BedwarsShop
-				bedwars.ShopItems = debug.getupvalue(debug.getupvalue(bedwars.Shop.getShopItem, 1), 2)
-				store.shopLoaded = true
+				loadShop()
 			end)
 		end
 	end)
@@ -1591,19 +1686,17 @@ run(function()
 	vape:Clean(function()
 		Client.Get = OldGet
 		bedwars.BlockController.isBlockBreakable = OldBreak
+		if bedwars.Shop and oldGetShop then
+			bedwars.Shop.getShop = oldGetShop
+		end
 		store.blockPlacer:disable()
 		for _, v in vapeEvents do
 			v:Destroy()
-		end
-		for _, v in cache do
-			table.clear(v[3])
-			table.clear(v)
 		end
 		table.clear(store.blockPlacer)
 		table.clear(vapeEvents)
 		table.clear(bedwars)
 		table.clear(store)
-		table.clear(cache)
 		table.clear(sides)
 		table.clear(remotes)
 		storeChanged:disconnect()
@@ -4071,8 +4164,10 @@ run(function()
     
                             if plr then
                                 local meta = getProjectileMeta()
-                                local calc = prediction.SolveTrajectory(origin, meta.launchVelocity, meta.gravitationalAcceleration, plr.RootPart.Position, plr.RootPart.Velocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil)
-                                if calc then
+                                local targetVelocity = plr.RootPart.AssemblyLinearVelocity
+                                local targetAirborne = plr.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+                                local calc, _, travelTime = prediction.SolveTrajectory(origin, meta.launchVelocity, meta.gravitationalAcceleration, plr.RootPart.Position, targetVelocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil, store.airRay, targetAirborne, plr.RootPart.Position, plr.RootPart, nil, true)
+                                if calc and travelTime and travelTime <= (meta.lifetimeSec or 3) then
                                     local dir = CFrame.lookAt(origin, calc).LookVector * meta.launchVelocity
                                     bedwars.Client:Get('OwlAiming'):SendToServer({
                                         owl = owl.Part,
@@ -4182,7 +4277,17 @@ run(function()
     local rayCheck = RaycastParams.new()
     rayCheck.FilterType = Enum.RaycastFilterType.Include
     rayCheck.FilterDescendantsInstances = {workspace:FindFirstChild('Map')}
+    local visibilityCheck = RaycastParams.new()
+    visibilityCheck.FilterType = Enum.RaycastFilterType.Exclude
+    visibilityCheck.IgnoreWater = true
     local launchHook
+
+    local function ignored(instance)
+    	return (instance:IsA('BasePart') and not instance.CanCollide)
+    		or collectionService:HasTag(instance, 'DontBlockProjectileRaycast')
+    		or collectionService:HasTag(instance, 'block:no-collision')
+    		or bedwars.QueryUtil:isQueryIgnored(instance)
+    end
     
     local function getMousePosition()
     	if inputService.TouchEnabled then
@@ -4233,7 +4338,6 @@ run(function()
     					Range = FOV.Value,
     					Players = Targets.Players.Enabled,
     					NPCs = Targets.NPCs.Enabled,
-    					Wallcheck = Targets.Walls.Enabled,
     					Sort = sortmethods[Sort.Value or 'Distance'],
     					Origin = entitylib.isAlive and (shootpos or entitylib.character.RootPart.Position) or Vector3.zero,
     				})
@@ -4253,9 +4357,20 @@ run(function()
     					end
     
     					local meta = projmeta:getProjectileMeta()
-    					local lifetime = (worldmeta and meta.predictionLifetimeSec or meta.lifetimeSec or 3)
-    					local gravity = (meta.gravitationalAcceleration or 196.2) * projmeta.gravityMultiplier
-    					local projSpeed = (meta.launchVelocity or 100)
+    					local overrides = meta.getProjectileOverridesFunction and meta.getProjectileOverridesFunction(projmeta.player)
+    					local lifetime
+    					if worldmeta then
+    						lifetime = overrides and overrides.predictionLifetimeOverride or meta.predictionLifetimeSec
+    					else
+    						lifetime = overrides and overrides.lifetimeOverride or meta.lifetimeSec
+    					end
+    					lifetime = tonumber(lifetime) or 3
+    					if lifetime ~= lifetime or lifetime <= 0 or lifetime == math.huge then
+    						lifetime = 3
+    					end
+    					local gravity = (tonumber(meta.gravitationalAcceleration) or 196.2) * (tonumber(projmeta.gravityMultiplier) or 1)
+    					local projSpeed = tonumber(overrides and overrides.launchVelocityOverride or meta.launchVelocity) or 100
+    					local launchSpeed = projSpeed * (AutoCharge.Enabled and 1 or tonumber(projmeta.velocityMultiplier) or 1)
     					local offsetpos = pos + (projmeta.projectile == 'owl_projectile' and Vector3.zero or projmeta.fromPositionOffset)
     					local balloons = plr.Character:GetAttribute('InflatedBalloons')
     					local playerGravity = workspace.Gravity
@@ -4275,22 +4390,44 @@ run(function()
     							end
     						end
     					end
-    
+
     					local targetpos = getPosition(plr.Character) or plr[TargetPart.Value].Position
-    					local newlook = CFrame.new(offsetpos, targetpos) * CFrame.new(projmeta.projectile == 'owl_projectile' and Vector3.zero or Vector3.new(bedwars.BowConstantsTable.RelX, bedwars.BowConstantsTable.RelY, bedwars.BowConstantsTable.RelZ))
-    					local calc = prediction.SolveTrajectory(newlook.p, projSpeed * Prediction.Value, gravity, targetpos, projmeta.projectile == 'telepearl' and Vector3.zero or plr.RootPart.Velocity, playerGravity, plr.HipHeight, plr.Jumping and 42.6 or nil, rayCheck)
-    					if calc then
+    					local pearl = projmeta.projectile == 'telepearl'
+    					local targetVelocity = pearl and Vector3.zero or plr.RootPart.AssemblyLinearVelocity
+    					local targetAirborne
+    					if pearl then
+    						targetAirborne = false
+    					elseif plr.Player then
+    						targetAirborne = plr.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+    					end
+    					local function solve(minimum)
+    						return prediction.SolveTrajectory(offsetpos, launchSpeed * Prediction.Value, gravity, targetpos, targetVelocity, playerGravity, plr.HipHeight, plr.Jumping and 42.6 or nil, rayCheck, targetAirborne, plr.RootPart.Position, plr.RootPart, minimum, true)
+    					end
+    					local calc, _, travelTime = solve()
+    					local initialVelocity = calc and CFrame.new(offsetpos, calc).LookVector * launchSpeed
+    					local validTime = type(travelTime) == 'number' and travelTime == travelTime and travelTime > 0 and travelTime < math.huge
+    					visibilityCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    					local visible = initialVelocity and validTime and travelTime <= lifetime and prediction.IsTrajectoryClear(offsetpos, initialVelocity, gravity, travelTime, visibilityCheck, plr.Character, ignored)
+    					if not visible and validTime then
+    						calc, _, travelTime = solve(travelTime + 1e-6)
+    						initialVelocity = calc and CFrame.new(offsetpos, calc).LookVector * launchSpeed
+    						validTime = type(travelTime) == 'number' and travelTime == travelTime and travelTime > 0 and travelTime < math.huge
+    						visibilityCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    						visible = initialVelocity and validTime and travelTime <= lifetime and prediction.IsTrajectoryClear(offsetpos, initialVelocity, gravity, travelTime, visibilityCheck, plr.Character, ignored)
+    					end
+    					if visible then
     						targetinfo.Targets[plr] = tick() + 1
     						return {
-    							initialVelocity = CFrame.new(newlook.Position, calc).LookVector * (projSpeed * (AutoCharge.Enabled and 1 or projmeta.velocityMultiplier)),
+    							initialVelocity = initialVelocity,
     							positionFrom = offsetpos,
     							deltaT = lifetime,
     							gravitationalAcceleration = gravity,
     							drawDurationSeconds = AutoCharge.Enabled and 5 or projmeta.drawDurationSeconds,
     						}
     					end
+    					return nextLaunch(...)
     				end
-    
+
     				return nextLaunch(...)
     			end)
     		else
@@ -4365,6 +4502,9 @@ run(function()
     local List
     local rayCheck = RaycastParams.new()
     rayCheck.FilterType = Enum.RaycastFilterType.Include
+    local visibilityCheck = RaycastParams.new()
+    visibilityCheck.FilterType = Enum.RaycastFilterType.Exclude
+    visibilityCheck.IgnoreWater = true
     local projectileRemote = { InvokeServer = function(self, ...) end }
     local projectileCooldown = 0
     local FireDelays = {}
@@ -4407,13 +4547,16 @@ run(function()
     		Limit = 10
     	})
     	if #plrs > 0 then
-    		for _, v in plrs do
-    			if not Targets.Walls.Enabled or not entitylib.Wallcheck(entitylib.character.Head.Position, v.RootPart.Position, {gameCamera, lplr.Character, v.Character}) then
-    				return v
-    			end
-    		end
+    		return plrs[1]
     	end
     	return nil
+    end
+    
+    local function ignored(instance)
+    	return (instance:IsA('BasePart') and not instance.CanCollide)
+    		or collectionService:HasTag(instance, 'DontBlockProjectileRaycast')
+    		or collectionService:HasTag(instance, 'block:no-collision')
+    		or bedwars.QueryUtil:isQueryIgnored(instance)
     end
     
     ProjectileAura = vape.Categories.Blatant:CreateModule({
@@ -4434,16 +4577,26 @@ run(function()
     
     								targetinfo.Targets[ent] = tick() + 1
     								local switched = switchItem(item.tool)
-    								local ps = lplr:GetNetworkPing()
     								local targetpos = ent.RootPart.Position
-    								if ps > 0.2 then
-    									targetpos = targetpos + (ent.RootPart.AssemblyLinearVelocity * ps)
+    								local targetVelocity = ent.RootPart.AssemblyLinearVelocity
+    								local targetAirborne = ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+    								local shootPosition = (CFrame.new(pos, targetpos) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+    								local function solve(minimum)
+    									return prediction.SolveTrajectory(shootPosition, projSpeed, gravity, targetpos, targetVelocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, rayCheck, targetAirborne, ent.RootPart.Position, ent.RootPart, minimum, true)
     								end
-    								local calc = prediction.SolveTrajectory(pos, projSpeed, gravity, targetpos, ent.RootPart.AssemblyLinearVelocity, workspace.Gravity, ent.HipHeight + 2, ent.Jumping and 42.6 or nil, rayCheck)
-    								if calc then
+    								local calc, _, travelTime = solve()
+    								local dir = calc and CFrame.lookAt(shootPosition, calc).LookVector
+    								visibilityCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    								local visible = dir and travelTime and travelTime <= (meta.lifetimeSec or 3) and prediction.IsTrajectoryClear(shootPosition, dir * projSpeed, gravity, travelTime, visibilityCheck, ent.Character, ignored)
+    								if not visible and travelTime then
+    									calc, _, travelTime = solve(travelTime + 1e-6)
+    									dir = calc and CFrame.lookAt(shootPosition, calc).LookVector
+    									visibilityCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
+    									visible = dir and travelTime and travelTime <= (meta.lifetimeSec or 3) and prediction.IsTrajectoryClear(shootPosition, dir * projSpeed, gravity, travelTime, visibilityCheck, ent.Character, ignored)
+    								end
+    								if visible then
     									task.spawn(function()
-    										local dir, id = CFrame.lookAt(pos, calc).LookVector, httpService:GenerateGUID(true)
-    										local shootPosition = (CFrame.new(pos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+    										local id = httpService:GenerateGUID(true)
     										projectileCooldown = 9e9
     										local _, res = pcall(function() return projectileRemote:InvokeServer(
     											item.tool,
@@ -4769,9 +4922,11 @@ run(function()
                         Players = true,
                         Wallcheck = true
                     })
-    
+
                     if plr then
-                        local calc = prediction.SolveTrajectory(origin, 100, 20, plr.RootPart.Position, plr.RootPart.Velocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil)
+                        local targetVelocity = plr.RootPart.AssemblyLinearVelocity
+                        local targetAirborne = plr.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+                        local calc = prediction.SolveTrajectory(origin, 100, 20, plr.RootPart.Position, targetVelocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil, store.airRay, targetAirborne, plr.RootPart.Position, plr.RootPart)
     
                         if calc then
                             for i, v in debug.getstack(2) do
@@ -4830,7 +4985,9 @@ run(function()
                                 Sort = sortmethods[Sort.Value]
                             })
                             if ent then
-                                local pos = prediction.SolveTrajectory(origin, 320, 10, ent.RootPart.Position, ent.RootPart.Velocity, workspace.Gravity, ent.HipHeight, nil, store.airRay)
+                                local targetVelocity = ent.RootPart.AssemblyLinearVelocity
+                                local targetAirborne = ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+                                local pos = prediction.SolveTrajectory(origin, 320, 10, ent.RootPart.Position, targetVelocity, workspace.Gravity, ent.HipHeight, nil, store.airRay, targetAirborne, ent.RootPart.Position, ent.RootPart)
                                 if pos then
                                     local delta = pos - origin
     
@@ -7327,6 +7484,8 @@ run(function()
     end)
     
     local rayCheck = RaycastParams.new()
+    rayCheck.FilterType = Enum.RaycastFilterType.Include
+    rayCheck.FilterDescendantsInstances = {workspace:FindFirstChild('Map')}
     
     AutoLasso = vape.Categories.Utility:CreateModule({
         Name = 'Auto Lasso',
@@ -7350,8 +7509,13 @@ run(function()
                                 local localfacing = gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)
                                 local delta = (ent.RootPart.Position - selfpos) * Vector3.new(1, 0, 1)
                                 if delta.Magnitude > 0.001 and math.acos(math.clamp(localfacing:Dot(delta.Unit), -1, 1)) <= (math.rad(Angle.Value) / 2) then
-                                    local calc = prediction.SolveTrajectory(selfpos, 200, 135, ent.RootPart.Position, ent.RootPart.Velocity, workspace.Gravity, ent.Humanoid.HipHeight or 2, nil, rayCheck)
-                                    if calc then
+                                    local meta = bedwars.ProjectileMeta.lasso
+                                    local speed = meta and meta.launchVelocity or 200
+                                    local gravity = meta and meta.gravitationalAcceleration or 135
+                                    local targetVelocity = ent.RootPart.AssemblyLinearVelocity
+                                    local targetAirborne = ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+                                    local calc, _, travelTime = prediction.SolveTrajectory(selfpos, speed, gravity, ent.RootPart.Position, targetVelocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, rayCheck, targetAirborne, ent.RootPart.Position, ent.RootPart, nil, true)
+                                    if calc and travelTime and travelTime <= (meta and meta.lifetimeSec or 3) then
                                         local old = store.inventory.hotbarSlot
                                         local new = getHotbar(lasso.tool)
                                         if new then
@@ -7365,7 +7529,7 @@ run(function()
                                             'lasso',
                                             selfpos, 
                                             selfpos, 
-                                            CFrame.lookAt(selfpos, calc).LookVector * 200,
+                                            CFrame.lookAt(selfpos, calc).LookVector * speed,
                                             httpService:GenerateGUID(true),
                                             {
                                                 drawDurationSeconds = 1, 
@@ -7752,11 +7916,12 @@ run(function()
     local function shootFunc(ignore)
     	if not inputService.MouseEnabled or ignore then
     		local proj, meta, ammo, projectile = getAttackData()
-    
+
     		if proj then
-    			local projmeta = bedwars.ProjectileMeta[ammo]
+    			local projmeta = bedwars.ProjectileMeta[projectile]
+    			if not projmeta then return end
     			local projSpeed = projmeta.launchVelocity
-    
+
     			local selfpos = entitylib.character.RootPart.Position
     			local calc = selfpos + gameCamera.CFrame.LookVector * 50
     			local ent = ignore and entitylib.EntityPosition({
@@ -7766,24 +7931,34 @@ run(function()
                     NPCs = true,
                     Wallcheck = true,
                 }) or nil
+    			local shootPosition = (CFrame.new(selfpos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
     			if ent then
-    				calc = prediction.SolveTrajectory(
-    					selfpos,
+    				local targetPosition = ent.RootPart.Position
+    				local targetVelocity = ent.RootPart.AssemblyLinearVelocity
+    				local targetAirborne = ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+    				shootPosition = (CFrame.new(selfpos, targetPosition) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+    				local travelTime
+    				calc, _, travelTime = prediction.SolveTrajectory(
+    					shootPosition,
     					projSpeed,
-    					meta.gravitationalAcceleration or 196.2,
-    					Vector3.new(ent.RootPart.Velocity.X, 0, ent.RootPart.Velocity.Z),
+    					projmeta.gravitationalAcceleration or 196.2,
+    					targetPosition,
+    					targetVelocity,
     					workspace.Gravity,
     					ent.HipHeight,
+    					ent.Jumping and 42.6 or nil,
+    					store.airRay,
+    					targetAirborne,
+    					ent.RootPart.Position,
+    					ent.RootPart,
     					nil,
-    					RaycastParams.new(),
-    					nil,
-    					lplr:GetNetworkPing()
+    					true
     				)
+    				if not calc or not travelTime or travelTime > (projmeta.lifetimeSec or 3) then return end
     			end
-    
-    			local dir = CFrame.lookAt(selfpos, calc).LookVector
-    			local shootPosition, id = (CFrame.new(selfpos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX,-bedwars.BowConstantsTable.RelY,-bedwars.BowConstantsTable.RelZ))).Position,
-    				httpService:GenerateGUID(true)
+
+    			local dir = CFrame.lookAt(shootPosition, calc).LookVector
+    			local id = httpService:GenerateGUID(true)
     
     			--bedwars.ProjectileController:createLocalProjectile(meta, ammo, projectile, shootPosition, id, dir * projSpeed, {drawDurationSeconds = 1})
     			bedwars.Client:Get(remotes.FireProjectile):CallServerAsync(proj.tool, ammo, projectile, shootPosition, selfpos, dir * projSpeed, id, {
@@ -9085,82 +9260,70 @@ run(function()
     local AutoSuffocate
     local Range
     local LimitItem
-    local Targets
 
     local function fixPosition(pos)
-        return bedwars.BlockController:getBlockPosition(pos) * 3
-    end
-
-    local horizontals = {
-        Vector3.new(3, 0, 0), Vector3.new(-3, 0, 0),
-        Vector3.new(0, 0, 3), Vector3.new(0, 0, -3),
-    }
-
-    local function getBlockItem()
-        if store.hand.toolType == 'block' then
-            return store.hand.tool.Name
-        elseif not LimitItem.Enabled then
-            return (getWool())
-        end
-        return nil
+    	return bedwars.BlockController:getBlockPosition(pos) * 3
     end
 
     AutoSuffocate = vape.Categories.World:CreateModule({
-        Name = 'Auto Suffocate',
-        Function = function(callback)
-            if callback then
-                repeat
-                    local item = entitylib.isAlive and getBlockItem()
+    	Name = 'Auto Suffocate',
+    	Function = function(callback)
+    		if callback then
+    			repeat
+    				local item = store.hand.toolType == 'block' and store.hand.tool.Name or not LimitItem.Enabled and getWool()
 
-                    if item then
-                        for _, ent in entitylib.AllPosition({
-                            Part = 'RootPart',
-                            Range = Range.Value,
-                            Players = Targets.Players.Enabled,
-                            NPCs = Targets.NPCs.Enabled,
-                        }) do
-                            if ent.Targetable and (not ent.Player or not select(2, whitelist:get(ent.Player))) then
-                                local root = ent.RootPart.Position
-                                local head = ent.Head.Position
+    				if item then
+    					local plrs = entitylib.AllPosition({
+    						Part = 'RootPart',
+    						Range = Range.Value,
+    						Players = true
+    					})
 
-                                local cells = {
-                                    fixPosition(head),
-                                    fixPosition(head + Vector3.new(0, 3, 0)),
-                                    fixPosition(root - Vector3.new(0, 3, 0)),
-                                }
-                                for _, offset in horizontals do
-                                    table.insert(cells, fixPosition(root + offset))
-                                    table.insert(cells, fixPosition(head + offset))
-                                end
+    					for _, ent in plrs do
+    						local needPlaced = {}
 
-                                for _, pos in cells do
-                                    if not getPlacedBlock(pos) then
-                                        task.spawn(bedwars.placeBlock, pos, item)
-                                    end
-                                end
-                            end
-                        end
-                    end
+    						for _, side in Enum.NormalId:GetEnumItems() do
+    							side = Vector3.fromNormalId(side)
+    							if side.Y ~= 0 then continue end
 
-                    task.wait(0.1)
-                until not AutoSuffocate.Enabled
-            end
-        end,
-        Tooltip = 'Traps nearby enemies in blocks and suffocates them by sealing a block into their head'
+    							side = fixPosition(ent.RootPart.Position + side * 2)
+    							if not getPlacedBlock(side) then
+    								table.insert(needPlaced, side)
+    							end
+    						end
+
+    						if #needPlaced < 3 then
+    							table.insert(needPlaced, fixPosition(ent.Head.Position))
+    							table.insert(needPlaced, fixPosition(ent.RootPart.Position - Vector3.new(0, 1, 0)))
+
+    							for _, pos in needPlaced do
+    								if not getPlacedBlock(pos) then
+    									task.spawn(bedwars.placeBlock, pos, item)
+    									break
+    								end
+    							end
+    						end
+    					end
+    				end
+
+    				task.wait(0.09)
+    			until not AutoSuffocate.Enabled
+    		end
+    	end,
+    	Tooltip = 'Places blocks on nearby confined entities.'
     })
     Range = AutoSuffocate:CreateSlider({
-        Name = 'Range',
-        Min = 1,
-        Max = 20,
-        Default = 14,
-        Suffix = function(val)
-            return val == 1 and 'stud' or 'studs'
-        end
+    	Name = 'Range',
+    	Min = 1,
+    	Max = 60,
+    	Default = 20,
+    	Suffix = function(val)
+    		return val == 1 and 'stud' or 'studs'
+    	end
     })
-    Targets = AutoSuffocate:CreateTargets({Players = true})
     LimitItem = AutoSuffocate:CreateToggle({
-        Name = 'Limit to Items',
-        Tooltip = 'Only place while holding a block instead of auto-grabbing wool'
+    	Name = 'Limit to Items',
+    	Default = true
     })
 end)
 
@@ -9255,6 +9418,8 @@ run(function()
     end
     
     local function getBestPosition(block)
+        local pathfinding = vape.Libraries.pathfinding
+        if not pathfinding then return end
         local handler = bedwars.BlockController:getHandlerRegistry():getHandler(block.Name)
         local cost, pos = math.huge, nil
         local mag = 9e9
@@ -9262,7 +9427,7 @@ run(function()
         local positions = (handler and handler:getContainedPositions(block) or {block.Position / 3})
     
         for _, v in positions do
-            local dpos, dcost = calculatePath(block, v * 3, breakmethods[Sort.Value], Angle.Value, getMousePosition())
+            local dpos, dcost = pathfinding.calculatePath(block, v * 3, breakmethods[Sort.Value], Angle.Value, nil, getMousePosition())
             local dmag = dpos and (entitylib.character.RootPart.Position - dpos).Magnitude
     
             if dpos then
@@ -10172,134 +10337,6 @@ run(function()
         Suffix = function(val)
             return val == 1 and 'stud' or 'studs'
         end
-    })
-end)
-
-run(function()
-    local AutoBank
-    local UIToggle
-    local UI
-    local Chests
-    local Items = {}
-    
-    local function addItem(itemType, shop)
-        local item = Instance.new('ImageLabel')
-        item.Image = bedwars.getIcon({itemType = itemType}, true)
-        item.Size = UDim2.fromOffset(32, 32)
-        item.Name = itemType
-        item.BackgroundTransparency = 1
-        item.LayoutOrder = #UI:GetChildren()
-        item.Parent = UI
-        local itemtext = Instance.new('TextLabel')
-        itemtext.Name = 'Amount'
-        itemtext.Size = UDim2.fromScale(1, 1)
-        itemtext.BackgroundTransparency = 1
-        itemtext.Text = ''
-        itemtext.TextColor3 = Color3.new(1, 1, 1)
-        itemtext.TextSize = 16
-        itemtext.TextStrokeTransparency = 0.3
-        itemtext.Font = Enum.Font.Arial
-        itemtext.Parent = item
-        Items[itemType] = {Object = itemtext, Type = shop}
-    end
-    
-    local function refreshBank(echest)
-        for i, v in Items do
-            local item = echest:FindFirstChild(i)
-            v.Object.Text = item and item:GetAttribute('Amount') or ''
-        end
-    end
-    
-    local function nearChest()
-        if entitylib.isAlive then
-            local pos = entitylib.character.RootPart.Position
-            for _, chest in Chests do
-                if (chest.Position - pos).Magnitude < 20 then
-                    return true
-                end
-            end
-        end
-    end
-    
-    local function handleState()
-        local chest = replicatedStorage.Inventories:FindFirstChild(lplr.Name..'_personal')
-        if not chest then return end
-    
-        local mapCF = workspace.MapCFrames:FindFirstChild((lplr:GetAttribute('Team') or 1)..'_spawn')
-        if mapCF and (entitylib.character.RootPart.Position - mapCF.Value.Position).Magnitude < 80 then
-            for _, v in chest:GetChildren() do
-                local item = Items[v.Name]
-                if item then
-                    task.spawn(function()
-                        bedwars.Client:GetNamespace('Inventory'):Get('ChestGetItem'):CallServer(chest, v)
-                        refreshBank(chest)
-                    end)
-                end
-            end
-        else
-            for _, v in store.inventory.inventory.items do
-                local item = Items[v.itemType]
-                if item then
-                    task.spawn(function()
-                        bedwars.Client:GetNamespace('Inventory'):Get('ChestGiveItem'):CallServer(chest, v.tool)
-                        refreshBank(chest)
-                    end)
-                end
-            end
-        end
-    end
-    
-    AutoBank = vape.Categories.Inventory:CreateModule({
-        Name = 'Auto Bank',
-        Function = function(callback)
-            if callback then
-                Chests = collection('personal-chest', AutoBank)
-                UI = Instance.new('Frame')
-                UI.Size = UDim2.new(1, 0, 0, 32)
-                UI.Position = UDim2.fromOffset(0, -240)
-                UI.BackgroundTransparency = 1
-                UI.Visible = UIToggle.Enabled
-                UI.Parent = vape.gui
-                AutoBank:Clean(UI)
-                local Sort = Instance.new('UIListLayout')
-                Sort.FillDirection = Enum.FillDirection.Horizontal
-                Sort.HorizontalAlignment = Enum.HorizontalAlignment.Center
-                Sort.SortOrder = Enum.SortOrder.LayoutOrder
-                Sort.Parent = UI
-                addItem('iron', true)
-                addItem('gold', true)
-                addItem('diamond', false)
-                addItem('emerald', true)
-                addItem('void_crystal', true)
-    
-                repeat
-                    local hotbar = lplr.PlayerGui:FindFirstChild('hotbar')
-                    hotbar = hotbar and hotbar['1']:FindFirstChild('HotbarHealthbarContainer')
-                    if hotbar then
-                        UI.Position = UDim2.fromOffset(0, (hotbar.AbsolutePosition.Y + guiService:GetGuiInset().Y) - 40)
-                    end
-    
-                    local newState = nearChest()
-                    if newState then
-                        handleState()
-                    end
-    
-                    task.wait(0.1)
-                until (not AutoBank.Enabled)
-            else
-                table.clear(Items)
-            end
-        end,
-        Tooltip = 'Automatically puts resources in ender chest'
-    })
-    UIToggle = AutoBank:CreateToggle({
-        Name = 'UI',
-        Function = function(callback)
-            if AutoBank.Enabled then
-                UI.Visible = callback
-            end
-        end,
-        Default = true
     })
 end)
 
@@ -11782,14 +11819,17 @@ run(function()
     local LimitItem
     local Closest
     local BreakerType
+    local activeRoute = {}
     local customlist, parts = {}, {}
-    local losFilter
+    local losFilter, losFilterList
     
     local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
         xpcall(function()
             if block:GetAttribute('NoHealthbar') then return end
             if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
-                bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+                if self.healthbarPart then
+                    bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+                end
                 self.maid:DoCleaning()
                 self.healthbarBlockRef = blockRef
                 local create = bedwars.Roact.createElement
@@ -11917,58 +11957,169 @@ run(function()
     losFilter.FilterType = Enum.RaycastFilterType.Exclude
     losFilter.RespectCanCollide = false
     losFilter.IgnoreWater = true
-    
+    losFilterList = {}
+
     local function refreshFilter()
-        losFilter.FilterDescendantsInstances = {lplr.Character, gameCamera}
-    end
-    
-    local VISIBILITY_PROBES = {
-        Vector3.zero,
-        Vector3.new(1.35, 0, 0), Vector3.new(-1.35, 0, 0),
-        Vector3.new(0, 1.35, 0), Vector3.new(0, -1.35, 0),
-        Vector3.new(0, 0, 1.35), Vector3.new(0, 0, -1.35)
-    }
-    
-    local function isVisible(worldPos)
-        local eye = gameCamera.CFrame.Position
-        for _, offset in VISIBILITY_PROBES do
-            local probe = worldPos + offset
-            local ray = probe - eye
-            local hit = workspace:Raycast(eye, ray, losFilter)
-            if not hit or (hit.Position - eye).Magnitude >= ray.Magnitude - 1.5 then
-                return true
-            end
+        table.clear(losFilterList)
+        table.insert(losFilterList, gameCamera)
+        if lplr.Character then
+            table.insert(losFilterList, lplr.Character)
         end
-        return false
+        losFilter.FilterDescendantsInstances = losFilterList
     end
-    
-    local function attemptBreak(tab, localPosition)
-        if not tab then return end
-        for _, v in tab do
-            if (v.Position - localPosition).Magnitude < Range.Value and (bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr)) then
-                if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
-                if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
-                if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
-    
-                local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, BreakerType.Value == 'Legit' and isVisible or nil)
-                if not target then continue end
-    
-                if path then
-                    local currentnode = target
-                    for _, part in parts do
-                        part.Position = currentnode or Vector3.zero
-                        if currentnode then
-                            part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
+
+    local function isIgnored(instance)
+        if typeof(instance) ~= 'Instance' then return false end
+        local queryIgnored = bedwars.QueryUtil.isQueryIgnored
+        return collectionService:HasTag(instance, 'DontBlockProjectileRaycast')
+            or collectionService:HasTag(instance, 'block:no-collision')
+            or (type(queryIgnored) == 'function' and queryIgnored(bedwars.QueryUtil, instance))
+            or (instance:IsA('BasePart') and not instance.CanCollide)
+    end
+
+    local function raycastBlock(origin, destination, block, resolver)
+        local direction = destination - origin
+        if direction.Magnitude <= 0.01 then return end
+
+        local filter = table.clone(losFilterList)
+        for _ = 1, 12 do
+            losFilter.FilterDescendantsInstances = filter
+            local hit = workspace:Raycast(origin, direction, losFilter)
+            if not hit then return end
+
+            local hitBlock = resolver(bedwars.BlockController, hit.Instance)
+            if hitBlock then
+                if hitBlock == block then
+                    return hit
+                end
+                return nil, hitBlock, hit
+            end
+            if not isIgnored(hit.Instance) then return nil, nil, hit end
+            table.insert(filter, hit.Instance)
+        end
+    end
+
+    local function isVisible(worldPos)
+        if typeof(worldPos) ~= 'Vector3' then return false, nil, nil, 'Invalid' end
+        local resolver = bedwars.BlockController.getBlockInstanceFromChild
+        if type(resolver) ~= 'function' then return false, nil, nil, 'Invalid' end
+
+        local block = getPlacedBlock(worldPos)
+        if typeof(block) ~= 'Instance' or not block.Parent then return false, nil, nil, 'Invalid' end
+
+        local eye = gameCamera.CFrame.Position
+        local inset = sides[1].Magnitude / 2 - 0.01
+        local offset = eye - worldPos
+        local bestHit, blockers = nil, {}
+        for _, side in sides do
+            if not getPlacedBlock(worldPos + side) then
+                local normal = side.Unit
+                local center = worldPos + normal * inset
+                local nearest = worldPos + Vector3.new(
+                    normal.X ~= 0 and normal.X * inset or math.clamp(offset.X, -inset, inset),
+                    normal.Y ~= 0 and normal.Y * inset or math.clamp(offset.Y, -inset, inset),
+                    normal.Z ~= 0 and normal.Z * inset or math.clamp(offset.Z, -inset, inset)
+                )
+                local tangent = math.abs(normal.Y) > 0.5 and Vector3.xAxis or Vector3.yAxis
+                local bitangent = normal:Cross(tangent)
+                local hits = 0
+                for _, probe in {
+                    nearest,
+                    center,
+                    center + tangent * 0.85,
+                    center - tangent * 0.85,
+                    center + bitangent * 0.85,
+                    center - bitangent * 0.85
+                } do
+                    local hit, blockingBlock, blockingHit = raycastBlock(eye, probe, block, resolver)
+                    if hit then
+                        hits += 1
+                        bestHit = bestHit or hit
+                    elseif blockingBlock then
+                        local blocker = blockers[blockingBlock]
+                        if blocker then
+                            blocker[1] += 1
+                        else
+                            blockers[blockingBlock] = {1, blockingHit}
                         end
-                        currentnode = path[currentnode]
                     end
                 end
+                if hits >= 3 then
+                    return true, bestHit.Position, bestHit.Normal, 'Full'
+                end
+    		end
+    	end
+    	if not bestHit and not next(blockers) then
+    		local hit, blockingBlock, blockingHit = raycastBlock(eye, worldPos, block, resolver)
+    		if hit then
+    			return true, hit.Position, hit.Normal, 'Partial'
+    		end
+    		if blockingBlock then
+    			blockers[blockingBlock] = {1, blockingHit}
+    		end
+    	end
+    	if bestHit then
+    		return true, bestHit.Position, bestHit.Normal, 'Partial'
+        end
+        local blockingBlock, blockingHit, blockingAmount = nil, nil, 0
+        for blockInstance, blocker in blockers do
+            if blocker[1] > blockingAmount then
+                blockingBlock, blockingHit, blockingAmount = blockInstance, blocker[2], blocker[1]
+            end
+        end
+        return false, nil, nil, 'Blocked', blockingBlock, blockingHit
+    end
     
-                task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
+    local function isBreakTargetValid(block, localPosition)
+        if not block or not block.Parent or (block.Position - localPosition).Magnitude >= Range.Value then return false end
+        if not bedwars.BlockController:isBlockBreakable({blockPosition = block.Position / 3}, lplr) then return false end
+        if not SelfBreak.Enabled and block:GetAttribute('PlacedByUserId') == lplr.UserId then return false end
+        if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
+        if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then return false end
+        return true
+    end
+
+    local function breakTarget(block, routeState)
+        local target, path, endpos = bedwars.breakBlock(block, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, BreakerType.Value == 'Legit' and isVisible or nil, routeState)
+        if not target then return false end
+
+        if path then
+            local currentnode = target
+            for _, part in parts do
+                part.Position = currentnode or Vector3.zero
+                if currentnode then
+                    part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
+                end
+                currentnode = path[currentnode]
+            end
+        end
+
+        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
+        return true
+    end
+
+    local function attemptBreak(tab, localPosition, routeState)
+        if not tab then
+            if routeState then table.clear(routeState) end
+            return false
+        end
+
+        local previous
+        if routeState and routeState.block then
+            previous = routeState.block
+            if table.find(tab, previous) and isBreakTargetValid(previous, localPosition) then
+                if breakTarget(previous, routeState) then return true end
+                if routeState.block then return false end
+            else
+                table.clear(routeState)
+            end
+        end
+
+        for _, block in tab do
+            if block ~= previous and isBreakTargetValid(block, localPosition) and breakTarget(block, routeState) then
                 return true
             end
         end
-    
         return false
     end
     
@@ -11976,6 +12127,7 @@ run(function()
         Name = 'Breaker',
         Function = function(callback)
             if callback then
+                table.clear(activeRoute)
                 for _ = 1, 30 do
                     local part = Instance.new('Part')
                     part.Anchored = true
@@ -12027,7 +12179,7 @@ run(function()
                         if BreakerType.Value == 'Legit' then
                             refreshFilter()
                         end
-                        if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
+                        if attemptBreak(Bed.Enabled and beds, localPosition, activeRoute) then continue end
                         if attemptBreak(Tesla.Enabled and teslas, localPosition) then continue end
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
                         if attemptBreak(customlist, localPosition) then continue end
@@ -12036,9 +12188,12 @@ run(function()
                         for _, v in parts do
                             v.Position = Vector3.zero
                         end
+                    else
+                        table.clear(activeRoute)
                     end
                 until not Breaker.Enabled
             else
+                table.clear(activeRoute)
                 for _, v in parts do
                     v:ClearAllChildren()
                     v:Destroy()
@@ -12274,6 +12429,7 @@ end)
 run(function()
     local AutoKit
     local Legit
+    local LimitItem
     local Toggles = {}
     
     local function kitCollection(id, func, range, specific)
@@ -12333,9 +12489,11 @@ run(function()
                     Players = true,
                     Wallcheck = true
                 })
-    
+
                 if plr then
-                    local calc = prediction.SolveTrajectory(origin, 100, 20, plr.RootPart.Position, plr.RootPart.Velocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil)
+                    local targetVelocity = plr.RootPart.AssemblyLinearVelocity
+                    local targetAirborne = plr.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(targetVelocity.Y) > 0.01
+                    local calc = prediction.SolveTrajectory(origin, 100, 20, plr.RootPart.Position, targetVelocity, workspace.Gravity, plr.HipHeight, plr.Jumping and 42.6 or nil, store.airRay, targetAirborne, plr.RootPart.Position, plr.RootPart)
     
                     if calc then
                         for i, v in debug.getstack(2) do
@@ -12369,9 +12527,14 @@ run(function()
             bedwars.CannonHandController.launchSelf = function(...)
                 local res = {old(...)}
                 local self, block = ...
-    
+
                 if block:GetAttribute('PlacedByUserId') == lplr.UserId and (block.Position - entitylib.character.RootPart.Position).Magnitude < 30 then
-                    task.spawn(bedwars.breakBlock, block, false, nil, true)
+                    local item = store.inventory.inventory.hand
+                    local itemMeta = item and bedwars.ItemMeta[item.itemType]
+                    local cannonMeta = bedwars.ItemMeta[block.Name]
+                    if not LimitItem.Enabled or (itemMeta and itemMeta.breakBlock and cannonMeta and (itemMeta.breakBlock[cannonMeta.block.breakType] or 0) > 0) then
+                        task.spawn(bedwars.breakBlock, block, false, nil, true)
+                    end
                 end
     
                 return unpack(res)
@@ -12646,6 +12809,7 @@ run(function()
             Default = true
         })
     end
+    LimitItem = AutoKit:CreateToggle({Name = 'Limit to item'})
 end)
 
 --[[

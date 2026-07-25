@@ -307,6 +307,7 @@ local function createMobileButton(buttonapi, position)
 		if heldbutton then
 			buttonapi.Bind = {}
 			button:Destroy()
+			mainapi:QueueSave()
 		end
 	end)
 	button.MouseButton1Up:Connect(function()
@@ -405,6 +406,7 @@ local function makeDraggable(gui, window)
 					if ended then
 						ended:Disconnect()
 					end
+					mainapi:QueueSave()
 				end
 			end)
 		end
@@ -2339,6 +2341,7 @@ components = {
 				Position = UDim2.fromScale(size, 0),
 				Size = UDim2.fromScale(math.clamp(math.clamp(math.clamp(self.ValueMax / optionsettings.Max, 0.04, 0.96), 0.04, 0.96) - size, 0, 1), 1)
 			})
+			mainapi:QueueSave()
 		end
 		
 		knobholder.MouseEnter:Connect(function()
@@ -2469,6 +2472,7 @@ mainapi.Components = setmetatable(components, {
 task.spawn(function()
 	repeat
 		local hue = tick() * (0.2 * mainapi.RainbowSpeed.Value) % 1
+		mainapi.RainbowUpdating = true
 		for _, v in mainapi.RainbowTable do
 			if v.Type == 'GUISlider' then
 				v:SetValue(mainapi:Color(hue))
@@ -2476,6 +2480,7 @@ task.spawn(function()
 				v:SetValue(hue)
 			end
 		end
+		mainapi.RainbowUpdating = nil
 		task.wait(1 / mainapi.RainbowUpdateSpeed.Value)
 	until mainapi.Loaded == nil
 end)
@@ -2668,6 +2673,7 @@ function mainapi:CreateGUI()
 			icon.Visible = false
 			label.Text = table.concat(mainapi.Keybind, ' + '):upper()
 			bind.Size = UDim2.fromOffset(math.max(getfontsize(label.Text, label.TextSize, label.Font).X + 10, 20), 21)
+			mainapi:QueueSave()
 		end
 
 		bind.MouseEnter:Connect(function()
@@ -2758,6 +2764,7 @@ function mainapi:CreateGUI()
 			end
 			button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
 			categorysettings.Window.Visible = self.Enabled
+			mainapi:QueueSave()
 		end
 
 		button.MouseEnter:Connect(function()
@@ -3073,6 +3080,7 @@ function mainapi:CreateGUI()
 
 		for i, v in components do
 			optionapi['Create'..i] = function(_, settings)
+				mainapi:HookSave(settings)
 				return v(settings, settingschildren, categoryapi)
 			end
 		end
@@ -3116,6 +3124,7 @@ function mainapi:CreateGUI()
 	end
 
 	function categoryapi:CreateGUISlider(optionsettings)
+		mainapi:HookSave(optionsettings)
 		local optionapi = {
 			Type = 'GUISlider',
 			Notch = 4,
@@ -3906,6 +3915,7 @@ function mainapi:CreateCategory(categorysettings)
 		function moduleapi:SetBind(tab, mouse)
 			if tab.Mobile then
 				createMobileButton(moduleapi, Vector2.new(tab.X, tab.Y))
+				mainapi:QueueSave()
 				return
 			end
 
@@ -3929,6 +3939,7 @@ function mainapi:CreateCategory(categorysettings)
 				bindtext.Text = table.concat(tab, ' + '):upper()
 				bind.Size = UDim2.fromOffset(math.max(getfontsize(bindtext.Text, bindtext.TextSize, bindtext.Font).X + 10, 20), 21)
 			end
+			mainapi:QueueSave()
 		end
 
 		function moduleapi:Toggle(multiple)
@@ -3953,10 +3964,12 @@ function mainapi:CreateCategory(categorysettings)
 				mainapi:UpdateTextGUI()
 			end
 			task.spawn(modulesettings.Function, self.Enabled)
+			mainapi:QueueSave()
 		end
 
 		for i, v in components do
 			moduleapi['Create'..i] = function(_, optionsettings)
+				mainapi:HookSave(optionsettings)
 				return v(optionsettings, modulechildren, moduleapi)
 			end
 		end
@@ -4048,6 +4061,7 @@ function mainapi:CreateCategory(categorysettings)
 								setthreadidentity(8)
 							end
 							createMobileButton(moduleapi, inputType.Position + Vector3.new(0, guiService:GetGuiInset().Y, 0))
+							mainapi:QueueSave()
 							clickgui.Visible = true
 							mainapi:BlurCheck()
 							for _, mobileButton in mainapi.Modules do
@@ -4098,6 +4112,7 @@ function mainapi:CreateCategory(categorysettings)
 		arrow.Rotation = self.Expanded and 0 or 180
 		window.Size = UDim2.fromOffset(220, self.Expanded and math.min(41 + windowlist.AbsoluteContentSize.Y / scale.Scale, 601) or 41)
 		divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
+		mainapi:QueueSave()
 	end
 
 	arrowbutton.MouseButton1Click:Connect(function()
@@ -4268,6 +4283,7 @@ function mainapi:CreateOverlay(categorysettings)
 	function categoryapi:Pin()
 		self.Pinned = not self.Pinned
 		pin.ImageColor3 = self.Pinned and uipallet.Text or color.Dark(uipallet.Text, 0.43)
+		mainapi:QueueSave()
 	end
 
 	function categoryapi:Update()
@@ -4296,6 +4312,7 @@ function mainapi:CreateOverlay(categorysettings)
 
 	for i, v in components do
 		categoryapi['Create'..i] = function(self, optionsettings)
+			mainapi:HookSave(optionsettings)
 			return v(optionsettings, children, categoryapi)
 		end
 	end
@@ -4681,6 +4698,9 @@ function mainapi:CreateCategoryList(categorysettings)
 						bindtext.Text = table.concat(tab, ' + '):upper()
 						bind.Size = UDim2.fromOffset(math.max(getfontsize(bindtext.Text, bindtext.TextSize, bindtext.Font).X + 10, 20), 21)
 					end
+					if mouse then
+						mainapi:QueueSave()
+					end
 				end
 
 				bindFunction({}, v.Bind)
@@ -4783,11 +4803,15 @@ function mainapi:CreateCategoryList(categorysettings)
 						objectdotin.BackgroundColor3 = categorysettings.Color
 					end
 					categorysettings.Function()
+					mainapi:QueueSave()
 				end)
 				table.insert(self.Objects, object)
 			end
 		end
 		mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+		if val then
+			mainapi:QueueSave()
+		end
 	end
 
 	function categoryapi:Expand()
@@ -4796,6 +4820,7 @@ function mainapi:CreateCategoryList(categorysettings)
 		arrow.Rotation = self.Expanded and 0 or 180
 		window.Size = UDim2.fromOffset(220, self.Expanded and math.min(51 + windowlist.AbsoluteContentSize.Y / scale.Scale, 611) or 45)
 		divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
+		mainapi:QueueSave()
 	end
 
 	function categoryapi:GetValue(name)
@@ -4808,6 +4833,7 @@ function mainapi:CreateCategoryList(categorysettings)
 
 	for i, v in components do
 		categoryapi['Create'..i] = function(self, optionsettings)
+			mainapi:HookSave(optionsettings)
 			return v(optionsettings, childrentwo, categoryapi)
 		end
 	end
@@ -5335,6 +5361,7 @@ function mainapi:CreateLegit()
 				table.clear(moduleapi.Connections)
 			end
 			task.spawn(modulesettings.Function, moduleapi.Enabled)
+			mainapi:QueueSave()
 		end
 
 		back.MouseEnter:Connect(function()
@@ -5409,6 +5436,7 @@ function mainapi:CreateLegit()
 
 		for i, v in components do
 			moduleapi['Create'..i] = function(_, optionsettings)
+				mainapi:HookSave(optionsettings)
 				return v(optionsettings, settingschildren, moduleapi)
 			end
 		end
@@ -5586,6 +5614,8 @@ end
 
 local guipane
 function mainapi:Load(skipgui, profile)
+	self.Loaded = false
+	self.SaveDirty = nil
 	if not skipgui then
 		self.GUIColor:SetValue(nil, nil, nil, 4)
 	end
@@ -5710,8 +5740,8 @@ function mainapi:Load(skipgui, profile)
 		self.Downloader:Destroy()
 		self.Downloader = nil
 	end
-	self.Loaded = savecheck
 	self.Categories.Main.Options.Bind:SetBind(self.Keybind)
+	self.Loaded = savecheck
 
 	if not inputService.KeyboardEnabled or shared.VapeDeveloper then
 		local hide = isfile('catrewrite/profiles/hide.txt') and readfile('catrewrite/profiles/hide.txt') or nil
@@ -5799,6 +5829,30 @@ function mainapi:Remove(obj)
 
 		loopClean(newobj)
 		tab[obj] = nil
+	end
+end
+
+function mainapi:QueueSave()
+	if not self.Loaded or self.RainbowUpdating then return end
+	self.SaveDirty = true
+	if self.SaveQueued then return end
+	self.SaveQueued = true
+	task.delay(0.4, function()
+		self.SaveQueued = nil
+		if self.SaveDirty and self.Loaded then
+			self.SaveDirty = nil
+			self:Save()
+		end
+	end)
+end
+
+function mainapi:HookSave(optionsettings)
+	local func = optionsettings.Function
+	optionsettings.Function = function(...)
+		if func then
+			func(...)
+		end
+		mainapi:QueueSave()
 	end
 end
 
@@ -6192,9 +6246,9 @@ general:CreateButton({
 		end
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('catrewrite/loader.lua'), 'loader')()
+			loadstring(readfile('catrewrite/main.lua'), 'main')(license)
 		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/loader.lua', true))()
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true))(license)
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Vape'
@@ -6226,7 +6280,7 @@ general:CreateButton({
 	Function = function()
 		shared.vapereload = true
 		if shared.VapeDeveloper then
-			loadstring(readfile('catrewrite/main.lua'), 'main')()
+			loadstring(readfile('catrewrite/main.lua'), 'main')(license)
 		else
 			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/init.lua', true))(license)
 		end
@@ -6457,13 +6511,39 @@ mainapi.Categories.Main:CreateBind()
 	Text GUI
 ]]
 
-local textgui = mainapi:CreateOverlay({
+local textgui
+local lasttextguiside
+local lasttextguiupdate = 0
+local function getTextGUISide()
+	return textgui.Object.AbsolutePosition.X + (textgui.Object.AbsoluteSize.X / 2) > (gui.AbsoluteSize.X / 2)
+end
+
+textgui = mainapi:CreateOverlay({
 	Name = 'Text GUI',
 	Icon = getcustomasset('catrewrite/assets/new/textguiicon.png'),
 	Size = UDim2.fromOffset(16, 12),
 	Position = UDim2.fromOffset(12, 14),
-	Function = function()
+	Function = function(callback)
 		mainapi:UpdateTextGUI()
+		if callback and textgui.Button.Enabled then
+			lasttextguiside = getTextGUISide()
+			lasttextguiupdate = tick()
+			textgui:Clean(runService.Heartbeat:Connect(function()
+				if mainapi.ThreadFix then
+					setthreadidentity(8)
+				end
+
+				local side = getTextGUISide()
+				if side ~= lasttextguiside then
+					lasttextguiside = side
+					mainapi:UpdateTextGUI()
+				end
+				if tick() - lasttextguiupdate >= 0.1 then
+					lasttextguiupdate = tick()
+					mainapi:RefreshTextGUI()
+				end
+			end))
+		end
 	end
 })
 local textguisort = textgui:CreateDropdown({
@@ -6663,28 +6743,19 @@ textguicolorcustom = textgui:CreateColorSlider({
 ]]
 
 local VapeLabels = {}
+local VapeLabelObjects = {}
+local VapeTextSizes = {}
+local VapeTextSizeCount = 0
 local VapeLogo = Instance.new('ImageLabel')
 VapeLogo.Name = 'Logo'
 VapeLogo.Size = UDim2.fromOffset(80, 21)
-VapeLogo.Position = UDim2.new(1, -142, 0, 3)
+VapeLogo.Position = UDim2.fromOffset(0, 0)
 VapeLogo.BackgroundTransparency = 1
 VapeLogo.BorderSizePixel = 0
 VapeLogo.Visible = false
 VapeLogo.BackgroundColor3 = Color3.new()
 VapeLogo.Image = getcustomasset('catrewrite/assets/new/textvape.png')
 VapeLogo.Parent = textgui.Children
-
-local lastside = textgui.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
-mainapi:Clean(textgui.Children:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-	if mainapi.ThreadFix then
-		setthreadidentity(8)
-	end
-	local newside = textgui.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
-	if lastside ~= newside then
-		lastside = newside
-		mainapi:UpdateTextGUI()
-	end
-end))
 
 local VapeLogoV4 = Instance.new('ImageLabel')
 VapeLogoV4.Name = 'Logo2'
@@ -6712,7 +6783,7 @@ local VapeLogoGradient2 = Instance.new('UIGradient')
 VapeLogoGradient2.Rotation = 90
 VapeLogoGradient2.Parent = VapeLogoV4
 local VapeLabelCustom = Instance.new('TextLabel')
-VapeLabelCustom.Position = UDim2.fromOffset(5, 2)
+VapeLabelCustom.Position = UDim2.fromOffset(0, 0)
 VapeLabelCustom.BackgroundTransparency = 1
 VapeLabelCustom.BorderSizePixel = 0
 VapeLabelCustom.Visible = false
@@ -6721,31 +6792,14 @@ VapeLabelCustom.TextSize = 25
 VapeLabelCustom.FontFace = textguifontcustom.Value
 VapeLabelCustom.RichText = true
 local VapeLabelCustomShadow = VapeLabelCustom:Clone()
-VapeLabelCustom:GetPropertyChangedSignal('Position'):Connect(function()
-	VapeLabelCustomShadow.Position = UDim2.new(
-		VapeLabelCustom.Position.X.Scale,
-		VapeLabelCustom.Position.X.Offset + 1,
-		0,
-		VapeLabelCustom.Position.Y.Offset + 1
-	)
-end)
-VapeLabelCustom:GetPropertyChangedSignal('FontFace'):Connect(function()
-	VapeLabelCustomShadow.FontFace = VapeLabelCustom.FontFace
-end)
-VapeLabelCustom:GetPropertyChangedSignal('Text'):Connect(function()
-	VapeLabelCustomShadow.Text = removeTags(VapeLabelCustom.Text)
-end)
-VapeLabelCustom:GetPropertyChangedSignal('Size'):Connect(function()
-	VapeLabelCustomShadow.Size = VapeLabelCustom.Size
-end)
 VapeLabelCustomShadow.TextColor3 = Color3.new()
 VapeLabelCustomShadow.TextTransparency = 0.65
 VapeLabelCustomShadow.Parent = textgui.Children
 VapeLabelCustom.Parent = textgui.Children
 local VapeLabelHolder = Instance.new('Frame')
 VapeLabelHolder.Name = 'Holder'
-VapeLabelHolder.Size = UDim2.fromScale(1, 1)
-VapeLabelHolder.Position = UDim2.fromOffset(5, 37)
+VapeLabelHolder.Size = UDim2.fromOffset(0, 0)
+VapeLabelHolder.Position = UDim2.fromOffset(0, 0)
 VapeLabelHolder.BackgroundTransparency = 1
 VapeLabelHolder.Parent = textgui.Children
 local VapeLabelSorter = Instance.new('UIListLayout')
@@ -6753,6 +6807,256 @@ VapeLabelSorter.HorizontalAlignment = Enum.HorizontalAlignment.Right
 VapeLabelSorter.VerticalAlignment = Enum.VerticalAlignment.Top
 VapeLabelSorter.SortOrder = Enum.SortOrder.LayoutOrder
 VapeLabelSorter.Parent = VapeLabelHolder
+
+local function getTextGUISize(text, size, font)
+	local key = text..'\n'..size..'\n'..font.Family..'\n'..font.Weight.Name..'\n'..font.Style.Name
+	local bounds = VapeTextSizes[key]
+	if not bounds then
+		if VapeTextSizeCount >= 256 then
+			table.clear(VapeTextSizes)
+			VapeTextSizeCount = 0
+		end
+		bounds = getfontsize(text, size, font)
+		VapeTextSizes[key] = bounds
+		VapeTextSizeCount += 1
+	end
+	return bounds
+end
+
+local function getTextGUIText(name, module)
+	local text = name:gsub(' ', '')
+	local suffix = module.ExtraText and module.ExtraText()
+	if suffix ~= nil and suffix ~= '' then
+		text ..= " <font color='#A8A8A8'>"..tostring(suffix)..'</font>'
+	end
+	return text
+end
+
+local function isTextGUIModuleVisible(name, module)
+	return module.Enabled
+		and (not textguimodules.Enabled or not table.find(textguimoduleslist.ListEnabled, name))
+		and (not textguirender.Enabled or module.Category ~= 'Render')
+end
+
+local function createTextGUIObject(name, module)
+	local holder = Instance.new('Frame')
+	holder.Name = name
+	holder.Size = UDim2.fromOffset(0, 0)
+	holder.BackgroundTransparency = 1
+	holder.ClipsDescendants = true
+	holder.Parent = VapeLabelHolder
+	local holderbackground = Instance.new('Frame')
+	holderbackground.Name = 'Background'
+	holderbackground.Size = UDim2.fromScale(1, 1)
+	holderbackground.BackgroundColor3 = color.Dark(uipallet.Main, 0.15)
+	holderbackground.BorderSizePixel = 0
+	holderbackground.ZIndex = 1
+	holderbackground.Parent = holder
+	addCorner(holderbackground, UDim.new(0, 3))
+	local holderstroke = Instance.new('UIStroke')
+	holderstroke.Color = Color3.new()
+	holderstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	holderstroke.Thickness = 1
+	holderstroke.Parent = holderbackground
+	local holdercolorline = Instance.new('Frame')
+	holdercolorline.Name = 'Accent'
+	holdercolorline.Size = UDim2.new(0, 2, 1, 0)
+	holdercolorline.BackgroundColor3 = Color3.fromRGB(47, 122, 229)
+	holdercolorline.BorderSizePixel = 0
+	holdercolorline.ZIndex = 2
+	holdercolorline.Parent = holder
+	addCorner(holdercolorline, UDim.new(0, 1))
+	local holderdrop = Instance.new('TextLabel')
+	holderdrop.Name = 'Shadow'
+	holderdrop.Position = UDim2.fromOffset(7, 3)
+	holderdrop.BackgroundTransparency = 1
+	holderdrop.BorderSizePixel = 0
+	holderdrop.Text = ''
+	holderdrop.TextColor3 = Color3.new()
+	holderdrop.TextSize = 19
+	holderdrop.FontFace = textguifont.Value
+	holderdrop.TextXAlignment = Enum.TextXAlignment.Left
+	holderdrop.TextYAlignment = Enum.TextYAlignment.Top
+	holderdrop.Visible = false
+	holderdrop.ZIndex = 2
+	holderdrop.Parent = holder
+	local holdertext = Instance.new('TextLabel')
+	holdertext.Name = 'Text'
+	holdertext.Position = UDim2.fromOffset(6, 2)
+	holdertext.BackgroundTransparency = 1
+	holdertext.BorderSizePixel = 0
+	holdertext.Text = ''
+	holdertext.TextSize = 19
+	holdertext.FontFace = textguifont.Value
+	holdertext.RichText = true
+	holdertext.TextXAlignment = Enum.TextXAlignment.Left
+	holdertext.TextYAlignment = Enum.TextYAlignment.Top
+	holdertext.ZIndex = 3
+	holdertext.Parent = holder
+
+	return {
+		Name = name,
+		Module = module,
+		Object = holder,
+		Text = holdertext,
+		Shadow = holderdrop,
+		Background = holderbackground,
+		Stroke = holderstroke,
+		Color = holdercolorline,
+		Enabled = false,
+		Revision = 0
+	}
+end
+
+local function updateTextGUIObject(object, right, text)
+	text = text or getTextGUIText(object.Name, object.Module)
+	local plain = removeTags(text)
+	object.Text.Text = text
+	object.Text.FontFace = textguifont.Value
+	object.Text.TextSize = 19
+	local size = getTextGUISize(plain, object.Text.TextSize, object.Text.FontFace)
+	object.Text.Size = UDim2.fromOffset(size.X, size.Y)
+	object.Text.Position = UDim2.fromOffset(6, 2)
+	object.Shadow.Text = plain
+	object.Shadow.FontFace = object.Text.FontFace
+	object.Shadow.TextSize = object.Text.TextSize
+	object.Shadow.Size = object.Text.Size
+	object.Shadow.Position = UDim2.fromOffset(7, 3)
+	object.Shadow.Visible = textguishadow.Enabled
+	object.Background.Visible = textguibackground.Enabled
+	object.Background.BackgroundColor3 = color.Dark(uipallet.Main, 0.15)
+	object.Background.BackgroundTransparency = textguibackgroundtransparency.Value
+	object.Stroke.Enabled = textguibackground.Enabled
+	object.Stroke.Transparency = 0.928 + (0.072 * math.clamp((textguibackgroundtransparency.Value - 0.5) / 0.5, 0, 1))
+	object.Color.Visible = textguibackground.Enabled
+	object.Color.Position = right and UDim2.new(1, -2, 0, 0) or UDim2.fromOffset(0, 0)
+	object.PlainText = plain
+	object.Width = math.ceil(size.X) + 14
+	object.Height = math.ceil(size.Y) + 5
+	object.TargetSize = UDim2.fromOffset(object.Width, object.Height)
+end
+
+local function destroyTextGUIObject(object)
+	tween:Cancel(object.Object)
+	if object.Delay then
+		pcall(task.cancel, object.Delay)
+		object.Delay = nil
+	end
+	if object.Object.Parent then
+		object.Object:Destroy()
+	end
+	if VapeLabelObjects[object.Name] == object then
+		VapeLabelObjects[object.Name] = nil
+	end
+end
+
+local function hideTextGUIObject(object)
+	object.Enabled = false
+	object.Revision += 1
+	local revision = object.Revision
+	tween:Cancel(object.Object)
+	if object.Delay then
+		pcall(task.cancel, object.Delay)
+		object.Delay = nil
+	end
+	if textguianimations.Enabled then
+		tween:Tween(object.Object, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {
+			Size = UDim2.fromOffset(0, 0)
+		})
+		object.Delay = task.delay(0.3, function()
+			object.Delay = nil
+			if not object.Enabled and object.Revision == revision then
+				destroyTextGUIObject(object)
+			end
+		end)
+	else
+		destroyTextGUIObject(object)
+	end
+end
+
+local function sortTextGUIObjects()
+	if textguisort.Value == 'Alphabetical' then
+		table.sort(VapeLabels, function(a, b)
+			if a.PlainText == b.PlainText then
+				return a.Name < b.Name
+			end
+			return a.PlainText < b.PlainText
+		end)
+	else
+		table.sort(VapeLabels, function(a, b)
+			if a.Width == b.Width then
+				return a.Name < b.Name
+			end
+			return a.Width > b.Width
+		end)
+	end
+
+	for i, v in VapeLabels do
+		v.Object.LayoutOrder = i
+	end
+end
+
+local function layoutTextGUI(right)
+	local width = 0
+	local height = 0
+	for _, v in VapeLabels do
+		width = math.max(width, v.Width)
+		height += v.Height
+	end
+
+	VapeLogo.Visible = textguiwatermark.Enabled
+	VapeLogoShadow.Visible = textguishadow.Enabled
+	VapeLabelCustom.Text = textguibox.Value
+	VapeLabelCustom.FontFace = textguifontcustom.Value
+	VapeLabelCustom.Visible = VapeLabelCustom.Text ~= '' and textguitext.Enabled
+	VapeLabelCustomShadow.Text = removeTags(VapeLabelCustom.Text)
+	VapeLabelCustomShadow.FontFace = VapeLabelCustom.FontFace
+	VapeLabelCustomShadow.Visible = VapeLabelCustom.Visible and textguishadow.Enabled
+	local headerheight = 0
+	if VapeLogo.Visible then
+		width = math.max(width, 114)
+		headerheight = 25
+	end
+	local customsize
+	if VapeLabelCustom.Visible then
+		customsize = getTextGUISize(removeTags(VapeLabelCustom.Text), VapeLabelCustom.TextSize, VapeLabelCustom.FontFace)
+		VapeLabelCustom.Size = UDim2.fromOffset(customsize.X, customsize.Y)
+		VapeLabelCustomShadow.Size = VapeLabelCustom.Size
+		width = math.max(width, customsize.X)
+	end
+
+	VapeLogo.Position = UDim2.fromOffset(right and width - 114 or 0, 0)
+	if customsize then
+		VapeLabelCustom.Position = UDim2.fromOffset(right and width - customsize.X or 0, headerheight)
+		VapeLabelCustomShadow.Position = UDim2.fromOffset(VapeLabelCustom.Position.X.Offset + 1, VapeLabelCustom.Position.Y.Offset + 1)
+		headerheight += customsize.Y + 4
+	end
+	VapeLabelSorter.HorizontalAlignment = right and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
+	VapeLabelHolder.Position = UDim2.fromOffset(0, headerheight)
+	VapeLabelHolder.Size = UDim2.fromOffset(width, height)
+	textgui.Children.AnchorPoint = Vector2.new(right and 1 or 0, 0)
+	textgui.Children.Position = UDim2.new(right and 1 or 0, 0, 1, 0)
+	textgui.Children.Size = UDim2.fromOffset(width, headerheight + height)
+end
+
+local function clearTextGUI()
+	local objects = {}
+	for _, v in VapeLabelObjects do
+		table.insert(objects, v)
+	end
+	for _, v in objects do
+		destroyTextGUIObject(v)
+	end
+	table.clear(VapeLabels)
+	table.clear(VapeLabelObjects)
+	table.clear(VapeTextSizes)
+	VapeTextSizeCount = 0
+	VapeLogo.Visible = false
+	VapeLabelCustom.Visible = false
+	VapeLabelCustomShadow.Visible = false
+	VapeLabelHolder.Size = UDim2.fromOffset(0, 0)
+	textgui.Children.Size = UDim2.fromOffset(0, 0)
+end
 
 --[[
 	Target Info
@@ -7009,134 +7313,95 @@ mainapi.Libraries.targetinfo = targetinfo
 
 function mainapi:UpdateTextGUI(afterload)
 	if not afterload and not mainapi.Loaded then return end
-	if textgui.Button.Enabled then
-		local right = textgui.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
-		VapeLogo.Visible = textguiwatermark.Enabled
-		VapeLogo.Position = right and UDim2.new(1 / VapeTextScale.Scale, -113, 0, 6) or UDim2.fromOffset(0, 6)
-		VapeLogoShadow.Visible = textguishadow.Enabled
-		VapeLabelCustom.Text = textguibox.Value
-		VapeLabelCustom.FontFace = textguifontcustom.Value
-		VapeLabelCustom.Visible = VapeLabelCustom.Text ~= '' and textguitext.Enabled
-		VapeLabelCustomShadow.Visible = VapeLabelCustom.Visible and textguishadow.Enabled
-		VapeLabelSorter.HorizontalAlignment = right and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
-		VapeLabelHolder.Size = UDim2.fromScale(1 / VapeTextScale.Scale, 1)
-		VapeLabelHolder.Position = UDim2.fromOffset(right and 3 or 0, 11 + (VapeLogo.Visible and VapeLogo.Size.Y.Offset or 0) + (VapeLabelCustom.Visible and 28 or 0) + (textguibackground.Enabled and 3 or 0))
-		if VapeLabelCustom.Visible then
-			local size = getfontsize(removeTags(VapeLabelCustom.Text), VapeLabelCustom.TextSize, VapeLabelCustom.FontFace)
-			VapeLabelCustom.Size = UDim2.fromOffset(size.X, size.Y)
-			VapeLabelCustom.Position = UDim2.new(right and 1 / VapeTextScale.Scale or 0, right and -size.X or 0, 0, (VapeLogo.Visible and 32 or 8))
-		end
-
-		local found = {}
-		for _, v in VapeLabels do
-			if v.Enabled then
-				table.insert(found, v.Object.Name)
-			end
-			v.Object:Destroy()
-		end
-		table.clear(VapeLabels)
-
-		local info = TweenInfo.new(0.3, Enum.EasingStyle.Exponential)
-		for i, v in mainapi.Modules do
-			if textguimodules.Enabled and table.find(textguimoduleslist.ListEnabled, i) then continue end
-			if textguirender.Enabled and v.Category == 'Render' then continue end
-			if v.Enabled or table.find(found, i) then
-				local holder = Instance.new('Frame')
-				holder.Name = i
-				holder.Size = UDim2.fromOffset()
-				holder.BackgroundTransparency = 1
-				holder.ClipsDescendants = true
-				holder.Parent = VapeLabelHolder
-				local holderbackground
-				local holdercolorline
-				if textguibackground.Enabled then
-					holderbackground = Instance.new('Frame')
-					holderbackground.Size = UDim2.new(1, 3, 1, 0)
-					holderbackground.BackgroundColor3 = color.Dark(uipallet.Main, 0.15)
-					holderbackground.BackgroundTransparency = textguibackgroundtransparency.Value
-					holderbackground.BorderSizePixel = 0
-					holderbackground.Parent = holder
-					local holderline = Instance.new('Frame')
-					holderline.Size = UDim2.new(1, 0, 0, 1)
-					holderline.Position = UDim2.new(0, 0, 1, -1)
-					holderline.BackgroundColor3 = Color3.new()
-					holderline.BackgroundTransparency = 0.928 + (0.072 * math.clamp((textguibackgroundtransparency.Value - 0.5) / 0.5, 0, 1))
-					holderline.BorderSizePixel = 0
-					holderline.Parent = holderbackground
-					local holderline2 = holderline:Clone()
-					holderline2.Name = 'Line'
-					holderline2.Position = UDim2.new()
-					holderline2.Parent = holderbackground
-					holdercolorline = Instance.new('Frame')
-					holdercolorline.Size = UDim2.new(0, 2, 1, 0)
-					holdercolorline.Position = right and UDim2.new(1, -5, 0, 0) or UDim2.new()
-					holdercolorline.BorderSizePixel = 0
-					holdercolorline.Parent = holderbackground
-				end
-				local holdertext = Instance.new('TextLabel')
-				holdertext.Position = UDim2.fromOffset(right and 3 or 6, 2)
-				holdertext.BackgroundTransparency = 1
-				holdertext.BorderSizePixel = 0
-				holdertext.Text = ({i:gsub(' ', '')})[1]..(v.ExtraText and " <font color='#A8A8A8'>"..v.ExtraText()..'</font>' or '')
-				holdertext.TextSize = 15
-				holdertext.FontFace = textguifont.Value
-				holdertext.RichText = true
-				local size = getfontsize(removeTags(holdertext.Text), holdertext.TextSize, holdertext.FontFace)
-				holdertext.Size = UDim2.fromOffset(size.X, size.Y)
-				if textguishadow.Enabled then
-					local holderdrop = holdertext:Clone()
-					holderdrop.Position = UDim2.fromOffset(holdertext.Position.X.Offset + 1, holdertext.Position.Y.Offset + 1)
-					holderdrop.Text = removeTags(holdertext.Text)
-					holderdrop.TextColor3 = Color3.new()
-					holderdrop.Parent = holder
-				end
-				holdertext.Parent = holder
-				local holdersize = UDim2.fromOffset(size.X + 10, size.Y + (textguibackground.Enabled and 5 or 3))
-				if textguianimations.Enabled then
-					if not table.find(found, i) then
-						tween:Tween(holder, info, {
-							Size = holdersize
-						})
-					else
-						holder.Size = holdersize
-						if not v.Enabled then
-							tween:Tween(holder, info, {
-								Size = UDim2.fromOffset()
-							})
-						end
-					end
-				else
-					holder.Size = v.Enabled and holdersize or UDim2.fromOffset()
-				end
-				table.insert(VapeLabels, {
-					Object = holder,
-					Text = holdertext,
-					Background = holderbackground,
-					Color = holdercolorline,
-					Enabled = v.Enabled
-				})
-			end
-		end
-
-		if textguisort.Value == 'Alphabetical' then
-			table.sort(VapeLabels, function(a, b)
-				return a.Text.Text < b.Text.Text
-			end)
-		else
-			table.sort(VapeLabels, function(a, b)
-				return a.Text.Size.X.Offset > b.Text.Size.X.Offset
-			end)
-		end
-
-		for i, v in VapeLabels do
-			if v.Color then
-				v.Color.Parent.Line.Visible = i ~= 1
-			end
-			v.Object.LayoutOrder = i
-		end
+	if not textgui.Button.Enabled then
+		clearTextGUI()
+		mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value, true)
+		return
 	end
 
+	local right = getTextGUISide()
+	lasttextguiside = right
+	local found = {}
+	table.clear(VapeLabels)
+	for i, v in mainapi.Modules do
+		if not isTextGUIModuleVisible(i, v) then continue end
+		local object = VapeLabelObjects[i]
+		local wasenabled = object and object.Enabled
+		if not object then
+			object = createTextGUIObject(i, v)
+			VapeLabelObjects[i] = object
+		end
+		object.Module = v
+		object.Enabled = true
+		object.Revision += 1
+		if object.Delay then
+			pcall(task.cancel, object.Delay)
+			object.Delay = nil
+		end
+		updateTextGUIObject(object, right)
+		tween:Cancel(object.Object)
+		if textguianimations.Enabled and not wasenabled then
+			tween:Tween(object.Object, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {
+				Size = object.TargetSize
+			})
+		else
+			object.Object.Size = object.TargetSize
+		end
+		found[i] = true
+		table.insert(VapeLabels, object)
+	end
+
+	local removed = {}
+	for i, v in VapeLabelObjects do
+		if not found[i] and v.Enabled then
+			table.insert(removed, v)
+		end
+	end
+	for _, v in removed do
+		hideTextGUIObject(v)
+	end
+
+	sortTextGUIObjects()
+	layoutTextGUI(right)
 	mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value, true)
+end
+
+function mainapi:RefreshTextGUI()
+	if not mainapi.Loaded or not textgui.Button.Enabled then return end
+	local count = 0
+	for i, v in mainapi.Modules do
+		if isTextGUIModuleVisible(i, v) then
+			count += 1
+			if not VapeLabelObjects[i] or not VapeLabelObjects[i].Enabled then
+				mainapi:UpdateTextGUI()
+				return
+			end
+		end
+	end
+	if count ~= #VapeLabels then
+		mainapi:UpdateTextGUI()
+		return
+	end
+	local changed
+	local right = getTextGUISide()
+	for _, v in VapeLabels do
+		if not v.Module.Enabled then
+			mainapi:UpdateTextGUI()
+			return
+		end
+		local text = getTextGUIText(v.Name, v.Module)
+		if text ~= v.Text.Text then
+			updateTextGUIObject(v, right, text)
+			tween:Cancel(v.Object)
+			v.Object.Size = v.TargetSize
+			changed = true
+		end
+	end
+	if changed then
+		sortTextGUIObjects()
+		layoutTextGUI(right)
+		mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value, true)
+	end
 end
 
 function mainapi:UpdateGUI(hue, sat, val, default)
@@ -7155,13 +7420,9 @@ function mainapi:UpdateGUI(hue, sat, val, default)
 
 		local customcolor = textguicolordrop.Value == 'Custom color' and Color3.fromHSV(textguicolor.Hue, textguicolor.Sat, textguicolor.Value) or nil
 		for i, v in VapeLabels do
-			v.Text.TextColor3 = customcolor or (mainapi.GUIColor.Rainbow and Color3.fromHSV(mainapi:Color((hue - ((textguigradient and i + 2 or i) * 0.025)) % 1)) or VapeLogoGradient.Color.Keypoints[2].Value)
-			if v.Color then
-				v.Color.BackgroundColor3 = v.Text.TextColor3
-			end
-			if textguibackgroundtint.Enabled and v.Background then
-				v.Background.BackgroundColor3 = color.Dark(v.Text.TextColor3, 0.75)
-			end
+			v.Text.TextColor3 = customcolor or (mainapi.GUIColor.Rainbow and Color3.fromHSV(mainapi:Color((hue - ((textguigradient.Enabled and i + 2 or i) * 0.025)) % 1)) or VapeLogoGradient.Color.Keypoints[2].Value)
+			v.Color.BackgroundColor3 = v.Text.TextColor3
+			v.Background.BackgroundColor3 = textguibackgroundtint.Enabled and color.Dark(v.Text.TextColor3, 0.75) or color.Dark(uipallet.Main, 0.15)
 		end
 	end
 

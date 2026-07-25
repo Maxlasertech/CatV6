@@ -233,7 +233,34 @@ local function motorMove(target, cf)
 end
 
 local hash = loadstring(downloadFile('catrewrite/libraries/hash.lua'), 'hash')()
-local prediction = loadstring(downloadFile('catrewrite/libraries/prediction.lua'), 'prediction')()
+local prediction = setmetatable({}, {
+	__index = function(self, key)
+		local implementation = vape.Libraries.prediction
+		if implementation == self then
+			return nil
+		end
+		local value = implementation and implementation[key]
+		if value == nil then
+			return nil
+		end
+		if type(value) ~= 'function' then
+			rawset(self, key, value)
+			return value
+		end
+		local forward = function(...)
+			local current = vape.Libraries.prediction
+			if current == self then
+				return nil
+			end
+			local currentCallback = current and current[key]
+			if currentCallback then
+				return currentCallback(...)
+			end
+		end
+		rawset(self, key, forward)
+		return forward
+	end
+})
 entitylib = loadstring(downloadFile('catrewrite/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},

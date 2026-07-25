@@ -33,7 +33,8 @@ run(function()
 		Client = Client,
 		CrateItemMeta = debug.getupvalue(Flamework.resolveDependency('client/controllers/global/reward-crate/crate-controller@CrateController').onStart, 3),
 		QueueMeta = require(replicatedStorage.TS.game['queue-meta']).QueueMeta,
-		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore
+		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
+		Flamework = Flamework
 	}, {
 		__index = function(self, ind)
 			rawset(self, ind, Knit.Controllers[ind])
@@ -180,5 +181,25 @@ run(function()
             end
         end,
         Tooltip = 'Automatically opens lucky crates, piston inspired!'
+    })
+end)
+
+run(function()
+    local MatchHistory
+    
+    MatchHistory = vape.Categories.Minigames:CreateModule({
+        Name = 'Match History',
+        Function = function(callback)
+            if callback then
+                bedwars.Flamework.resolveDependency('client/controllers/app-controller@AppController'):openApp({
+                    app = bedwars.ModeratorApp,
+                    appId = 'MatchHistoryApp'
+                }, {
+                    player = lplr,
+                    matchHistory = {}
+                })
+                MatchHistory:Toggle()
+            end
+        end
     })
 end)
