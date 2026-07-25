@@ -123,6 +123,7 @@ local function finishLoading()
 	end
 end
 
+
 if not isfile('catrewrite/profiles/gui.txt') then
 	writefile('catrewrite/profiles/gui.txt', 'new')
 end
