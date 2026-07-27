@@ -46,6 +46,9 @@ local lplr = playersService.LocalPlayer
 local gameCamera = workspace.CurrentCamera
 
 local function getMousePosition()
+	if not gameCamera then
+		return Vector2.zero
+	end
 	if inputService.TouchEnabled then
 		return gameCamera.ViewportSize / 2
 	end
@@ -70,7 +73,7 @@ local function waitForChildOfType(obj, name, timeout, prop)
 	local returned
 	repeat
 		returned = prop and obj[name] or obj:FindFirstChildOfClass(name)
-		if returned or checktick < tick() then break end
+		if returned or checktick < tick() or not obj.Parent or vape.Loaded == nil then break end
 		task.wait()
 	until false
 	return returned
@@ -128,7 +131,7 @@ entitylib.Wallcheck = function(origin, position, ignoreobject)
 end
 
 entitylib.EntityMouse = function(entitysettings)
-	if entitylib.isAlive then
+	if entitylib.isAlive and gameCamera then
 		local mouseLocation, sortingTable = entitysettings.MouseOrigin or getMousePosition(), {}
 		for _, v in entitylib.List do
 			if not entitysettings.Players and v.Player then continue end
@@ -152,7 +155,8 @@ entitylib.EntityMouse = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(entitysettings.Origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				local origin = entitysettings.Origin or entitylib.character.RootPart.Position
+				if entitylib.Wallcheck(origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
 			end
 			table.clear(entitysettings)
 			table.clear(sortingTable)
@@ -250,7 +254,7 @@ entitylib.addEntity = function(char, plr, teamfunc)
 	if not char then return end
 	entitylib.EntityThreads[char] = task.spawn(function()
 		local hum = waitForChildOfType(char, 'Humanoid', 10)
-		local humrootpart = hum and waitForChildOfType(hum, 'RootPart', workspace.StreamingEnabled and 9e9 or 10, true)
+		local humrootpart = hum and waitForChildOfType(hum, 'RootPart', workspace.StreamingEnabled and 30 or 10, true)
 		local head = char:WaitForChild('Head', 10) or humrootpart
 
 		if hum and humrootpart then
@@ -317,6 +321,10 @@ entitylib.addEntity = function(char, plr, teamfunc)
 end
 
 entitylib.removeEntity = function(char, localcheck)
+	if char and entitylib.EntityThreads[char] then
+		task.cancel(entitylib.EntityThreads[char])
+		entitylib.EntityThreads[char] = nil
+	end
 	if localcheck then
 		if entitylib.isAlive then
 			entitylib.isAlive = false
@@ -331,11 +339,6 @@ entitylib.removeEntity = function(char, localcheck)
 	end
 
 	if char then
-		if entitylib.EntityThreads[char] then
-			task.cancel(entitylib.EntityThreads[char])
-			entitylib.EntityThreads[char] = nil
-		end
-
 		local entity, ind = entitylib.getEntity(char)
 		if ind then
 			for _, v in entity.Connections do

@@ -69,6 +69,109 @@ local getcustomasset = vape.Libraries.getcustomasset
 local TargetStrafeVector, SpiderShift, WaypointFolder
 local Spider = {Enabled = false}
 local Phase = {Enabled = false}
+local movementHooks, movementOrder = {}, {}
+local movementController, movementOriginal, movementDispatcher
+local namecallHooks = {}
+local namecallBase, namecallDispatcher
+
+local function addNamecallHook(owner, handler)
+	namecallHooks[owner] = handler
+	if not namecallDispatcher then
+		local original
+		namecallDispatcher = newcclosure(function(self, ...)
+			local args = table.pack(...)
+			local method = getnamecallmethod()
+			local caller = checkcaller()
+			for _, hook in namecallHooks do
+				local handled, result = hook(self, method, caller, args)
+				if handled then
+					return table.unpack(result, 1, result.n)
+				end
+			end
+			return original(self, table.unpack(args, 1, args.n))
+		end)
+		original = hookmetamethod(game, '__namecall', namecallDispatcher)
+		namecallBase = original
+	end
+	local removed
+	return function()
+		if removed then return end
+		removed = true
+		namecallHooks[owner] = nil
+		if next(namecallHooks) == nil and namecallBase then
+			hookmetamethod(game, '__namecall', namecallBase)
+			namecallBase = nil
+			namecallDispatcher = nil
+		end
+	end
+end
+
+vape.Libraries.addNamecallHook = addNamecallHook
+
+local function addMovementHook(owner, priority, handler)
+	if not movementController then
+		local success, result = pcall(function()
+			return require(lplr.PlayerScripts.PlayerModule).controls
+		end)
+		if not success or type(result) ~= 'table' or typeof(result.moveFunction) ~= 'function' then
+			return nil, success and 'Player controls are unavailable' or result
+		end
+		movementController = result
+		movementOriginal = result.moveFunction
+		movementDispatcher = function(self, vec, face)
+			for _, entry in movementOrder do
+				local newVec, newFace = entry.Handler(self, vec, face)
+				vec = typeof(newVec) == 'Vector3' and newVec or vec
+				face = newFace == nil and face or newFace
+			end
+			return movementOriginal(self, vec, face)
+		end
+		movementController.moveFunction = movementDispatcher
+	end
+	movementHooks[owner] = {Handler = handler, Priority = priority}
+	table.clear(movementOrder)
+	for _, entry in movementHooks do
+		table.insert(movementOrder, entry)
+	end
+	table.sort(movementOrder, function(a, b)
+		return a.Priority < b.Priority
+	end)
+	local removed
+	return function()
+		if removed then return end
+		removed = true
+		movementHooks[owner] = nil
+		table.clear(movementOrder)
+		for _, entry in movementHooks do
+			table.insert(movementOrder, entry)
+		end
+		table.sort(movementOrder, function(a, b)
+			return a.Priority < b.Priority
+		end)
+		if next(movementHooks) == nil and movementController then
+			if movementController.moveFunction == movementDispatcher then
+				movementController.moveFunction = movementOriginal
+			end
+			movementController, movementOriginal, movementDispatcher = nil, nil, nil
+		end
+	end
+end
+
+vape:Clean(function()
+	table.clear(movementHooks)
+	table.clear(movementOrder)
+	if movementController and movementController.moveFunction == movementDispatcher then
+		movementController.moveFunction = movementOriginal
+	end
+	movementController, movementOriginal, movementDispatcher = nil, nil, nil
+	table.clear(namecallHooks)
+	if namecallBase then
+		hookmetamethod(game, '__namecall', namecallBase)
+	end
+	namecallBase = nil
+	namecallDispatcher = nil
+	vape.Libraries.addNamecallHook = nil
+end)
 
 local function addBlur(parent)
 	local blur = Instance.new('ImageLabel')
@@ -993,7 +1096,7 @@ run(function()
 
     		if callback then
     			local ent
-    			local rightClicked = not RightClick.Enabled or inputService:IsMouseButtonPressed(1)
+    			local rightClicked = not RightClick.Enabled or inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
     			AimAssist:Clean(runService.RenderStepped:Connect(function(dt)
     				if CircleObject then
     					CircleObject.Position = inputService:GetMouseLocation()
@@ -1011,8 +1114,8 @@ run(function()
 
     					if ent then
     						local facing = gameCamera.CFrame.LookVector
-    						local new = (ent[Part.Value].Position - gameCamera.CFrame.Position).Unit
-    						new = new == new and new or Vector3.zero
+    						local direction = ent[Part.Value].Position - gameCamera.CFrame.Position
+    						local new = direction.Magnitude > 0 and direction.Unit or Vector3.zero
 
     						if ShowTarget.Enabled then
     							targetinfo.Targets[ent] = tick() + 1
@@ -1021,7 +1124,9 @@ run(function()
     						if new ~= Vector3.zero then
     							local diffYaw = wrapAngle(math.atan2(facing.X, facing.Z) - math.atan2(new.X, new.Z))
     							local diffPitch = math.asin(facing.Y) - math.asin(new.Y)
-    							local angle = Vector2.new(diffYaw, diffPitch) // (moveConst * UserSettings():GetService('UserGameSettings').MouseSensitivity)
+    							local sensitivity = UserSettings():GetService('UserGameSettings').MouseSensitivity
+    							if sensitivity <= 0 then return end
+    							local angle = Vector2.new(diffYaw, diffPitch) / (moveConst * sensitivity)
 
     							angle *= math.min(Speed.Value * dt, 1)
     							mousemoverel(angle.X, angle.Y)
@@ -1302,7 +1407,7 @@ run(function()
     	local ProjectileRaycast = RaycastParams.new()
     	ProjectileRaycast.RespectCanCollide = true
     	local fireoffset, rand, delayCheck = CFrame.identity, Random.new(), tick()
-    	local oldnamecall, oldray
+    	local removeNamecall, oldray
 
     	local function getTarget(origin, obj)
     		if rand.NextNumber(rand, 0, 100) > (AutoFire.Enabled and 100 or HitChance.Value) then return end
@@ -1399,28 +1504,24 @@ run(function()
     						return oldray(unpack(args))
     					end)
     				else
-    					oldnamecall = hookmetamethod(game, '__namecall', function(...)
-    						if getnamecallmethod() ~= Method.Value then
-    							return oldnamecall(...)
-    						end
-    						if checkcaller() then
-    							return oldnamecall(...)
-    						end
-
+    					removeNamecall = addNamecallHook(SilentAim, function(self, method, caller, args)
+    						if method ~= Method.Value or caller then return end
     						local calling = getcallingscript()
     						if calling then
     							local list = #IgnoredScripts.ListEnabled > 0 and IgnoredScripts.ListEnabled or {'ControlScript', 'ControlModule'}
     							if table.find(list, tostring(calling)) then
-    								return oldnamecall(...)
+    								return
     							end
     						end
 
-    						local self, args = ..., {select(2, ...)}
-    						local res = Hooks[Method.Value](args)
+    						local hookArgs = table.pack(table.unpack(args, 1, args.n))
+    						local res = Hooks[Method.Value](hookArgs)
     						if res then
-    							return unpack(res)
+    							return true, table.pack(table.unpack(res))
     						end
-    						return oldnamecall(self, unpack(args))
+    						for index = 1, hookArgs.n do
+    							args[index] = hookArgs[index]
+    						end
     					end)
     				end
 
@@ -1440,7 +1541,8 @@ run(function()
     							NPCs = Target.NPCs.Enabled
     						})
 
-    						if mouse1click and (isrbxactive or iswindowactive)() then
+    						local activeCheck = isrbxactive or iswindowactive
+    						if mouse1click and (not activeCheck or activeCheck()) then
     							if ent and canClick() then
     								if delayCheck < tick() then
     									if mouseClicked then
@@ -1463,13 +1565,17 @@ run(function()
     					task.wait()
     				until not SilentAim.Enabled
     			else
-    				if oldnamecall then
-    					hookmetamethod(game, '__namecall', oldnamecall)
+    				if removeNamecall then
+    					removeNamecall()
     				end
     				if oldray then
     					hookfunction(Ray.new, oldray)
     				end
-    				oldnamecall, oldray = nil, nil
+    				if mouseClicked and mouse1release then
+    					mouse1release()
+    				end
+    				mouseClicked = false
+    				removeNamecall, oldray = nil, nil
     			end
     		end,
     		ExtraText = function()
@@ -2431,9 +2537,12 @@ run(function()
     		animtrack.Priority = Enum.AnimationPriority.Action4
     		animtrack:Play(0, 0.001, 0)
     		anim:Destroy()
+    		local track = animtrack
 
     		task.delay(0, function()
-    			animtrack.TimePosition = isR15 and 0.77 or 0.38
+    			if Invisible.Enabled and animtrack == track then
+    				track.TimePosition = isR15 and 0.77 or 0.38
+    			end
     		end)
     	end
     end
@@ -2472,7 +2581,6 @@ run(function()
     			Invisible:Clean(entitylib.Events.LocalAdded:Connect(function(char)
     				local animator = char.Humanoid:WaitForChild('Animator', 1)
     				if animator and Invisible.Enabled then
-    					oldroot = nil
     					Invisible:Toggle()
     					Invisible:Toggle()
     				end
@@ -2582,7 +2690,8 @@ run(function()
 
     						for _, v in plrs do
     							local delta = (v.RootPart.Position - selfpos)
-    							local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
+    							local horizontal = delta * Vector3.new(1, 0, 1)
+    							local angle = localfacing.Magnitude > 0 and horizontal.Magnitude > 0 and math.acos(math.clamp(localfacing.Unit:Dot(horizontal.Unit), -1, 1)) or 0
     							if angle > (math.rad(AngleSlider.Value) / 2) then continue end
 
     							table.insert(attacked, {
@@ -2617,7 +2726,7 @@ run(function()
     				end
 
     				for i, v in Particles do
-    					v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
+    					v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.zero
     					v.Parent = attacked[i] and gameCamera or nil
     				end
 
@@ -3005,7 +3114,7 @@ run(function()
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
     local overlapCheck = OverlapParams.new()
-    overlapCheck.MaxParts = 9e9
+    overlapCheck.MaxParts = 256
     local modified, fflag = {}
     local teleported
 
@@ -3445,7 +3554,7 @@ run(function()
     						entitylib.character.RootPart.CFrame = CFrame.new(entitylib.character.RootPart.Position) * CFrame.Angles(XToggle.Enabled and val or x, YToggle.Enabled and val or y, ZToggle.Enabled and val or z)
     					elseif AngularVelocity then
     						AngularVelocity.Parent = entitylib.isAlive and entitylib.character.RootPart
-    						AngularVelocity.MaxTorque = Vector3.new(XToggle.Enabled and math.huge or 0, YToggle.Enabled and math.huge or 0, ZToggle.Enabled and math.huge or 0)
+    						AngularVelocity.MaxTorque = Vector3.new(XToggle.Enabled and 1000000 or 0, YToggle.Enabled and 1000000 or 0, ZToggle.Enabled and 1000000 or 0)
     						AngularVelocity.AngularVelocity = Vector3.new(Value.Value, Value.Value, Value.Value)
     					end
     				end
@@ -3531,22 +3640,13 @@ run(function()
     local YFactor
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
-    local module, old
 
     TargetStrafe = vape.Categories.Blatant:CreateModule({
     	Name = 'Target Strafe',
     	Function = function(callback)
     		if callback then
-    			if not module then
-    				local suc = pcall(function() module = require(lplr.PlayerScripts.PlayerModule).controls end)
-    				if not suc then
-    					module = {}
-    				end
-    			end
-
-    			old = module.moveFunction
     			local flymod, ang, oldent = vape.Modules.Fly or {Enabled = false}
-    			module.moveFunction = function(self, vec, face)
+    			local remove, err = addMovementHook(TargetStrafe, 10, function(_, vec, face)
     				local wallcheck = Targets.Walls.Enabled
     				local ent = not inputService:IsKeyDown(Enum.KeyCode.S) and entitylib.EntityPosition({
     					Range = SearchRange.Value,
@@ -3591,8 +3691,8 @@ run(function()
     						end
 
     						ang += factor % 360
-    						vec = ((newPos - localPosition) * Vector3.new(1, 0, 1)).Unit
-    						vec = vec == vec and vec or Vector3.zero
+    						local direction = (newPos - localPosition) * Vector3.new(1, 0, 1)
+    						vec = direction.Magnitude > 0 and direction.Unit or Vector3.zero
     						TargetStrafeVector = vec
     					else
     						ent = nil
@@ -3602,12 +3702,17 @@ run(function()
     				TargetStrafeVector = ent and vec or nil
     				oldent = ent
 
-    				return old(self, vec, face)
+    				return vec, face
+    			end)
+    			if remove then
+    				TargetStrafe:Clean(remove)
+    			else
+    				notif('Target Strafe', tostring(err), 5, 'alert')
+    				task.defer(function()
+    					if TargetStrafe.Enabled then TargetStrafe:Toggle() end
+    				end)
     			end
     		else
-    			if module and old then
-    				module.moveFunction = old
-    			end
     			TargetStrafeVector = nil
     		end
     	end,
@@ -3656,10 +3761,14 @@ run(function()
     			setfflag('SimEnableStepPhysicsSelective', 'True')
 
     			Timer:Clean(runService.RenderStepped:Connect(function(dt)
-    				if Value.Value > 1 then
+    				if Value.Value > 1 and entitylib.isAlive then
     					runService:Pause()
-    					workspace:StepPhysics(dt * (Value.Value - 1), {entitylib.character.RootPart})
+    					local success, err = pcall(workspace.StepPhysics, workspace, dt * (Value.Value - 1), {entitylib.character.RootPart})
     					runService:Run()
+    					if not success then
+    						notif('Timer', tostring(err), 5, 'warning')
+    						Timer:Toggle()
+    					end
     				end
     			end))
     		end
@@ -4088,7 +4197,7 @@ run(function()
     			EntityESP.HealthLine = Drawing.new('Line')
     			EntityESP.HealthLine.Thickness = 1
     			EntityESP.HealthLine.ZIndex = 2
-    			EntityESP.HealthLine.Color = Color3.fromHSV(math.clamp(ent.Health / ent.MaxHealth, 0, 1) / 2.5, 0.89, 0.75)
+    			EntityESP.HealthLine.Color = Color3.fromHSV(math.clamp(ent.Health / math.max(ent.MaxHealth, 1), 0, 1) / 2.5, 0.89, 0.75)
     			EntityESP.HealthBorder = Drawing.new('Line')
     			EntityESP.HealthBorder.Thickness = 3
     			EntityESP.HealthBorder.Transparency = 0.35
@@ -4206,7 +4315,7 @@ run(function()
     			end
     			
     			if EntityESP.HealthLine then
-    				EntityESP.HealthLine.Color = Color3.fromHSV(math.clamp(ent.Health / ent.MaxHealth, 0, 1) / 2.5, 0.89, 0.75)
+    				EntityESP.HealthLine.Color = Color3.fromHSV(math.clamp(ent.Health / math.max(ent.MaxHealth, 1), 0, 1) / 2.5, 0.89, 0.75)
     			end
 
     			if EntityESP.Text then
@@ -4272,7 +4381,7 @@ run(function()
     			end
 
     			if EntityESP.HealthLine then
-    				local healthposy = sizey * math.clamp(ent.Health / ent.MaxHealth, 0, 1)
+    				local healthposy = sizey * math.clamp(ent.Health / math.max(ent.MaxHealth, 1), 0, 1)
     				EntityESP.HealthLine.Visible = ent.Health > 0
     				EntityESP.HealthLine.From = Vector2.new(posx - 6, posy + (sizey - (sizey - healthposy))) // 1
     				EntityESP.HealthLine.To = Vector2.new(posx - 6, posy) // 1
@@ -4741,9 +4850,13 @@ run(function()
     			repeat
     				if entitylib.isAlive and entitylib.character.Humanoid.Health > 0 then
     					if not chairanim.IsPlaying then
+    						if chairanim.Destroy then
+    							chairanim:Destroy()
+    						end
     						local temp2 = Instance.new('Animation')
     						temp2.AnimationId = entitylib.character.Humanoid.RigType == Enum.HumanoidRigType.R15 and 'http://www.roblox.com/asset/?id=2506281703' or 'http://www.roblox.com/asset/?id=178130996'
     						chairanim = entitylib.character.Humanoid:LoadAnimation(temp2)
+    						temp2:Destroy()
     						chairanim.Priority = Enum.AnimationPriority.Movement
     						chairanim.Looped = true
     						chairanim:Play()
@@ -4787,20 +4900,20 @@ run(function()
     							if currenttween then
     								currenttween:Cancel()
     							end
-    							tween = tweenService:Create(chairlegs, TweenInfo.new(0.15), {
+    							currenttween = tweenService:Create(chairlegs, TweenInfo.new(0.15), {
     								Size = Vector3.zero
     							})
-    							tween.Completed:Connect(function(state)
+    							currenttween.Completed:Connect(function(state)
     								if state == Enum.PlaybackState.Completed then
     									chairfan.Transparency = 0
     									chairlegs.Transparency = 1
-    									tween = tweenService:Create(chairfan, TweenInfo.new(0.15), {
+    									currenttween = tweenService:Create(chairfan, TweenInfo.new(0.15), {
     										Size = Vector3.new(1.534, 0.328, 1.537) / Vector3.new(791.138, 168.824, 792.027)
     									})
-    									tween:Play()
+    									currenttween:Play()
     								end
     							end)
-    							tween:Play()
+    							currenttween:Play()
     						else
     							if flyingsound.IsPlaying then
     								flyingsound:Stop()
@@ -4809,20 +4922,20 @@ run(function()
     								movingsound:Play()
     							end
     							if currenttween then currenttween:Cancel() end
-    							tween = tweenService:Create(chairfan, TweenInfo.new(0.15), {
+    							currenttween = tweenService:Create(chairfan, TweenInfo.new(0.15), {
     								Size = Vector3.zero
     							})
-    							tween.Completed:Connect(function(state)
+    							currenttween.Completed:Connect(function(state)
     								if state == Enum.PlaybackState.Completed then
     									chairfan.Transparency = 1
     									chairlegs.Transparency = 0
-    									tween = tweenService:Create(chairlegs, TweenInfo.new(0.15), {
+    									currenttween = tweenService:Create(chairlegs, TweenInfo.new(0.15), {
     										Size = Vector3.new(1.8, 1.2, 1.8) / Vector3.new(10.432, 8.105, 9.488)
     									})
-    									tween:Play()
+    									currenttween:Play()
     								end
     							end)
-    							tween:Play()
+    							currenttween:Play()
     						end
     						oldflying = flying
     					end
@@ -4830,7 +4943,8 @@ run(function()
     					chair.Anchored = true
     					chairlegs.Anchored = true
     					chairfan.Anchored = true
-    					repeat task.wait() until entitylib.isAlive and entitylib.character.Humanoid.Health > 0
+    					repeat task.wait() until not GamingChair.Enabled or entitylib.isAlive and entitylib.character.Humanoid.Health > 0
+    					if not GamingChair.Enabled then break end
     					chair.Anchored = false
     					chairlegs.Anchored = false
     					chairfan.Anchored = false
@@ -4841,6 +4955,14 @@ run(function()
     		else
     			if chairanim then
     				chairanim:Stop()
+    				if chairanim.Destroy then
+    					chairanim:Destroy()
+    				end
+    				chairanim = nil
+    			end
+    			if currenttween then
+    				currenttween:Cancel()
+    				currenttween = nil
     			end
     		end
     	end,
@@ -4876,7 +4998,7 @@ run(function()
     			
     			repeat
     				label.Text = entitylib.isAlive and math.round(entitylib.character.Humanoid.Health)..' ❤️' or ''
-    				label.TextColor3 = entitylib.isAlive and Color3.fromHSV((entitylib.character.Humanoid.Health / entitylib.character.Humanoid.MaxHealth) / 2.8, 0.86, 1) or Color3.new()
+    				label.TextColor3 = entitylib.isAlive and Color3.fromHSV((entitylib.character.Humanoid.Health / math.max(entitylib.character.Humanoid.MaxHealth, 1)) / 2.8, 0.86, 1) or Color3.new()
     				task.wait()
     			until not Health.Enabled
     		end
@@ -4917,7 +5039,7 @@ run(function()
     		Strings[ent] = ent.Player and whitelist:tag(ent.Player, true, true)..(DisplayName.Enabled and ent.Player.DisplayName or ent.Player.Name) or ent.Character.Name
 
     		if Health.Enabled then
-    			local healthColor = Color3.fromHSV(math.clamp(ent.Health / ent.MaxHealth, 0, 1) / 2.5, 0.89, 0.75)
+    			local healthColor = Color3.fromHSV(math.clamp(ent.Health / math.max(ent.MaxHealth, 1), 0, 1) / 2.5, 0.89, 0.75)
     			Strings[ent] = Strings[ent]..' <font color="rgb('..tostring(math.floor(healthColor.R * 255))..','..tostring(math.floor(healthColor.G * 255))..','..tostring(math.floor(healthColor.B * 255))..')">'..math.round(ent.Health)..'</font>'
     		end
 
@@ -5018,7 +5140,7 @@ run(function()
     			Strings[ent] = ent.Player and whitelist:tag(ent.Player, true, true)..(DisplayName.Enabled and ent.Player.DisplayName or ent.Player.Name) or ent.Character.Name
 
     			if Health.Enabled then
-    				local color = Color3.fromHSV(math.clamp(ent.Health / ent.MaxHealth, 0, 1) / 2.5, 0.89, 0.75)
+    				local color = Color3.fromHSV(math.clamp(ent.Health / math.max(ent.MaxHealth, 1), 0, 1) / 2.5, 0.89, 0.75)
     				Strings[ent] = Strings[ent]..' <font color="rgb('..tostring(math.floor(color.R * 255))..','..tostring(math.floor(color.G * 255))..','..tostring(math.floor(color.B * 255))..')">'..math.round(ent.Health)..'</font>'
     			end
 
@@ -5641,8 +5763,12 @@ run(function()
     				end
     			end))
 
-    			for _, v in workspace:GetDescendants() do
+    			for index, v in workspace:GetDescendants() do
     				Add(v)
+    				if index % 250 == 0 then
+    					task.wait()
+    					if not Search.Enabled then break end
+    				end
     			end
     		else
     			Folder:ClearAllChildren()
@@ -6204,6 +6330,7 @@ run(function()
     	if animcheck then
     		anim = nil
     		animcheck:Stop()
+    		animcheck:Destroy()
     	end
 
     	local suc, res = pcall(function()
@@ -6243,6 +6370,8 @@ run(function()
     		else
     			if anim then
     				anim:Stop()
+    				anim:Destroy()
+    				anim = nil
     			end
     		end
     	end,
@@ -6406,7 +6535,8 @@ run(function()
     local Delay
     local Hide
     local RandomList = {}
-    local oldchat
+    local oldchat, chatfunc
+    local rng = Random.new()
 
     ChatSpammer = vape.Categories.Utility:CreateModule({
     	Name = 'Chat Spammer',
@@ -6414,16 +6544,26 @@ run(function()
     		if callback then
     			if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
     				if Hide.Enabled and coreGui:FindFirstChild('ExperienceChat') then
-    					ChatSpammer:Clean(coreGui.ExperienceChat:FindFirstChild('RCTScrollContentView', true).ChildAdded:Connect(function(msg)
+    					local content = coreGui.ExperienceChat:FindFirstChild('RCTScrollContentView', true)
+    					if content then
+    						ChatSpammer:Clean(content.ChildAdded:Connect(function(msg)
     						if msg.Name:sub(1, 2) == '0-' and msg.ContentText == 'You must wait before sending another message.' then
     							msg.Visible = false
     						end
-    					end))
+    						end))
+    					end
     				end
     			elseif replicatedStorage:FindFirstChild('DefaultChatSystemChatEvents') then
     				if Hide.Enabled then
-    					oldchat = hookfunction(getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewSystemMessage.OnClientEvent)[1].Function, function(data, ...)
-    						if data.Message:find('ChatFloodDetector') then return end
+    					local connection = getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewSystemMessage.OnClientEvent)[1]
+    					if not connection or type(connection.Function) ~= 'function' then
+    						notif('ChatSpammer', 'Chat event connection was not found', 5, 'warning')
+    						ChatSpammer:Toggle()
+    						return
+    					end
+    					chatfunc = connection.Function
+    					oldchat = hookfunction(chatfunc, function(data, ...)
+    						if type(data) == 'table' and type(data.Message) == 'string' and data.Message:find('ChatFloodDetector') then return end
     						return oldchat(data, ...)
     					end)
     				end
@@ -6445,14 +6585,24 @@ run(function()
     							RandomList = table.clone(Lines.ListEnabled)
     						end
 
-    						local entry = Random.new():NextInteger(1, #RandomList)
+    						local entry = rng:NextInteger(1, #RandomList)
     						message = RandomList[entry]
     						table.remove(RandomList, entry)
     					end
     				end
 
     				if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-    					textChatService.ChatInputBarConfiguration.TargetTextChannel:SendAsync(message)
+    					local channel = textChatService.ChatInputBarConfiguration.TargetTextChannel
+    					if channel then
+    						local success, err = pcall(channel.SendAsync, channel, message)
+    						if not success then
+    							notif('Chat Spammer', tostring(err), 5, 'warning')
+    							task.defer(function()
+    								if ChatSpammer.Enabled then ChatSpammer:Toggle() end
+    							end)
+    							break
+    						end
+    					end
     				else
     					replicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(message, 'All')
     				end
@@ -6460,9 +6610,11 @@ run(function()
     				task.wait(Delay.Value)
     			until not ChatSpammer.Enabled
     		else
-    			if oldchat then
-    				hookfunction(getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewSystemMessage.OnClientEvent)[1].Function, oldchat)
+    			if oldchat and chatfunc then
+    				hookfunction(chatfunc, oldchat)
     			end
+    			oldchat = nil
+    			chatfunc = nil
     		end
     	end,
     	Tooltip = 'Automatically types in chat'
@@ -6501,15 +6653,19 @@ end)
 
 run(function()
     local Disabler
+    local hooks = {}
+
+    local function hookSignal(signal)
+    	for _, v in getconnections(signal) do
+    		if type(v.Function) == 'function' and not hooks[v.Function] then
+    			hooks[v.Function] = hookfunction(v.Function, function() end)
+    		end
+    	end
+    end
 
     local function characterAdded(char)
-    	for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('CFrame')) do
-    		hookfunction(v.Function, function() end)
-    	end
-
-    	for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('Velocity')) do
-    		hookfunction(v.Function, function() end)
-    	end
+    	hookSignal(char.RootPart:GetPropertyChangedSignal('CFrame'))
+    	hookSignal(char.RootPart:GetPropertyChangedSignal('Velocity'))
     end
 
     Disabler = vape.Categories.Utility:CreateModule({
@@ -6520,6 +6676,11 @@ run(function()
     			if entitylib.isAlive then
     				characterAdded(entitylib.character)
     			end
+    		else
+    			for target, original in hooks do
+    				hookfunction(target, original)
+    			end
+    			table.clear(hooks)
     		end
     	end,
     	Tooltip = 'Disables GetPropertyChangedSignal detections for movement'
@@ -6625,7 +6786,8 @@ run(function()
 
     local function playerAdded(plr)
     	if not vape.Loaded then
-    		repeat task.wait() until vape.Loaded
+    		repeat task.wait() until vape.Loaded or not StaffDetector.Enabled
+    		if not StaffDetector.Enabled or vape.Loaded == nil then return end
     	end
 
     	local user = table.find(Users.ListEnabled, tostring(plr.UserId))
@@ -6814,7 +6976,11 @@ run(function()
                 FastInteract:Clean(proximityPromptService.PromptButtonHoldBegan:Connect(function(prompt, player)
                     if player == lplr and prompt.HoldDuration > 0 then
                         local delay = prompt.HoldDuration * (1 - (math.clamp(Reduction.Value, 0, 100) / 100))
-                        task.delay(delay, fireproximityprompt, prompt)
+                        task.delay(delay, function()
+                            if FastInteract.Enabled and prompt.Parent then
+                                fireproximityprompt(prompt)
+                            end
+                        end)
                     end
                 end))
             end
@@ -6835,26 +7001,36 @@ run(function()
     local Freecam
     local Value
     local randomkey, module, old = httpService:GenerateGUID(false)
+    local controller, newSubject
 
     Freecam = vape.Categories.World:CreateModule({
     	Name = 'Freecam',
     	Function = function(callback)
-    		if callback then
-    			repeat
+            if callback then
+    			local deadline = tick() + 10
+                repeat
     				task.wait(0.1)
     				for _, v in getconnections(gameCamera:GetPropertyChangedSignal('CameraType')) do
     					if v.Function then
     						module = debug.getupvalue(v.Function, 1)
     					end
     				end
-    			until module or not Freecam.Enabled
+    			until module or not Freecam.Enabled or tick() >= deadline
+    			if not module and Freecam.Enabled then
+    				notif('Freecam', 'Camera controller was not found', 5, 'warning')
+    				Freecam:Toggle()
+    				return
+    			end
 
-    			if module and module.activeCameraController and Freecam.Enabled then
-    				old = module.activeCameraController.GetSubjectPosition
-    				local camPos = old(module.activeCameraController) or Vector3.zero
-    				module.activeCameraController.GetSubjectPosition = function()
-    					return camPos
+                if module and module.activeCameraController and Freecam.Enabled then
+    				controller = module.activeCameraController
+    				local original = controller.GetSubjectPosition
+    				old = original
+    				local camPos = original(controller) or Vector3.zero
+    				newSubject = function(...)
+    					return Freecam.Enabled and camPos or original(...)
     				end
+    				controller.GetSubjectPosition = newSubject
 
     				Freecam:Clean(runService.PreSimulation:Connect(function(dt)
     					if not inputService:GetFocusedTextBox() then
@@ -6880,13 +7056,15 @@ run(function()
     				)
     			end
     		else
-    			pcall(function()
-    				contextService:UnbindAction('FreecamKeyboard'..randomkey)
-    			end)
-    			if module and old then
-    				module.activeCameraController.GetSubjectPosition = old
+    			contextService:UnbindAction('FreecamKeyboard'..randomkey)
+    			if controller and old then
+    				if controller.GetSubjectPosition == newSubject then
+    					controller.GetSubjectPosition = old
+    				end
     				module = nil
+    				controller = nil
     				old = nil
+    				newSubject = nil
     			end
     		end
     	end,
@@ -7035,21 +7213,13 @@ end)
 run(function()
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
-    local module, old
+    local SafeWalk
 
-    vape.Categories.World:CreateModule({
+    SafeWalk = vape.Categories.World:CreateModule({
     	Name = 'Safe Walk',
     	Function = function(callback)
     		if callback then
-    			if not module then
-    				local suc = pcall(function() 
-    					module = require(lplr.PlayerScripts.PlayerModule).controls 
-    				end)
-    				if not suc then module = {} end
-    			end
-    			
-    			old = module.moveFunction
-    			module.moveFunction = function(self, vec, face)
+    			local remove, err = addMovementHook(SafeWalk, 20, function(_, vec, face)
     				if entitylib.isAlive then
     					rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
     					local root = entitylib.character.RootPart
@@ -7063,11 +7233,15 @@ run(function()
     					end
     				end
 
-    				return old(self, vec, face)
-    			end
-    		else
-    			if module and old then
-    				module.moveFunction = old
+    				return vec, face
+    			end)
+    			if remove then
+    				SafeWalk:Clean(remove)
+    			else
+    				notif('Safe Walk', tostring(err), 5, 'alert')
+    				task.defer(function()
+    					if SafeWalk.Enabled then SafeWalk:Toggle() end
+    				end)
     			end
     		end
     	end,
@@ -7082,7 +7256,9 @@ run(function()
 
     local function modifyPart(v)
     	if v:IsA('BasePart') and not table.find(List.ListEnabled, v.Name) then
-    		modified[v] = true
+    		if modified[v] == nil then
+    			modified[v] = v.LocalTransparencyModifier
+    		end
     		v.LocalTransparencyModifier = 0.5
     	end
     end
@@ -7092,12 +7268,18 @@ run(function()
     	Function = function(callback)
     		if callback then
     			Xray:Clean(workspace.DescendantAdded:Connect(modifyPart))
-    			for _, v in workspace:GetDescendants() do
+    			for index, v in workspace:GetDescendants() do
     				modifyPart(v)
+    				if index % 250 == 0 then
+    					task.wait()
+    					if not Xray.Enabled then break end
+    				end
     			end
     		else
-    			for i in modified do
-    				i.LocalTransparencyModifier = 0
+    			for i, value in modified do
+    				if i.Parent then
+    					i.LocalTransparencyModifier = value
+    				end
     			end
     			table.clear(modified)
     		end
@@ -7121,12 +7303,16 @@ end)
 
 run(function()
     local MurderMystery
-    local murderer, sheriff, oldtargetable, oldgetcolor
+    local murderer, sheriff, oldtargetable, oldgetcolor, newtargetable, newgetcolor
+
+    local function getRole(v)
+    	if not v:IsA('Tool') then return end
+    	return v:FindFirstChild('IsGun') and 'sheriff' or v:FindFirstChild('KnifeServer') and 'murderer' or v.Name:lower():find('knife') and 'murderer' or v.Name:lower():find('gun') and 'sheriff' or nil
+    end
 
     local function itemAdded(v, plr)
     	if v:IsA('Tool') then
-    		local check = v:FindFirstChild('IsGun') and 'sheriff' or v:FindFirstChild('KnifeServer') and 'murderer' or nil
-    		check = check or v.Name:lower():find('knife') and 'murderer' or v.Name:lower():find('gun') and 'sheriff' or nil
+    		local check = getRole(v)
 
     		if check == 'murderer' and plr ~= murderer then
     			murderer = plr
@@ -7145,6 +7331,24 @@ run(function()
     local function playerAdded(plr)
     	MurderMystery:Clean(plr.DescendantAdded:Connect(function(v)
     		itemAdded(v, plr)
+    	end))
+    	MurderMystery:Clean(plr.DescendantRemoving:Connect(function(v)
+    		local role = getRole(v)
+    		if role and (role == 'murderer' and murderer == plr or role == 'sheriff' and sheriff == plr) then
+    			task.defer(function()
+    				local replacement
+    				for _, item in plr:GetDescendants() do
+    					if getRole(item) == role then
+    						replacement = true
+    						break
+    					end
+    				end
+    				if not replacement then
+    					if role == 'murderer' then murderer = nil else sheriff = nil end
+    					entitylib.refresh()
+    				end
+    			end)
+    		end
     	end))
 
     	local pack = plr:FindFirstChildWhichIsA('Backpack')
@@ -7167,7 +7371,7 @@ run(function()
     		if callback then
     			oldtargetable, oldgetcolor = entitylib.targetCheck, entitylib.getEntityColor
 
-    			entitylib.getEntityColor = function(ent)
+    			newgetcolor = function(ent)
     				ent = ent.Player
     				if not (ent and vape.Categories.Main.Options['Use team color'].Enabled) then return end
     				if isFriend(ent, true) then
@@ -7175,22 +7379,35 @@ run(function()
     				end
     				return murderer == ent and Color3.new(1, 0.3, 0.3) or sheriff == ent and Color3.new(0, 0.5, 1) or nil
     			end
+    			entitylib.getEntityColor = newgetcolor
 
-    			entitylib.targetCheck = function(ent)
+    			newtargetable = function(ent)
     				if ent.Player and isFriend(ent.Player) then return false end
     				if murderer == lplr then return true end
     				return murderer == ent.Player or sheriff == ent.Player
     			end
+    			entitylib.targetCheck = newtargetable
 
     			for _, v in playersService:GetPlayers() do
     				playerAdded(v)
     			end
 
     			MurderMystery:Clean(playersService.PlayerAdded:Connect(playerAdded))
+    			MurderMystery:Clean(playersService.PlayerRemoving:Connect(function(plr)
+    				if murderer == plr then murderer = nil end
+    				if sheriff == plr then sheriff = nil end
+    				entitylib.refresh()
+    			end))
     			entitylib.refresh()
     		else
-    			entitylib.getEntityColor = oldgetcolor
-    			entitylib.targetCheck = oldtargetable
+    			if entitylib.getEntityColor == newgetcolor then
+    				entitylib.getEntityColor = oldgetcolor
+    			end
+    			if entitylib.targetCheck == newtargetable then
+    				entitylib.targetCheck = oldtargetable
+    			end
+    			murderer, sheriff = nil, nil
+    			oldtargetable, oldgetcolor, newtargetable, newgetcolor = nil, nil, nil, nil
     			entitylib.refresh()
     		end
     	end,
@@ -7740,7 +7957,9 @@ run(function()
     		end
     		Disguise:Clean(char.Character.ChildAdded:Connect(itemAdded))
 
-    		for _, v in clone:WaitForChild('Animate'):GetChildren() do
+    		local animate = clone:FindFirstChild('Animate') or clone:WaitForChild('Animate', 2)
+    		if not animate then return end
+    		for _, v in animate:GetChildren() do
     			if not char.Character:FindFirstChild('Animate') then return end
     			local real = char.Character.Animate:FindFirstChild(v.Name)
     			if v and real then

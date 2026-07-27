@@ -123,7 +123,6 @@ local function finishLoading()
 	end
 end
 
-downloadFile('catrewrite/libraries/pathfind.lua')
 if not isfile('catrewrite/profiles/gui.txt') then
 	writefile('catrewrite/profiles/gui.txt', 'new')
 end
