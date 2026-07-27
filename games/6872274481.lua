@@ -1209,9 +1209,16 @@ run(function()
 		end
 	end
 
-	local function clearBreakRoute(routeState)
+	local breakRouteHorizontal = Vector3.new(1, 0, 1)
+	local breakRouteRecoveryDistance = 42
+	local breakRouteReachDistance = 30
+
+	local function clearBreakRoute(routeState, state)
 		if routeState then
+			local requestVersion = (routeState.requestVersion or 0) + 1
 			table.clear(routeState)
+			routeState.requestVersion = requestVersion
+			routeState.state = state or 'RouteInvalid'
 		end
 	end
 
@@ -1229,7 +1236,7 @@ run(function()
 		local route, routePath, current, guard = {}, {}, pos, 0
 		while current do
 			guard += 1
-			if guard > 10000 then return false end
+			if guard > 64 then return false end
 			table.insert(route, current)
 			if current == target then break end
 			local nextPosition = path[current]
@@ -1239,6 +1246,7 @@ run(function()
 		end
 		if route[#route] ~= target then return false end
 
+		local requestVersion = routeState.requestVersion or 0
 		table.clear(routeState)
 		routeState.angle = angle
 		routeState.block = block
@@ -1248,7 +1256,12 @@ run(function()
 		routeState.patchRoute = {}
 		routeState.route = route
 		routeState.routeIndex = 1
+		routeState.lastPosition = entitylib.character.RootPart.Position
+		routeState.lastSample = tick()
+		routeState.recoveryFailures = 0
+		routeState.requestVersion = requestVersion
 		routeState.sort = sort
+		routeState.state = 'Active'
 		routeState.target = target
 		routeState.visibilityCheck = visibilityCheck
 		return true
@@ -1277,18 +1290,110 @@ run(function()
 		return true
 	end
 
+	local function updateBreakRouteMotion(routeState)
+		local root = entitylib.character.RootPart
+		local humanoid = entitylib.character.Humanoid
+		local now = tick()
+		local lastPosition = routeState.lastPosition or root.Position
+		local lastSample = routeState.lastSample or now
+		local elapsed = math.max(now - lastSample, 0.001)
+		local displacement = (root.Position - lastPosition).Magnitude
+		local velocity = root.AssemblyLinearVelocity
+		local speed = velocity.Magnitude
+		local horizontalSpeed = (velocity * breakRouteHorizontal).Magnitude
+		local airborne = humanoid and humanoid.FloorMaterial == Enum.Material.Air
+		local displaced = displacement >= 2.5 and (airborne or speed >= 20 or displacement / elapsed >= 20)
+		routeState.lastPosition = root.Position
+		routeState.lastSample = now
+
+		if displaced then
+			routeState.state = 'KnockbackRecovery'
+			routeState.recoveryStarted = routeState.recoveryStarted or now
+			routeState.recoveryLastMotion = now
+			routeState.recoveryFailures = 0
+		elseif routeState.state == 'KnockbackRecovery' then
+			local settled = not airborne and horizontalSpeed < 18 and math.abs(velocity.Y) < 12 and now - (routeState.recoveryLastMotion or now) >= 0.25
+			if settled then
+				routeState.state = 'Recovering'
+			elseif now - (routeState.recoveryStarted or now) > 2.5 and speed < 12 then
+				routeState.state = 'Recovering'
+			end
+		end
+		return routeState.state == 'KnockbackRecovery'
+	end
+
+	local function recoverBreakRoute(routeState, visibilityCheck)
+		local rootPosition = entitylib.character.RootPart.Position
+		if not routeState.block or not routeState.block.Parent or (rootPosition - routeState.block.Position).Magnitude > breakRouteRecoveryDistance then
+			clearBreakRoute(routeState, 'RouteInvalid')
+			return
+		end
+		local bestIndex, bestPosition, bestDistance
+		for index = routeState.routeIndex, math.min(#routeState.route, routeState.routeIndex + 12) do
+			local position = routeState.route[index]
+			local block = position and getBreakRouteBlock(position)
+			local distance = position and (rootPosition - position).Magnitude or math.huge
+			if block and distance <= breakRouteReachDistance then
+				local visible = not visibilityCheck or visibilityCheck(position)
+				if visible and (not bestDistance or distance < bestDistance - 0.25 or math.abs(distance - bestDistance) <= 0.25 and index > bestIndex) then
+					bestIndex, bestPosition, bestDistance = index, position, distance
+				end
+			end
+		end
+
+		if bestPosition then
+			routeState.routeIndex = bestIndex
+			routeState.currentTarget = bestPosition
+			routeState.recoveryFailures = 0
+			routeState.recoveryStarted = nil
+			routeState.recoveryLastMotion = nil
+			routeState.state = 'Active'
+			table.clear(routeState.patchRoute)
+			return bestPosition, getBreakRoutePath(routeState, bestPosition), routeState.target
+		end
+
+		routeState.recoveryFailures = (routeState.recoveryFailures or 0) + 1
+		if routeState.recoveryFailures <= 2 then
+			return nil, nil, routeState.target, true
+		end
+		clearBreakRoute(routeState, 'Stuck')
+	end
+
+	local function getDirectBreakRouteTarget(routeState, visibilityCheck, force)
+		if not visibilityCheck or not force and tick() < (routeState.directCheck or 0) then return end
+		routeState.directCheck = tick() + 0.5
+		local target = routeState.target
+		if not target or (entitylib.character.RootPart.Position - target).Magnitude > breakRouteReachDistance or not getBreakRouteBlock(target) then return end
+		if not visibilityCheck(target) then return end
+		local targetIndex = table.find(routeState.route, target)
+		if not targetIndex or targetIndex < routeState.routeIndex then return end
+		routeState.routeIndex = targetIndex
+		routeState.currentTarget = target
+		routeState.state = 'Active'
+		table.clear(routeState.patchRoute)
+		return target, getBreakRoutePath(routeState, target), target
+	end
+
 	local function getBreakRoutePosition(routeState, block, sort, angle, visibilityCheck)
 		if not routeState or routeState.block ~= block or routeState.sort ~= sort or routeState.angle ~= angle
 			or routeState.visibilityCheck ~= visibilityCheck
 		then
-			clearBreakRoute(routeState)
+			clearBreakRoute(routeState, 'RouteInvalid')
 			return
 		end
+		if visibilityCheck and updateBreakRouteMotion(routeState) then
+			return nil, nil, routeState.target, true
+		end
+		if visibilityCheck and routeState.state == 'Recovering' then
+			return recoverBreakRoute(routeState, visibilityCheck)
+		end
+		local directPosition, directPath, directTarget = getDirectBreakRouteTarget(routeState, visibilityCheck)
+		if directPosition then return directPosition, directPath, directTarget end
 
 		for _ = 1, #routeState.route + 9 do
 			local current = routeState.route[routeState.routeIndex]
 			if not current then
-				clearBreakRoute(routeState)
+				clearBreakRoute(routeState, 'RouteInvalid')
 				return
 			end
 
@@ -1296,10 +1401,12 @@ run(function()
 			if not currentBlock then
 				routeState.routeIndex += 1
 				table.clear(routeState.patchRoute)
+				local openedPosition, openedPath, openedTarget = getDirectBreakRouteTarget(routeState, visibilityCheck, true)
+				if openedPosition then return openedPosition, openedPath, openedTarget end
 				continue
 			end
 			if not getBreakRouteBlock(current) then
-				clearBreakRoute(routeState)
+				clearBreakRoute(routeState, 'RouteInvalid')
 				return
 			end
 
@@ -1311,8 +1418,8 @@ run(function()
 			end
 
 			local pos = routeState.patchRoute[#routeState.patchRoute] or current
-			if (entitylib.character.RootPart.Position - pos).Magnitude > 30 or not getBreakRouteBlock(pos) then
-				clearBreakRoute(routeState)
+			if (entitylib.character.RootPart.Position - pos).Magnitude > breakRouteReachDistance or not getBreakRouteBlock(pos) then
+				clearBreakRoute(routeState, 'RouteInvalid')
 				return
 			end
 
@@ -1322,7 +1429,7 @@ run(function()
 					if insertBreakRoutePatch(routeState, pos, blockingBlock) then
 						continue
 					end
-					clearBreakRoute(routeState)
+					clearBreakRoute(routeState, 'RouteInvalid')
 					return
 				end
 			end
@@ -1330,7 +1437,7 @@ run(function()
 			routeState.currentTarget = pos
 			return pos, getBreakRoutePath(routeState, current), routeState.target
 		end
-		clearBreakRoute(routeState)
+		clearBreakRoute(routeState, 'RouteInvalid')
 	end
 
 	bedwars.breakBlock = function(block, effects, anim, customHealthbar, visualise, sort, angle, visibilityCheck, routeState)
@@ -1340,22 +1447,52 @@ run(function()
 		if not pathfinding then return end
 
 		angle = angle or 360
-		local cost, pos, target, path = math.huge, nil, nil, nil
+		local cost, pos, target, path, routeHeld = math.huge, nil, nil, nil, false
 		if routeState and routeState.block then
-			pos, path, target = getBreakRoutePosition(routeState, block, sort, angle, visibilityCheck)
+			pos, path, target, routeHeld = getBreakRoutePosition(routeState, block, sort, angle, visibilityCheck)
 		end
 
+		if routeHeld then return nil, nil, target, true end
 		if not pos then
+			local requestVersion
+			if routeState then
+				if routeState.calculating then return nil, nil, routeState.target, true end
+				requestVersion = (routeState.requestVersion or 0) + 1
+				routeState.requestVersion = requestVersion
+				routeState.calculating = true
+				routeState.state = 'Calculating'
+			end
+			local function calculationCancelled()
+				return not entitylib.isAlive or not block.Parent or routeState and routeState.requestVersion ~= requestVersion
+			end
 			local handler = bedwars.BlockController:getHandlerRegistry():getHandler(block.Name)
+			local targetPositions, targetSet = {}, {}
 			for _, v in (handler and handler:getContainedPositions(block) or {block.Position / 3}) do
-				local dpos, dcost, dpath = pathfinding.calculatePath(block, v * 3, sort, angle, visibilityCheck)
-				if dpos and dcost < cost then
-					cost, pos, target, path = dcost, dpos, v * 3, dpath
+				local worldPosition = v * 3
+				if not targetSet[worldPosition] then
+					targetSet[worldPosition] = true
+					table.insert(targetPositions, worldPosition)
+					if #targetPositions >= 16 then break end
 				end
 			end
+			table.sort(targetPositions, function(a, b)
+				return (entitylib.character.RootPart.Position - a).Magnitude < (entitylib.character.RootPart.Position - b).Magnitude
+			end)
+			for _, worldPosition in targetPositions do
+				if calculationCancelled() then break end
+				local dpos, dcost, dpath = pathfinding.calculatePath(block, worldPosition, sort, angle, visibilityCheck, nil, calculationCancelled)
+				if dpos and dcost < cost then
+					cost, pos, target, path = dcost, dpos, worldPosition, dpath
+					if cost == 0 then break end
+				end
+			end
+			if routeState and routeState.requestVersion == requestVersion then
+				routeState.calculating = nil
+			end
+			if calculationCancelled() then return end
 			if pos and routeState then
 				if not buildBreakRoute(routeState, block, pos, cost, target, path, sort, angle, visibilityCheck) then
-					clearBreakRoute(routeState)
+					clearBreakRoute(routeState, 'RouteInvalid')
 					return
 				end
 				path = routeState.path
@@ -12120,8 +12257,15 @@ run(function()
     local Closest
     local BreakerType
     local activeRoute = {}
+    local loopVersion = 0
     local customlist, parts = {}, {}
-    local losFilter, losFilterList
+
+    local function clearRoute(routeState, state)
+        local requestVersion = (routeState.requestVersion or 0) + 1
+        table.clear(routeState)
+        routeState.requestVersion = requestVersion
+        routeState.state = state or 'RouteInvalid'
+    end
     
     local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
         xpcall(function()
@@ -12253,125 +12397,8 @@ run(function()
         return (pos - block.Position).Magnitude
     end
     
-    losFilter = RaycastParams.new()
-    losFilter.FilterType = Enum.RaycastFilterType.Exclude
-    losFilter.RespectCanCollide = false
-    losFilter.IgnoreWater = true
-    losFilterList = {}
-
-    local function refreshFilter()
-        table.clear(losFilterList)
-        table.insert(losFilterList, gameCamera)
-        if lplr.Character then
-            table.insert(losFilterList, lplr.Character)
-        end
-        losFilter.FilterDescendantsInstances = losFilterList
-    end
-
-    local function isIgnored(instance)
-        if typeof(instance) ~= 'Instance' then return false end
-        local queryIgnored = bedwars.QueryUtil.isQueryIgnored
-        return collectionService:HasTag(instance, 'DontBlockProjectileRaycast')
-            or collectionService:HasTag(instance, 'block:no-collision')
-            or (type(queryIgnored) == 'function' and queryIgnored(bedwars.QueryUtil, instance))
-            or (instance:IsA('BasePart') and not instance.CanCollide)
-    end
-
-    local function raycastBlock(origin, destination, block, resolver)
-        local direction = destination - origin
-        if direction.Magnitude <= 0.01 then return end
-
-        local filter = table.clone(losFilterList)
-        for _ = 1, 12 do
-            losFilter.FilterDescendantsInstances = filter
-            local hit = workspace:Raycast(origin, direction, losFilter)
-            if not hit then return end
-
-            local hitBlock = resolver(bedwars.BlockController, hit.Instance)
-            if hitBlock then
-                if hitBlock == block then
-                    return hit
-                end
-                return nil, hitBlock, hit
-            end
-            if not isIgnored(hit.Instance) then return nil, nil, hit end
-            table.insert(filter, hit.Instance)
-        end
-    end
-
-    local function isVisible(worldPos)
-        if typeof(worldPos) ~= 'Vector3' then return false, nil, nil, 'Invalid' end
-        local resolver = bedwars.BlockController.getBlockInstanceFromChild
-        if type(resolver) ~= 'function' then return false, nil, nil, 'Invalid' end
-
-        local block = getPlacedBlock(worldPos)
-        if typeof(block) ~= 'Instance' or not block.Parent then return false, nil, nil, 'Invalid' end
-
-        local eye = gameCamera.CFrame.Position
-        local inset = sides[1].Magnitude / 2 - 0.01
-        local offset = eye - worldPos
-        local bestHit, blockers = nil, {}
-        for _, side in sides do
-            if not getPlacedBlock(worldPos + side) then
-                local normal = side.Unit
-                local center = worldPos + normal * inset
-                local nearest = worldPos + Vector3.new(
-                    normal.X ~= 0 and normal.X * inset or math.clamp(offset.X, -inset, inset),
-                    normal.Y ~= 0 and normal.Y * inset or math.clamp(offset.Y, -inset, inset),
-                    normal.Z ~= 0 and normal.Z * inset or math.clamp(offset.Z, -inset, inset)
-                )
-                local tangent = math.abs(normal.Y) > 0.5 and Vector3.xAxis or Vector3.yAxis
-                local bitangent = normal:Cross(tangent)
-                local hits = 0
-                for _, probe in {
-                    nearest,
-                    center,
-                    center + tangent * 0.85,
-                    center - tangent * 0.85,
-                    center + bitangent * 0.85,
-                    center - bitangent * 0.85
-                } do
-                    local hit, blockingBlock, blockingHit = raycastBlock(eye, probe, block, resolver)
-                    if hit then
-                        hits += 1
-                        bestHit = bestHit or hit
-                    elseif blockingBlock then
-                        local blocker = blockers[blockingBlock]
-                        if blocker then
-                            blocker[1] += 1
-                        else
-                            blockers[blockingBlock] = {1, blockingHit}
-                        end
-                    end
-                end
-                if hits >= 3 then
-                    return true, bestHit.Position, bestHit.Normal, 'Full'
-                end
-    		end
-    	end
-    	if not bestHit and not next(blockers) then
-    		local hit, blockingBlock, blockingHit = raycastBlock(eye, worldPos, block, resolver)
-    		if hit then
-    			return true, hit.Position, hit.Normal, 'Partial'
-    		end
-    		if blockingBlock then
-    			blockers[blockingBlock] = {1, blockingHit}
-    		end
-    	end
-    	if bestHit then
-    		return true, bestHit.Position, bestHit.Normal, 'Partial'
-        end
-        local blockingBlock, blockingHit, blockingAmount = nil, nil, 0
-        for blockInstance, blocker in blockers do
-            if blocker[1] > blockingAmount then
-                blockingBlock, blockingHit, blockingAmount = blockInstance, blocker[2], blocker[1]
-            end
-        end
-        return false, nil, nil, 'Blocked', blockingBlock, blockingHit
-    end
-    
-    local function isBreakTargetValid(block, localPosition)
-        if not block or not block.Parent or (block.Position - localPosition).Magnitude >= Range.Value then return false end
+    local function isBreakTargetValid(block, localPosition, recovery)
+        if not block or not block.Parent or (block.Position - localPosition).Magnitude >= Range.Value + (recovery and 12 or 0) then return false end
         if not bedwars.BlockController:isBlockBreakable({blockPosition = block.Position / 3}, lplr) then return false end
         if not SelfBreak.Enabled and block:GetAttribute('PlacedByUserId') == lplr.UserId then return false end
         if (block:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then return false end
@@ -12380,7 +12407,11 @@ run(function()
     end
 
     local function breakTarget(block, routeState)
-        local target, path, endpos = bedwars.breakBlock(block, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, BreakerType.Value == 'Legit' and isVisible or nil, routeState)
+        local pathfinding = vape.Libraries.pathfinding
+        local visibilityCheck = BreakerType.Value == 'Legit' and pathfinding and pathfinding.isVisible or nil
+        if BreakerType.Value == 'Legit' and not visibilityCheck then return false end
+        local target, path, endpos, routeHeld = bedwars.breakBlock(block, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Closest.Enabled and closestMethod or breakmethods[Mode.Value], Angle.Value, visibilityCheck, routeState)
+        if routeHeld then return false, true end
         if not target then return false end
 
         if path then
@@ -12400,18 +12431,19 @@ run(function()
 
     local function attemptBreak(tab, localPosition, routeState)
         if not tab then
-            if routeState then table.clear(routeState) end
+            if routeState then clearRoute(routeState) end
             return false
         end
 
         local previous
         if routeState and routeState.block then
             previous = routeState.block
-            if table.find(tab, previous) and isBreakTargetValid(previous, localPosition) then
-                if breakTarget(previous, routeState) then return true end
+            if table.find(tab, previous) and isBreakTargetValid(previous, localPosition, BreakerType.Value == 'Legit') then
+                local broken, routeHeld = breakTarget(previous, routeState)
+                if broken or routeHeld then return true end
                 if routeState.block then return false end
             else
-                table.clear(routeState)
+                clearRoute(routeState)
             end
         end
 
@@ -12426,8 +12458,10 @@ run(function()
     Breaker = vape.Categories.Minigames:CreateModule({
         Name = 'Breaker',
         Function = function(callback)
+            loopVersion += 1
+            local version = loopVersion
             if callback then
-                table.clear(activeRoute)
+                clearRoute(activeRoute)
                 for _ = 1, 30 do
                     local part = Instance.new('Part')
                     part.Anchored = true
@@ -12473,12 +12507,9 @@ run(function()
     
                 repeat
                     task.wait(1 / UpdateRate.Value)
-                    if not Breaker.Enabled then break end
+                    if not Breaker.Enabled or loopVersion ~= version then break end
                     if entitylib.isAlive then
                         local localPosition = entitylib.character.RootPart.Position
-                        if BreakerType.Value == 'Legit' then
-                            refreshFilter()
-                        end
                         if attemptBreak(Bed.Enabled and beds, localPosition, activeRoute) then continue end
                         if attemptBreak(Tesla.Enabled and teslas, localPosition) then continue end
                         if attemptBreak(Hive.Enabled and hives, localPosition) then continue end
@@ -12489,11 +12520,11 @@ run(function()
                             v.Position = Vector3.zero
                         end
                     else
-                        table.clear(activeRoute)
+                        clearRoute(activeRoute)
                     end
-                until not Breaker.Enabled
+                until not Breaker.Enabled or loopVersion ~= version
             else
-                table.clear(activeRoute)
+                clearRoute(activeRoute)
                 for _, v in parts do
                     v:ClearAllChildren()
                     v:Destroy()
