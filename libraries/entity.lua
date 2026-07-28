@@ -109,7 +109,7 @@ end
 
 entitylib.IgnoreObject = RaycastParams.new()
 entitylib.IgnoreObject.RespectCanCollide = true
-entitylib.Wallcheck = function(origin, position, ignoreobject)
+local function wallcheck(origin, position, ignoreobject)
 	if typeof(ignoreobject) ~= 'Instance' then
 		local ignorelist = {gameCamera, lplr.Character}
 		for _, v in entitylib.List do
@@ -128,6 +128,21 @@ entitylib.Wallcheck = function(origin, position, ignoreobject)
 		ignoreobject.FilterDescendantsInstances = ignorelist
 	end
 	return workspace.Raycast(workspace, origin, (position - origin), ignoreobject)
+end
+
+entitylib.Wallcheck = function(origin, position, ignoreobject, target)
+	local provider = entitylib.WallcheckProvider
+	if provider then
+		local success, handled, blocked = pcall(provider, origin, position, ignoreobject, target)
+		if success and handled then
+			if not blocked then
+				return nil
+			end
+			local raySuccess, rayResult = pcall(wallcheck, origin, position, ignoreobject)
+			return raySuccess and rayResult or true
+		end
+	end
+	return wallcheck(origin, position, ignoreobject)
 end
 
 entitylib.EntityMouse = function(entitysettings)
@@ -156,7 +171,7 @@ entitylib.EntityMouse = function(entitysettings)
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
 				local origin = entitysettings.Origin or entitylib.character.RootPart.Position
-				if entitylib.Wallcheck(origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.clear(entitysettings)
 			table.clear(sortingTable)
@@ -196,7 +211,7 @@ entitylib.EntityPosition = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.clear(entitysettings)
 			table.clear(sortingTable)
@@ -231,7 +246,7 @@ entitylib.AllPosition = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.insert(returned, v.Entity)
 			if #returned >= (entitysettings.Limit or math.huge) then break end
