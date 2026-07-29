@@ -97,7 +97,7 @@ run(function()
     local Range
     local HitChance
     local HeadChance
-    
+
     local old
     local method = function(origin, direction, params)
         if debug.info(4, 's'):find('GunClient') then
@@ -116,7 +116,7 @@ run(function()
         end
         return old(origin, direction, params)
     end
-    
+
     SilentAim = vape.Categories.Combat:CreateModule({
         Name = 'Silent Aim',
         Function = function(callback)
@@ -132,7 +132,7 @@ run(function()
             end
         end
     })
-    
+
     Targets = SilentAim:CreateTargets({Players = true})
     Range = SilentAim:CreateSlider({
     	Name = 'Range',

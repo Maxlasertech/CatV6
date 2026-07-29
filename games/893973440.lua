@@ -178,7 +178,7 @@ run(function()
     		
     		return entitylib.isAlive and lplr.Character:FindFirstChild('Hammer') or nil
     	end
-    
+
         Killaura = vape.Categories.Blatant:CreateModule({
             Name = 'Killaura',
             Function = function(callback)
@@ -193,11 +193,11 @@ run(function()
                             NPCs = Targets.NPCs.Enabled,
                             Limit = Max.Value
                         })
-    
+
                         if tool and #plrs > 0 then
                             local selfpos = entitylib.character.RootPart.Position
                             local localfacing = gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)
-    
+
                             for _, v in plrs do
                                 local delta = (v.RootPart.Position - selfpos)
                                 local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
@@ -208,7 +208,7 @@ run(function()
                                     SwingDelay = tick() + 0.7
                                     entitylib.character.Humanoid.Animator:LoadAnimation(tool.AnimSwing):Play()
                                 end
-    
+
                                 if delta.Magnitude > AttackRange.Value then continue end
                                 if AttackDelay < tick() then
                                     AttackDelay = tick() + (0.1 / CPS.GetRandomValue())
@@ -220,7 +220,7 @@ run(function()
                                 end
     						end
                         end
-    
+
                         for i, v in Boxes do
                             v.Adornee = attacked[i] and attacked[i].Entity.RootPart or nil
                             if v.Adornee then
@@ -228,7 +228,7 @@ run(function()
                                 v.Transparency = 1 - attacked[i].Check.Opacity
                             end
                         end
-    
+
                         for i, v in Particles do
                             v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
                             v.Parent = attacked[i] and gameCamera or nil
@@ -434,7 +434,7 @@ end)
 run(function()
     local NoSlowdown
     local old
-    
+
     NoSlowdown = vape.Categories.Blatant:CreateModule({
         Name = 'No Slow',
         Function = function(callback)
@@ -446,7 +446,7 @@ run(function()
                             v:Disable()
                         end
                     end
-    
+
                     task.wait(0.1)
                 until not NoSlowdown.Enabled
             else
@@ -463,7 +463,7 @@ end)
 run(function()
     local PhaseHammer
     local old
-    
+
     local function getEnv(mod)
         local renv = getsenv(mod)
         if not (renv and renv.OnClick) then
@@ -472,28 +472,28 @@ run(function()
                 task.wait()
             until renv and renv.OnClick or not PhaseHammer.Enabled
         end
-    
+
         return PhaseHammer.Enabled and renv
     end
-    
+
     local function addHammer(hammer)
         if hammer and hammer.Name == 'Hammer' then
             local mod = hammer:WaitForChild('LocalClubScript', 3)
             if mod and PhaseHammer.Enabled then
                 local env = getEnv(mod)
                 if not env then return end
-    
+
                 old = env.OnClick
                 debug.setconstant(debug.getproto(old, 1), 7, 0)
             end
         end
     end
-    
+
     local function addEntity(ent)
         PhaseHammer:Clean(ent.Character.ChildAdded:Connect(addHammer))
         addHammer(ent.Character:FindFirstChild('Hammer'))
     end
-    
+
     PhaseHammer = vape.Categories.Blatant:CreateModule({
         Name = 'Phase Hammer',
         Function = function(callback)
@@ -516,7 +516,7 @@ end)
 run(function()
     local RopeDisabler
     local Self
-    
+
     RopeDisabler = vape.Categories.Utility:CreateModule({
         Name = 'Restrain Beast',
         Function = function(callback)
@@ -545,7 +545,7 @@ end)
 
 run(function()
     local SlowBeast
-    
+
     SlowBeast = vape.Categories.Blatant:CreateModule({
         Name = 'Slow Beast',
         Function = function(callback)
@@ -557,7 +557,7 @@ run(function()
                             rem:FireServer('Jumped')
                         end
                     end
-    
+
                     task.wait(0.1)
                 until not SlowBeast.Enabled
             end
@@ -568,7 +568,7 @@ end)
 
 run(function()
     local SpamBeast
-    
+
     SpamBeast = vape.Categories.Blatant:CreateModule({
         Name = 'Spam Beast',
         Function = function(callback)
@@ -580,7 +580,7 @@ run(function()
                             rem:FireServer('Input')
                         end
                     end
-    
+
                     task.wait(0.1)
                 until not SpamBeast.Enabled
             end
@@ -602,7 +602,7 @@ run(function()
     local Reference = {}
     local Folder = Instance.new('Folder')
     Folder.Parent = vape.gui
-    
+
     local function Added(computer)
         local screen = computer:FindFirstChild('Screen')
         local cham = Instance.new('Highlight')
@@ -614,44 +614,44 @@ run(function()
         cham.OutlineTransparency = OutlineTransparency.Value
         cham.Parent = Folder
         cham.Enabled = screen.Color ~= Color3.fromRGB(40, 127, 71)
-    
+
         ComputerESP:Clean(screen:GetPropertyChangedSignal('Color'):Connect(function()
             cham.Enabled = screen.Color ~= Color3.fromRGB(40, 127, 71)
         end))
-    
+
         Reference[computer] = cham
     end
-    
+
     local function Removed(computer)
         if Reference[computer] then
             if vape.ThreadFix then
                 setthreadidentity(8)
             end
-    
+
             Reference[computer]:Destroy()
             Reference[computer] = nil
         end
     end
-    
+
     local function MapAdded(map)
         local status = replicatedStorage.GameStatus
         if status.Value:find('LOADING') or status.Value:find('START') then
             repeat
                 task.wait()
             until not (status.Value:find('LOADING') or status.Value:find('START')) or not ComputerESP.Enabled
-    
+
             if not ComputerESP.Enabled then
                 return
             end
         end
-    
+
         for _, v in map:GetChildren() do
             if v.Name == 'ComputerTable' then
                 task.spawn(Added, v)
             end
         end
     end
-    
+
     ComputerESP = vape.Categories.Render:CreateModule({
         Name = 'Computer ESP',
         Function = function(callback)
@@ -662,7 +662,7 @@ run(function()
                         Removed(v)
                     end
                 end))
-    
+
                 if mapobj then
                     task.spawn(MapAdded, mapobj)
                 end
@@ -725,7 +725,7 @@ end)
 run(function()
     local AutoComputer
     local Mode
-    
+
     AutoComputer = vape.Categories.Utility:CreateModule({
         Name = 'Auto Computer',
         Function = function(callback)
@@ -745,7 +745,7 @@ run(function()
         end,
         Tooltip = 'Automatically complete the computer skill check.'
     })
-    
+
     Mode = AutoComputer:CreateDropdown({
         Name = 'Mode',
         List = {'Blatant', 'Legit'}
@@ -760,7 +760,7 @@ run(function()
     run(function()
     	local Viewmodel
     	local clone, old
-    
+
         local function Check(obj)
             if obj.Name == 'Hammer' then 
                 old = obj
@@ -780,7 +780,7 @@ run(function()
             if hammer then
                 Check(hammer)
             end
-    
+
     		Viewmodel:Clean(char.ChildAdded:Connect(Check))
     		Viewmodel:Clean(char.ChildRemoved:Connect(function(obj)
     			if obj == old then 

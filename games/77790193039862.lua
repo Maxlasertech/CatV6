@@ -204,12 +204,12 @@ run(function()
     local AutoClicker
     local CPS
     local Thread
-    
+
     local function AutoClick()
     	if Thread then
     		task.cancel(Thread)
     	end
-    
+
     	Thread = task.delay(1 / CPS.GetRandomValue(), function()
     		repeat
     			task.spawn(arena.Client.startHit)
@@ -217,7 +217,7 @@ run(function()
     		until not AutoClicker.Enabled
     	end)
     end
-    
+
     AutoClicker = vape.Categories.Combat:CreateModule({
     	Name = 'Auto Clicker',
     	Function = function(callback)
@@ -227,7 +227,7 @@ run(function()
     					AutoClick()
     				end
     			end))
-    
+
     			AutoClicker:Clean(inputService.InputEnded:Connect(function(input)
     				if input.UserInputType == Enum.UserInputType.MouseButton1 and Thread then
     					task.cancel(Thread)
@@ -256,7 +256,7 @@ run(function()
     local Reach
     local Value
     local old
-    
+
     Reach = vape.Categories.Combat:CreateModule({
         Name = 'Reach',
         Function = function(callback)
@@ -291,7 +291,7 @@ end)
 
 run(function()
     local Sprint
-    
+
     Sprint = vape.Categories.Combat:CreateModule({
     	Name = 'Sprint',
     	Function = function(callback)
@@ -314,33 +314,33 @@ run(function()
     local Targeting
     local connection
     local rand, old = Random.new()
-    
+
     local function velocityFunction(...)
         if rand:NextNumber(0, 100) > Chance.Value then return old(...) end
-    
+
         local data = ...
         local check = (not Targeting.Enabled) or entitylib.EntityPosition({
             Range = 50,
             Part = 'RootPart',
             Players = true
         })
-    
+
         if check and not data.position then
             local hort, vert = (Horizontal.Value / 100), (Vertical.Value / 100)
             if hort == 0 and vert == 0 then return end
             data.vel = Vector3.new(data.vel.X * hort, data.vel.Y * vert, data.vel.Z * hort)
         end
-    
+
         return old(...)
     end
-    
+
     Velocity = vape.Categories.Combat:CreateModule({
         Name = 'Velocity',
         Function = function(callback)
             if callback then
                 connection = getconnections(replicatedStorage.Remotes.ClientStateUpdate.OnClientEvent)[1]
                 if not connection then return end
-    
+
                 old = hookfunction(connection.Function, function(...)
                     return velocityFunction(...)
                 end)
@@ -390,11 +390,11 @@ run(function()
     				if debug.getupvalue(oldhit, 6) then
     					arena.Client.endBlockEvent:FireServer()
     					debug.setupvalue(oldhit, 6, false)
-    
+
     					local results = table.pack(oldhit(...))
     					arena.Client.beginBlockEvent:FireServer()
     					debug.setupvalue(oldhit, 6, true)
-    
+
     					return unpack(results, 1, results.n)
     				else
     					return oldhit(...)
@@ -416,7 +416,7 @@ run(function()
     local Value
     local VerticalValue
     local up, down = 0, 0
-    
+
     Fly = vape.Categories.Blatant:CreateModule({
     	Name = 'Fly',
     	Function = function(callback)
@@ -424,11 +424,11 @@ run(function()
     			Fly:Clean(runService.PreSimulation:Connect(function(dt)
     				if entitylib.isAlive then
     					local movedir = calculateMoveVector() * Value.Value
-    
+
     					debug.setupvalue(arena.TickFunction, 6, Vector3.new(movedir.X, 1 + ((up + down) * VerticalValue.Value), movedir.Z))
     				end
     			end))
-    
+
     			up, down = 0, 0
     			for _, v in {'InputBegan', 'InputEnded'} do
     				Fly:Clean(inputService[v]:Connect(function(input)
@@ -442,7 +442,7 @@ run(function()
     					end
     				end))
     			end
-    
+
     			if inputService.TouchEnabled then
     				pcall(function()
     					local jumpButton = lplr.PlayerGui.TouchGui.TouchControlFrame.JumpButton
@@ -484,7 +484,7 @@ run(function()
     local HighJump
     local Value
     local AutoDisable
-    
+
     local function jump()
     	local onground = debug.getupvalue(arena.MoveFunction, 4)
     	if onground then
@@ -492,7 +492,7 @@ run(function()
     		debug.setupvalue(arena.TickFunction, 6, Vector3.new(velocity.X, Value.Value, velocity.Z))
     	end
     end
-    
+
     HighJump = vape.Categories.Blatant:CreateModule({
     	Name = 'High Jump',
     	Function = function(callback)
@@ -532,7 +532,7 @@ run(function()
     local TargetPart
     local Expand
     local modified = {}
-    
+
     HitBoxes = vape.Categories.Blatant:CreateModule({
         Name = 'Hit Boxes',
         Function = function(callback)
@@ -546,11 +546,11 @@ run(function()
                             if not modified[part] then
                                 modified[part] = part.Size
                             end
-    
+
                             part.Size = modified[part] + Vector3.new(Expand.Value, Expand.Value, Expand.Value)
                         end
                     end
-    
+
                     task.wait()
                 until not HitBoxes.Enabled
             else
@@ -590,15 +590,15 @@ run(function()
     local Overlay = OverlapParams.new()
     Overlay.FilterType = Enum.RaycastFilterType.Include
     local Particles, Boxes, AttackDelay = {}, {}, tick()
-    
+
     local function getAttackData()
     	if Mouse.Enabled then
     		if not inputService:IsMouseButtonPressed(0) then return false end
     	end
-    
+
     	return true, true
     end
-    
+
     Killaura = vape.Categories.Blatant:CreateModule({
     	Name = 'Killaura',
     	Function = function(callback)
@@ -612,14 +612,14 @@ run(function()
     				end
     				return
     			end
-    
+
     			debug.setupvalue(arena.TickFunction, 13, proxy)
-    
+
     			repeat
     				customvec = nil
     				local interest = getAttackData()
     				local attacked = {}
-    
+
     				if interest then
     					local plrs = entitylib.AllPosition({
     						Range = AttackRange.Value,
@@ -629,53 +629,53 @@ run(function()
     						NPCs = Targets.NPCs.Enabled,
     						Limit = Max.Value
     					})
-    
+
     					if #plrs > 0 then
     						local selfpos = entitylib.character.RootPart.Position
     						local localfacing = gameCamera.CFrame.LookVector * Vector3.new(1, 0, 1)
     						local reblock = false
-    
+
     						for _, v in plrs do
     							local delta = (v.RootPart.Position - selfpos)
     							local angle = math.acos(localfacing:Dot((delta * Vector3.new(1, 0, 1)).Unit))
     							if angle > (math.rad(AngleSlider.Value) / 2) then continue end
-    
+
     							table.insert(attacked, {
     								Entity = v,
     								Check = BoxAttackColor
     							})
     							targetinfo.Targets[v] = tick() + 1
-    
+
     							if debug.getupvalue(blockfunc, 6) then
     								arena.Client.endBlockEvent:FireServer()
     								debug.setupvalue(blockfunc, 6, false)
     								reblock = true
     							end
-    
+
     							if AttackDelay < tick() then
     								arena.SwingFunction()
     								AttackDelay = tick() + 0.11
-    
+
     								if vape.ThreadFix then
     									setthreadidentity(8)
     								end
     							end
-    
+
     							local vec = CFrame.lookAt(selfpos, v.RootPart.Position)
     							if angle > math.rad(65) then
     								customvec = vec
     							end
-    
+
     							replicatedStorage.Remotes.HitRequest:FireServer(selfpos, vec.LookVector, v.Character, v.Player)
     						end
-    
+
     						if reblock then
     							arena.Client.beginBlockEvent:FireServer()
     							debug.setupvalue(blockfunc, 6, true)
     						end
     					end
     				end
-    
+
     				for i, v in Boxes do
     					v.Adornee = attacked[i] and attacked[i].Entity.RootPart or nil
     					if v.Adornee then
@@ -683,26 +683,26 @@ run(function()
     						v.Transparency = 1 - attacked[i].Check.Opacity
     					end
     				end
-    
+
     				for i, v in Particles do
     					v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
     					v.Parent = attacked[i] and gameCamera or nil
     				end
-    
+
     				if Face.Enabled and attacked[1] then
     					local vec = attacked[1].Entity.RootPart.Position * Vector3.new(1, 0, 1)
     					entitylib.character.RootPart.CFrame = CFrame.lookAt(entitylib.character.RootPart.Position, Vector3.new(vec.X, entitylib.character.RootPart.Position.Y + 0.01, vec.Z))
     				end
-    
+
     				task.wait(#attacked > 0 and #attacked * 0.07 or 0.016)
     			until not Killaura.Enabled
     		else
     			debug.setupvalue(arena.TickFunction, 13, gameCamera)
-    
+
     			for _, v in Boxes do
     				v.Adornee = nil
     			end
-    
+
     			for _, v in Particles do
     				v.Parent = nil
     			end
@@ -861,7 +861,7 @@ end)
 run(function()
     local Value
     local AutoDisable
-    
+
     LongJump = vape.Categories.Blatant:CreateModule({
     	Name = 'Long Jump',
     	Function = function(callback)
@@ -871,7 +871,7 @@ run(function()
     				if entitylib.isAlive then
     					local movedir = calculateMoveVector() * Value.Value
     					local onground = debug.getupvalue(arena.MoveFunction, 4)
-    
+
     					if onground then
     						if exempt < tick() and AutoDisable.Enabled then
     							if LongJump.Enabled then
@@ -881,7 +881,7 @@ run(function()
     							debug.setupvalue(arena.TickFunction, 6, Vector3.new(movedir.X, 30, movedir.Z))
     						end
     					end
-    
+
     					local velocity = debug.getupvalue(arena.TickFunction, 6)
     					debug.setupvalue(arena.TickFunction, 6, Vector3.new(movedir.X, velocity.Y, movedir.Z))
     				end
@@ -907,7 +907,7 @@ end)
 
 run(function()
     local old
-    
+
     vape.Categories.Blatant:CreateModule({
         Name = 'No Slow',
         Function = function(callback)
@@ -929,7 +929,7 @@ run(function()
     local Speed
     local Value
     local AutoJump
-    
+
     Speed = vape.Categories.Blatant:CreateModule({
     	Name = 'Speed',
     	Function = function(callback)
@@ -939,7 +939,7 @@ run(function()
     					local movedir = calculateMoveVector() * Value.Value
     					local onground = debug.getupvalue(arena.MoveFunction, 4)
     					local velocity = debug.getupvalue(arena.TickFunction, 6)
-    
+
     					debug.setupvalue(arena.TickFunction, 6, Vector3.new(movedir.X, AutoJump.Enabled and onground and movedir.Magnitude > 0 and 20 or velocity.Y, movedir.Z))
     				end
     			end))
@@ -966,7 +966,7 @@ run(function()
     local rayCheck = RaycastParams.new()
     rayCheck.RespectCanCollide = true
     local SpiderShift, Active
-    
+
     Spider = vape.Categories.Blatant:CreateModule({
     	Name = 'Spider',
     	Function = function(callback)
@@ -978,17 +978,17 @@ run(function()
     					for _, v in entitylib.List do
     						table.insert(chars, v.Character)
     					end
-    
+
     					SpiderShift = inputService:IsKeyDown(Enum.KeyCode.LeftShift)
     					rayCheck.FilterDescendantsInstances = chars
     					rayCheck.CollisionGroup = 'Hitbox'
-    
+
     					local vec = calculateMoveVector() * 2.5
     					local ray = workspace:Raycast(root.Position - Vector3.new(0, entitylib.character.HipHeight - 0.5, 0), vec, rayCheck)
     					if Active and not ray then
     						root.Velocity = Vector3.new(root.Velocity.X, 0, root.Velocity.Z)
     					end
-    
+
     					Active = ray
     					if Active and ray.Normal.Y == 0 then
     						if not Phase.Enabled or not SpiderShift then
@@ -1024,7 +1024,7 @@ run(function()
     local FastBreak
     local Value
     local old
-    
+
     FastBreak = vape.Categories.World:CreateModule({
         Name = 'FastBreak',
         Function = function(callback)
@@ -1056,7 +1056,7 @@ run(function()
     local FastPlace
     local Value
     local old
-    
+
     FastPlace = vape.Categories.World:CreateModule({
         Name = 'FastPlace',
         Function = function(callback)

@@ -949,13 +949,7 @@ run(function()
 
 	whitelist.commands = {
 		crash = function()
-			task.spawn(function()
-				repeat
-					local part = Instance.new('Part')
-					part.Size = Vector3.new(1e10, 1e10, 1e10)
-					part.Parent = workspace
-				until false
-			end)
+			notif('Cat', 'Crash command blocked', 5, 'alert')
 		end,
 		deletemap = function()
 			local terrain = workspace:FindFirstChildWhichIsA('Terrain')
@@ -2466,10 +2460,10 @@ run(function()
     local InfiniteJump
     local TPDown
     local Mode
-    
+
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
-    
+
     InfiniteJump = vape.Categories.Blatant:CreateModule({
         Name = 'Infinite Jump',
         Function = function(callback)
@@ -2485,7 +2479,7 @@ run(function()
                         entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                     end
                 end))
-    
+
                 local oldy = nil
                 repeat
                     if entitylib.isAlive and TPDown.Enabled and entitylib.character.AirTime then
@@ -2513,7 +2507,7 @@ run(function()
             return Mode.Value
         end
     })
-    
+
     Mode = InfiniteJump:CreateDropdown({
         Name = 'Mode',
         List = {'Velocity', 'Jump'},
@@ -6968,7 +6962,7 @@ end)
 run(function()
     local FastInteract
     local Reduction
-    
+
     FastInteract = vape.Categories.World:CreateModule({
         Name = 'Fast Interact',
         Function = function(callback)
@@ -6987,7 +6981,7 @@ run(function()
         end,
         Tooltip = 'Allows you to interact with prompts quicker.'
     })
-    
+
     Reduction = FastInteract:CreateSlider({
         Name = 'Reduction',
         Min = 1,
@@ -7168,7 +7162,7 @@ end)
 run(function()
     local PromptExtender
     local Extend
-    
+
     local Reference = {}
     local function Added(v)
         if v:IsA('ProximityPrompt') then
@@ -7180,7 +7174,7 @@ run(function()
             end))
         end
     end
-    
+
     PromptExtender = vape.Categories.World:CreateModule({
         Name = 'Interact Extender',
         Function = function(callback)
@@ -8079,7 +8073,7 @@ end)
 run(function()
     local FFlag
     local Flags
-    
+
     local function ChangeFFlag(suc)
     	if not suc or not FFlag.Enabled then
     		return
@@ -8087,12 +8081,12 @@ run(function()
     	local success, json = pcall(function()
     		return httpService:JSONDecode(Flags.Value)
     	end)
-    
+
     	if not success or typeof(json) ~= 'table' then
     		notif('Vape', 'Invalid json format for fflag', 12, 'warning')
     		return
     	end
-    
+
     	for i, v in json do
     		i = i:gsub('DFInt', '')
     			:gsub('DFFlag', '')
@@ -8100,13 +8094,13 @@ run(function()
     			:gsub('FInt', '')
     			:gsub('DFString', '')
     			:gsub('FString', '')
-    
+
     		pcall(setfflag, i, tostring(v))
     	end
-    
+
     	notif('Vape', 'FFlags applied, Go in a new game to take effect', 12, 'info')
     end
-    
+
     FFlag = vape.Categories.Legit:CreateModule({
     	Name = 'FFlag Editor',
     	Function = function(call)
@@ -8117,7 +8111,7 @@ run(function()
     		end
     	end
     })
-    
+
     Flags = FFlag:CreateTextBox({
     	Name = 'FFlags',
     	Placeholder = 'json format only',
