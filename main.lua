@@ -147,6 +147,16 @@ if shared.maincat then
 	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
 	return
 end
+if hookmetamethod then
+local old; old = hookmetamethod(game, "__namecall", function(self, Remote, ...)
+    if not checkcaller() and getnamecallmethod() == "FireServer" then
+        if typeof(Remote) == "Instance" and Remote.Name == "TabFreezeAnticheat_ClientToServerReport" then
+            return
+        end
+    end
+    return old(self, Remote, ...)
+end)
+end
 
 if not shared.VapeIndependent then
 	loadstring(downloadFile('catrewrite/games/universal.lua'), 'universal')(license)
