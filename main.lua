@@ -123,6 +123,7 @@ local function finishLoading()
 	end
 end
 
+downloadFile("catrewrite/libraries/pathfind.lua")
 if not isfile('catrewrite/profiles/gui.txt') then
 	writefile('catrewrite/profiles/gui.txt', 'new')
 end
@@ -145,6 +146,16 @@ if shared.maincat then
 	redirect()
 	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
 	return
+end
+if hookmetamethod then
+local old; old = hookmetamethod(game, "__namecall", function(self, Remote, ...)
+    if not checkcaller() and getnamecallmethod() == "FireServer" then
+        if typeof(Remote) == "Instance" and Remote.Name == "TabFreezeAnticheat_ClientToServerReport" then
+            return
+        end
+    end
+    return old(self, Remote, ...)
+end)
 end
 
 if not shared.VapeIndependent then
