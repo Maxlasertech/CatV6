@@ -61,6 +61,7 @@ local store = {
 			return {async = function()
 				if rankCache[index] then
 					return rankCache[index]
+				end
 
 				if index then
 					local rank = bedwars.Handler:Get('FetchRanks'):Fire('CallServer', {index.UserId})
