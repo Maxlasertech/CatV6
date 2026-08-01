@@ -481,9 +481,21 @@ local sortmethods = {
 	Angle = function(a, b)
 		local selfrootpos = entitylib.character.RootPart.Position
 		local localfacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
-		local angle = math.acos(localfacing:Dot(((a.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit))
-		local angle2 = math.acos(localfacing:Dot(((b.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)).Unit))
+		local direction = (a.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)
+		local direction2 = (b.Entity.RootPart.Position - selfrootpos) * Vector3.new(1, 0, 1)
+		local angle = direction.Magnitude > 0 and math.acos(math.clamp(localfacing:Dot(direction.Unit), -1, 1)) or 0
+		local angle2 = direction2.Magnitude > 0 and math.acos(math.clamp(localfacing:Dot(direction2.Unit), -1, 1)) or 0
 		return angle < angle2
+	end,
+	Mouse = function(a, b)
+		local mouse = lplr:GetMouse()
+		local origin = Vector2.new(mouse.X, mouse.Y)
+
+		local posa, visa = gameCamera:WorldToScreenPoint(a.Entity.RootPart.Position)
+		local posb, visb = gameCamera:WorldToScreenPoint(b.Entity.RootPart.Position)
+		local dista = visa and (Vector2.new(posa.X, posa.Y) - origin).Magnitude or math.huge
+        local distb = visb and (Vector2.new(posb.X, posb.Y) - origin).Magnitude or math.huge
+        return (dista == dista and dista or math.huge) < (distb == distb and distb or math.huge)
 	end
 }
 getgenv().sortmethods = sortmethods
