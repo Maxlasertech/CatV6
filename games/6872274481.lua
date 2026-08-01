@@ -3131,7 +3131,7 @@ run(function()
 								if delta.Magnitude > AttackRange.Value then continue end
 
 								local actualRoot = v.Character.PrimaryPart
-								if actualRoot and (tick() - swingCooldown) >= (Sync.Enabled and SwingTime.Value or 0.292) then
+								if actualRoot and (tick() - swingCooldown) >= 0.29 then
 									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
 									local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
 									bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
@@ -12273,7 +12273,7 @@ run(function()
 	                        Size = UDim2.new(1, 89, 1, 52),
 	                        Position = UDim2.fromOffset(-48, -31),
 	                        BackgroundTransparency = 1,
-	                        Image = getcustomasset('catrewrite/assets/new/blur.png'),
+	                        Image = getcustomasset('catsix/assets/new/blur.png'),
 	                        ScaleType = Enum.ScaleType.Slice,
 	                        SliceCenter = Rect.new(52, 31, 261, 502)
 	                    }),
