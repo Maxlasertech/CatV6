@@ -767,6 +767,7 @@ run(function()
 
 		if self:GetCurrentRequests() >= self:GetRateLimit() then
 			if tick() - lastNotify > 0.5 then
+				lastNotify = tick()
 				notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
 			end
 			return
