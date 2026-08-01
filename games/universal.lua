@@ -2091,9 +2091,9 @@ run(function()
 	local AutoDisable
 	
 	local function jump()
-		local state = entitylib.isAlive and entitylib.character.Humanoid:GetState() or nil
+		--local state = entitylib.isAlive and entitylib.character.Humanoid:GetState() or nil
 	
-		if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed then
+		if true then
 			local root = entitylib.character.RootPart
 	
 			if Mode.Value == 'Velocity' then
@@ -2124,8 +2124,8 @@ run(function()
 		Function = function(callback)
 			if callback then
 				if AutoDisable.Enabled then
-					jump()
 					HighJump:Toggle()
+					jump()
 				else
 					HighJump:Clean(runService.RenderStepped:Connect(function()
 						if not inputService:GetFocusedTextBox() and inputService:IsKeyDown(Enum.KeyCode.Space) then

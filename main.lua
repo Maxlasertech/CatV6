@@ -4,7 +4,6 @@ if shared.vape then shared.vape:Uninject() end
 license.Key = license.Key or '_key'
 
 if isfolder('catrewrite') and isfolder('catrewrite/profiles') then
-	print('porting config')
 	for _, v in listfiles('catrewrite/profiles') do
 		if not v:find('commit.txt') then
 			local old = v
@@ -13,7 +12,6 @@ if isfolder('catrewrite') and isfolder('catrewrite/profiles') then
 		end
 	end
 	delfolder('catrewrite/profiles')
-	print('ported all ud config')
 end
 
 local vape
@@ -35,6 +33,7 @@ local cloneref = cloneref or function(obj)
 	return obj
 end
 local playersService = cloneref(game:GetService('Players'))
+local httpService = cloneref(game:GetService("HttpService"))
 
 local function downloadFile(path, func)
 	if not isfile(path) then
@@ -92,17 +91,26 @@ local function finishLoading()
 	end))
 
 	if not shared.vapereload then
-		if not vape.Categories then return end
-		if vape.Categories.Main.Options['GUI bind indicator'].Enabled then
-			vape:CreateNotification('Finished Loading', vape.VapeButton and 'Press the button in the top right to open GUI' or 'Press '..table.concat(vape.Keybind, ' + '):upper()..' to open GUI', 5)
+		if getgenv().catrole == 'HWID MISMATCH' then
+			vape:CreateNotification('Cat', 'HWID MISMATCH, Go to the script panel to reset hwid', 25, 'alert')
+			getgenv().catrole = ''
+			task.wait(0.1)
 		end
+		if not shared.vapereload then
+			vape:CreateNotification('Finished Loading', (getgenv().catname and `Authenticated as {getgenv().catname} with {getgenv().catrole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
+			task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
+				if shared.updated then
+					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catrewrite/profiles/commit.txt')}`, 10, 'info')
+				end
+			end)
+		end	
 	end
 end
 
 if not isfile('catsix/profiles/gui.txt') then
 	writefile('catsix/profiles/gui.txt', 'new')
 end
-local gui = readfile('catsix/profiles/gui.txt')
+local gui = 'new'--readfile('catsix/profiles/gui.txt')
 
 if not isfolder('catsix/assets/'..gui) then
 	makefolder('catsix/assets/'..gui)
@@ -113,14 +121,20 @@ _G.vape = vape
 getgenv().used_init = true
 
 if hookmetamethod then
-	local old; old = hookmetamethod(game, "__namecall", function(self, Remote, ...)
-		if not checkcaller() and getnamecallmethod() == "FireServer" then
-			if typeof(Remote) == "Instance" and Remote.Name == "TabFreezeAnticheat_ClientToServerReport" then
+	local old; old = hookmetamethod(game, '__namecall', function(self, Remote, ...)
+		if not checkcaller() and getnamecallmethod() == 'FireServer' then
+			if typeof(Remote) == "Instance" and Remote.Name == 'TabFreezeAnticheat_ClientToServerReport' then
 				return
 			end
 		end
 		return old(self, Remote, ...)
 	end)
+end
+
+if shared.maincat then
+	redirect()
+	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
+	return
 end
 
 if not shared.VapeIndependent then

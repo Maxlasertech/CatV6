@@ -1,3 +1,4 @@
+local license = ...
 local mainapi = {
 	Categories = {},
 	GUIColor = {
@@ -504,6 +505,7 @@ components = {
 		button.AutoButtonColor = false
 		button.Visible = optionsettings.Visible == nil or optionsettings.Visible
 		button.Text = ''
+		button.BackgroundTransparency = 1
 		button.Parent = children
 		addTooltip(button, optionsettings.Tooltip)
 		local bkg = Instance.new('Frame')
@@ -3705,6 +3707,7 @@ function mainapi:CreateCategory(categorysettings)
 			Enabled = false,
 			Options = {},
 			Bind = {},
+			Tags = {},
 			Index = getTableSize(mainapi.Modules),
 			ExtraText = modulesettings.ExtraText,
 			Name = modulesettings.Name,
@@ -3724,6 +3727,51 @@ function mainapi:CreateCategory(categorysettings)
 		modulebutton.TextSize = 14
 		modulebutton.FontFace = uipallet.Font
 		modulebutton.Parent = children
+		local indicatorholder = Instance.new('Frame')
+		indicatorholder.Parent = modulebutton
+		indicatorholder.Size = UDim2.fromOffset(0, 21)
+		indicatorholder.AnchorPoint = Vector2.new(0, 0.5)
+		indicatorholder.Name = 'Indicators'
+		indicatorholder.BackgroundTransparency = 1
+		indicatorholder.Position = UDim2.fromScale(0.85, 0.5)
+		local layout = Instance.new('UIListLayout')
+		layout.Parent = indicatorholder
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.Padding = UDim.new(0, 5)
+		modulesettings.Tags = modulesettings.Tags or {}
+		task.spawn(function()
+			for i, tag in modulesettings.Tags do
+				tag = tag:upper()
+				modulesettings.Tags[i] = tag:lower()
+				local size = getfontsize(removeTags(tag), 12, uipallet.Font, Vector2.new(100000, 100000))
+				local indicator = Instance.new('TextLabel')
+				indicator.LayoutOrder = i - 1
+				indicator.Size = UDim2.new(0, size.X + 4, 0, 21)
+				indicator.BackgroundColor3 = Color3.new(1, 1, 1)
+				indicator.TextSize = 14
+				indicator.TextTransparency = 1
+				indicator.Text = tag
+				indicator.Name = tag
+				indicator.Position = UDim2.new()
+				indicator.TextColor3 = Color3.new(0, 0, 0)
+				indicator.FontFace = uipallet.Font
+				indicator.Parent = indicatorholder
+				addCorner(indicator, UDim.new(0, 5))
+				local text = indicator:Clone()
+				text.Position = UDim2.new()
+				text.Size = UDim2.fromScale(1, 1)
+				text.BackgroundTransparency = 1
+				text.Name = 'Text'
+				text.AnchorPoint = Vector2.new()
+				text.TextSize = 12
+				text.TextTransparency = 0
+				text.Parent = indicator
+				table.insert(moduleapi.Tags, indicator)
+				indicator.Visible = tag ~= 'MATCHED'
+			end
+		end)
 		local gradient = Instance.new('UIGradient')
 		gradient.Rotation = 90
 		gradient.Enabled = false
@@ -4723,7 +4771,7 @@ function mainapi:CreateCategoryList(categorysettings)
 
 	for i, v in components do
 		categoryapi['Create'..i] = function(self, optionsettings)
-			return v(optionsettings, childrentwo, categoryapi)
+			return v(optionsettings, children, categoryapi)
 		end
 	end
 
@@ -5891,13 +5939,44 @@ mainapi:Clean(friends.ColorUpdate)
 --[[
 	Profiles
 ]]
-mainapi:CreateCategoryList({
+local Profiles = mainapi:CreateCategoryList({
 	Name = 'Profiles',
 	Icon = getcustomasset('catsix/assets/new/profilesicon.png'),
 	Size = UDim2.fromOffset(17, 10),
 	Position = UDim2.fromOffset(12, 16),
 	Placeholder = 'Type name',
 	Profiles = true
+})
+Profiles:CreateButton({
+	Name = 'Sync to "default" profile',
+	Function = function()
+		mainapi:Save('default')
+		local newval = nil
+		for i, v in mainapi.Profiles do
+			if v.Name == mainapi.Profile then
+				newval = v
+				break
+			end
+		end
+		newval.Name = 'default'
+		mainapi:Load(true, 'default', newval)
+	end
+})
+Profiles:CreateButton({
+	Name = 'Reset current profile',
+	Function = function()
+		mainapi.Save = function() end
+		if isfile('catsix/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
+			delfile('catsix/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
+		end
+		shared.vapereload = true
+		if shared.VapeDeveloper then
+			loadstring(readfile('catsix/init.lua'), 'init')(license)
+		else
+			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))(license)
+		end
+	end,
+	Tooltip = 'This will set your profile to the default settings of Cat Vape'
 })
 
 --[[
@@ -5929,22 +6008,6 @@ local general = mainapi.Categories.Main:CreateSettingsPane({Name = 'General'})
 mainapi.MultiKeybind = general:CreateToggle({
 	Name = 'Enable Multi-Keybinding',
 	Tooltip = 'Allows multiple keys to be bound to a module (eg. G + H)'
-})
-general:CreateButton({
-	Name = 'Reset current profile',
-	Function = function()
-	mainapi.Save = function() end
-		if isfile('catsix/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
-			delfile('catsix/profiles/'..mainapi.Profile..mainapi.Place..'.txt')
-		end
-		shared.vapereload = true
-		if shared.VapeDeveloper then
-			loadstring(readfile('catsix/init.lua'), 'init')()
-		else
-			loadstring(game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true))()
-		end
-	end,
-	Tooltip = 'This will set your profile to the default settings of Vape'
 })
 general:CreateButton({
 	Name = 'Self destruct',
@@ -6939,6 +7002,12 @@ function mainapi:UpdateGUI(hue, sat, val, default)
 			if option.Color then
 				option:Color(hue, sat, val, rainbow)
 			end
+		end
+
+		for _, v in button.Tags do
+			v.BackgroundColor3 = rainbow and Color3.fromHSV(mainapi:Color((hue - (button.Index * 0.025)) % 1)) or button.Enabled and Color3.new(1, 1, 1) or Color3.fromHSV(hue, sat, val)
+			v.BackgroundTransparency = (rainbow or not button.Enabled) and 0 or 0.85
+			v:FindFirstChild('Text').TextColor3 = mainapi.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or mainapi:TextColor(hue, sat, val)
 		end
 	end
 
