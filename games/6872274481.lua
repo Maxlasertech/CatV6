@@ -43,6 +43,7 @@ local prediction = vape.Libraries.prediction
 local getfontsize = vape.Libraries.getfontsize
 local getcustomasset = vape.Libraries.getcustomasset
 
+local rankCache = {}
 local store = {
 	attackReach = 0,
 	attackReachUpdate = tick(),
@@ -55,6 +56,24 @@ local store = {
 		},
 		hotbar = {}
 	},
+	rank = setmetatable({}, {
+		__index = function(self, index)
+			return {async = function()
+				if rankCache[index] then
+					return rankCache[index]
+
+				if index then
+					local rank = bedwars.Handler:Get('FetchRanks'):Fire('CallServer', {index.UserId})
+					if typeof(rank) == 'table' and rank[1] and rank[1].rankDivision then
+						rankCache[index] = rank[1].rankDivision
+						return rankCache[index]
+					end
+				end
+
+				return nil
+			end}
+		end
+	}),
 	inventories = {},
 	matchState = 0,
 	queueType = 'bedwars_test',
@@ -451,7 +470,7 @@ local sortmethods = {
 		return getStrength(a.Entity) > getStrength(b.Entity)
 	end,
 	Kit = function(a, b)
-		return (a.Entity.Player and kitorder[a.Entity.Player:GetAttribute('PlayingAsKit')] or 0) > (b.Entity.Player and kitorder[b.Entity.Player:GetAttribute('PlayingAsKit')] or 0)
+		return (a.Entity.Player and kitorder[a.Entity.Player:GetAttribute('PlayingAsKits')] or 0) > (b.Entity.Player and kitorder[b.Entity.Player:GetAttribute('PlayingAsKits')] or 0)
 	end,
 	Health = function(a, b)
 		return a.Entity.Health < b.Entity.Health
@@ -667,7 +686,7 @@ run(function()
 		}
 
 		if ent.Player then
-			table.insert(tab, ent.Player:GetAttributeChangedSignal('PlayingAsKit'))
+			table.insert(tab, ent.Player:GetAttributeChangedSignal('PlayingAsKits'))
 		end
 
 		for name, val in char:GetAttributes() do
@@ -847,6 +866,7 @@ run(function()
 		DefaultKillEffect = require(lplr.PlayerScripts.TS.controllers.global.locker['kill-effect'].effects['default-kill-effect']),
 		EmoteType = require(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
 		EmoteMeta = require(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
+		EnchantMeta = require(replicatedStorage.TS.enchant['enchant-meta']).EnchantMeta,
 		GameAnimationUtil = require(replicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
 		getIcon = function(item, showinv)
 			local itemmeta = bedwars.ItemMeta[item.itemType]
@@ -875,9 +895,11 @@ run(function()
 		QueryUtil = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).GameQueryUtil,
 		QueueCard = require(lplr.PlayerScripts.TS.controllers.global.queue.ui['queue-card']).QueueCard,
 		QueueMeta = require(replicatedStorage.TS.game['queue-meta']).QueueMeta,
+		RankMeta = require(replicatedStorage.TS.rank['rank-meta']).RankMeta,
 		Roact = require(replicatedStorage['rbxts_include']['node_modules']['@rbxts']['roact'].src),
 		RuntimeLib = require(replicatedStorage['rbxts_include'].RuntimeLib),
 		StatusEffectUtil = require(replicatedStorage.TS['status-effect']['status-effect-util']).StatusEffectUtil,
+		StatusEffectMeta = require(replicatedStorage.TS['status-effect']['status-effect-type']).StatusEffectType,
 		SoundList = require(replicatedStorage.TS.sound['game-sound']).GameSound,
 		SettingsMeta = require(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
 		SharedConstants = require(replicatedStorage.TS['shared-constants']).CpsConstants,
@@ -893,6 +915,32 @@ run(function()
 		__index = function(self, ind)
 			rawset(self, ind, Knit.Controllers[ind])
 			return rawget(self, ind)
+		end
+	})
+	store.enchants = setmetatable({}, {
+		__index = function(self, plr)
+			return {
+				async = function()
+					if plr and plr.Character then
+						for i in plr.Character:GetAttributes() do
+							if i:find('StatusEffect_') and not i:find('_stacks') then
+								local name = bedwars.StatusEffectMeta[({i:gsub('StatusEffect_', '')})[1]]
+								if bedwars.StatusEffectMeta[name] then
+									name = bedwars.StatusEffectMeta[name]
+									for num = 1, 3 do
+										name = name:gsub(`_{num}`, '')
+									end
+
+									if bedwars.EnchantMeta[name] then
+										return bedwars.EnchantMeta[name].image
+									end
+								end
+							end
+						end
+					end
+					return nil
+				end,
+			}
 		end
 	})
 	getgenv().store = store
@@ -1775,7 +1823,7 @@ run(function()
 			task.cancel(Thread)
 		end
 	
-		Thread = task.delay(1 / 9, function()
+		Thread = task.delay(1 / (store.hand.toolType == 'block' and BlockCPS or CPS).GetRandomValue(), function()
 			repeat
 				if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
 					local blockPlacer = bedwars.BlockPlacementController.blockPlacer
@@ -1791,7 +1839,7 @@ run(function()
 							end
 						end
 					elseif store.hand.toolType == 'sword' then
-						bedwars.SwordController:swingSwordAtMouse()
+						bedwars.SwordController:swingSwordAtMouse(0.39)
 					end
 				end
 	
@@ -5075,6 +5123,8 @@ run(function()
 	local DisplayName
 	local Health
 	local Distance
+	local Rank
+	local Enchant
 	local Equipment
 	local DrawingToggle
 	local Scale
@@ -5116,6 +5166,30 @@ run(function()
 					Icon.Parent = nametag
 				end
 			end
+	
+			task.spawn(function()
+				if Rank.Enabled and ent.Player then
+					local Icon = Instance.new('ImageLabel')
+					Icon.Name = 'RankIcon'
+					Icon.Size = UDim2.fromOffset(30, 30)
+					Icon.Position = UDim2.fromOffset(size.X + 10, -4)
+					Icon.BackgroundTransparency = 1
+					Icon.Image = store.rank[ent.Player]:async() and bedwars.RankMeta[store.rank[ent.Player]:async()].image or ''
+					Icon.Parent = nametag
+				end
+			end)
+	
+			task.spawn(function()
+				if Enchant.Enabled and ent.Player then
+					local Icon = Instance.new('ImageLabel')
+					Icon.Name = 'EnchantIcon'
+					Icon.Size = UDim2.fromOffset(30, 30)
+					Icon.Position = UDim2.fromOffset(-30, -4)
+					Icon.BackgroundTransparency = 1
+					Icon.Image = store.enchants[ent.Player]:async() or ''
+					Icon.Parent = nametag
+				end
+			end)
 	
 			nametag.TextSize = 14 * Scale.Value
 			nametag.FontFace = FontOption.Value
@@ -5208,13 +5282,17 @@ run(function()
 				end
 	
 				if Equipment.Enabled and store.inventories[ent.Player] then
-					local kit = ent.Player:GetAttribute('PlayingAsKit')
+					local kit = ent.Player:GetAttribute('PlayingAsKits')
 					local inventory = store.inventories[ent.Player]
 					nametag.Hand.Image = bedwars.getIcon(inventory.hand or {itemType = ''}, true)
 					nametag.Helmet.Image = bedwars.getIcon(inventory.armor[4] or {itemType = ''}, true)
 					nametag.Chestplate.Image = bedwars.getIcon(inventory.armor[5] or {itemType = ''}, true)
 					nametag.Boots.Image = bedwars.getIcon(inventory.armor[6] or {itemType = ''}, true)
 					nametag.Kit.Image = kit and kit ~= 'none' and bedwars.BedwarsKitMeta[kit].renderImage or ''
+				end
+				
+				if Enchant.Enabled and nametag:FindFirstChild('EnchantIcon') then
+					nametag.EnchantIcon.Image = store.enchants[ent.Player]:async() or ''
 				end
 	
 				local size = getfontsize(removeTags(Strings[ent]), nametag.TextSize, nametag.FontFace, Vector2.new(100000, 100000))
@@ -5443,6 +5521,24 @@ run(function()
 	})
 	Equipment = NameTags:CreateToggle({
 		Name = 'Equipment',
+		Function = function()
+			if NameTags.Enabled then
+				NameTags:Toggle()
+				NameTags:Toggle()
+			end
+		end
+	})
+	Enchant = NameTags:CreateToggle({
+		Name = 'Show Enchant',
+		Function = function()
+			if NameTags.Enabled then
+				NameTags:Toggle()
+				NameTags:Toggle()
+			end
+		end
+	})
+	Rank = NameTags:CreateToggle({
+		Name = 'Show Rank',
 		Function = function()
 			if NameTags.Enabled then
 				NameTags:Toggle()
@@ -6529,46 +6625,115 @@ end)
 
 run(function()
 	local AutoPearl
+	local Legit
+	local Back
+	local Check
+	local LandCheck
+	local BackDelay
+	local Limit
+	
 	local rayCheck = RaycastParams.new()
 	rayCheck.RespectCanCollide = true
-	local projectileRemote = {InvokeServer = function() end}
-	task.spawn(function()
-		projectileRemote = bedwars.Handler:Get('ProjectileFire').Remote.instance
-	end)
+	rayCheck.FilterType = Enum.RaycastFilterType.Include
 	
 	local function firePearl(pos, spot, item)
+		if Check.Enabled then
+			--[[for _, v in store.selfProjectiles do -- later maybe
+				if v.Name == 'telepearl' then
+					return
+				end
+			end]]
+		end
+		local hotbar, old = getHotbar(item.tool), store.hand
+	
 		switchItem(item.tool)
+		if Legit.Enabled and hotbar then
+			hotbarSwitch(hotbar)
+		end
+	
 		local meta = bedwars.ProjectileMeta.telepearl
 		local calc = prediction.SolveTrajectory(pos, meta.launchVelocity, meta.gravitationalAcceleration, spot, Vector3.zero, workspace.Gravity, 0, 0)
+		local landed = false
 	
 		if calc then
 			local dir = CFrame.lookAt(pos, calc).LookVector * meta.launchVelocity
-			bedwars.ProjectileController:createLocalProjectile(meta, 'telepearl', 'telepearl', pos, nil, dir, {drawDurationSeconds = 1})
-			projectileRemote:InvokeServer(item.tool, 'telepearl', 'telepearl', pos, pos, dir, httpService:GenerateGUID(true), {drawDurationSeconds = 1, shotId = httpService:GenerateGUID(false)}, workspace:GetServerTimeNow() - 0.045)
+			local projectile = bedwars.ProjectileController:createLocalProjectile(meta, 'telepearl', 'telepearl', pos, nil, dir, {drawDurationSeconds = 1})
+			local res = bedwars.Handler:Get('ProjectileFire'):Fire('CallServer',
+				item.tool,
+				'telepearl',
+				'telepearl',
+				pos,
+				pos,
+				dir,
+				httpService:GenerateGUID(true),
+				{ 
+	                drawDurationSeconds = 1, 
+	                shotId = httpService:GenerateGUID(false) 
+	            },
+				workspace:GetServerTimeNow() - 0.045
+			)
+			task.spawn(function()
+				local timeout = tick() + 10
+				repeat
+					task.wait()
+				until not AutoPearl.Enabled or not projectile or not projectile.Parent or tick() >= timeout
+				landed = true
+			end)
+			if res then
+				pcall(function()
+					res.Parent = replicatedStorage
+				end)
+			end
+		else
+			landed = true
 		end
 	
-		if store.hand then
-			switchItem(store.hand.tool)
+		if Back.Enabled and LandCheck.Enabled then
+			repeat
+				task.wait()
+			until landed or not AutoPearl.Enabled
 		end
+		if Back.Enabled and old and old.tool then
+			task.wait(BackDelay:GetRandomValue())
+			switchItem(old.tool)
+			if Legit.Enabled and getHotbar(old.tool) then
+				hotbarSwitch(getHotbar(old.tool))
+			end
+		end
+	end
+	
+	local function findNearGround(origin)
+		for _, v in {Vector3.new(1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(-1, 0, 0), Vector3.new(0, 0, -1)} do
+			for i = 1, 24 do
+				local ray = workspace:Raycast((origin.Position + (Vector3.yAxis * 3)) + (v * i), Vector3.new(0, -60, 0), rayCheck)
+				if ray then
+					return ray.Position
+				end
+			end
+		end
+		return nil
 	end
 	
 	AutoPearl = vape.Categories.Utility:CreateModule({
 		Name = 'AutoPearl',
 		Function = function(callback)
 			if callback then
-				local check
+				local check, lasty
 				repeat
-					if entitylib.isAlive then
+					if entitylib.isAlive and (not Limit.Enabled or store.hand.tool and store.hand.tool.Name == 'telepearl') then
 						local root = entitylib.character.RootPart
 						local pearl = getItem('telepearl')
-						rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera, AntiFallPart}
+						rayCheck.FilterDescendantsInstances = {store.map}
 						rayCheck.CollisionGroup = root.CollisionGroup
+	
+						if entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+							lasty = root.CFrame
+						end
 	
 						if pearl and root.Velocity.Y < -100 and not workspace:Raycast(root.Position, Vector3.new(0, -200, 0), rayCheck) then
 							if not check then
 								check = true
-								local ground = getNearGround(20)
-	
+								local ground = findNearGround(root.CFrame + Vector3.new(0, 40, 0)) or findNearGround(lasty and lasty + Vector3.new(0, 5, 0) or root.CFrame)
 								if ground then
 									firePearl(root.Position, ground, pearl)
 								end
@@ -6582,6 +6747,47 @@ run(function()
 			end
 		end,
 		Tooltip = 'Automatically throws a pearl onto nearby ground after\nfalling a certain distance.'
+	})
+	
+	Legit = AutoPearl:CreateToggle({
+		Name = 'Legit Switch',
+		Tooltip = 'Visualizes the switching clientside',
+		Default = true
+	})
+	Back = AutoPearl:CreateToggle({
+		Name = 'Switch back',
+		Default = true,
+		Function = function(callback)
+			if BackDelay then
+				BackDelay.Object.Visible = callback
+			end
+			if LandCheck then
+				LandCheck.Object.Visible = callback
+			end
+		end,
+		Tooltip = 'Switches back to the last slot before pearl'
+	})
+	LandCheck = AutoPearl:CreateToggle({
+		Name = 'Only after landed',
+		Tooltip = 'Only switches back after your pearl landed',
+		Darker = true
+	})
+	Check = AutoPearl:CreateToggle({
+		Name = 'Pearl check',
+		Tooltip = 'Doesn\'t throw a pearl if ur already pearling',
+		Default = true
+	})
+	BackDelay = AutoPearl:CreateTwoSlider({
+		Name = 'Switch Back Delay',
+		Min = 0,
+		Max = 2,
+		DefaultMin = 0.1,
+		DefaultMax = 0.2,
+		Darker = true
+	})
+	Limit = AutoPearl:CreateToggle({
+		Name = 'Limit to item',
+		Tooltip = 'Only throws pearl when holding a pearl'
 	})
 end)
 
@@ -7020,7 +7226,7 @@ run(function()
 	    Function = function(callback)
 	        if callback then
 	            EquipKit:Toggle()
-	            notif('EquipKit', `{bedwars.Client:Get('BedwarsActivateKit'):CallServer({kit = old[Kit.Value]}) and 'Successfully equipped' or 'Failed to equip'} {Kit.Value}.`, 10, 'info')
+	            notif('EquipKit', `{bedwars.Handler:Get('BedwarsActivateKit'):Fire('CallServer', {kit = old[Kit.Value]}) and 'Successfully equipped' or 'Failed to equip'} {Kit.Value}.`, 10, 'info')
 	        end
 	    end
 	})
@@ -7626,7 +7832,7 @@ run(function()
 	    local item = bedwars.Shop.getShopItem(itemType, lplr, {shopId = shopId})
 	    if not item or not canBuy(item) then return end
 	
-	    bedwars.Client:Get('BedwarsPurchaseItem'):CallServerAsync({
+	    bedwars.Handler:Get('BedwarsPurchaseItem'):Fire('CallServerAsync', {
 	        shopItem = item,
 	        shopId = shopId
 	    }):andThen(function(suc)
