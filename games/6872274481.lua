@@ -718,10 +718,10 @@ run(function()
 	RemoteHandler.CachedRemotes = {}
 	RemoteHandler.__index = RemoteHandler
 
-	local RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
-	local GlobalMiddleware = RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
+	--local RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
+	local GlobalMiddleware = nil--= RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
 	if not GlobalMiddleware or typeof(GlobalMiddleware) ~= "table" then
-		notif('Cat', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
+		--notif('Cat', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
 	end
 
 	function RemoteHandler.Get(self, RemoteID: string)
@@ -807,7 +807,7 @@ run(function()
 		local RateLimitValue: number = (typeof(GlobalFind) ~= "number" and 300) or GlobalFind
 
 		if not GlobalFind then
-			local TargetRemote = RemotesInConstruct[RemoteName]
+			--[[local TargetRemote = RemotesInConstruct[RemoteName]
 			local RemoteRateLimit = (TargetRemote and TargetRemote.ServerMiddleware)
 			if RemoteRateLimit and typeof(RemoteRateLimit) == "table" then
 				for i,v in RemoteRateLimit do
@@ -817,7 +817,7 @@ run(function()
 						break
 					end
 				end
-			end
+			end]]
 		end
 		
 		return RateLimitValue
