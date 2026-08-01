@@ -28,16 +28,16 @@ local function downloadFile(path, func)
 	return (func or readfile)(path)
 end
 
-vape.Place = 6872274481
+vape.Place = 155615604
 if isfile('catsix/games/'..vape.Place..'.lua') then
-	loadstring(readfile('catsix/games/'..vape.Place..'.lua'), 'bedwars')()
+	loadstring(readfile('catsix/games/'..vape.Place..'.lua'), 'prison life')()
 else
 	if not shared.VapeDeveloper then
 		local suc, res = pcall(function()
 			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/games/'..vape.Place..'.lua', true)
 		end)
 		if suc and res ~= '404: Not Found' then
-			loadstring(downloadFile('catsix/games/'..vape.Place..'.lua'), 'bedwars')()
+			loadstring(downloadFile('catsix/games/'..vape.Place..'.lua'), 'prison life')()
 		end
 	end
 end
