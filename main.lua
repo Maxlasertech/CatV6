@@ -6,7 +6,7 @@ license.Key = license.Key or '_key'
 if isfolder('catrewrite') and isfolder('catrewrite/profiles') then
 	print('porting config')
 	for _, v in listfiles('catrewrite/profiles') do
-		if not v:find('commit') then
+		if not v:find('commit.txt') then
 			local old = v
 			v = v:gsub('catrewrite', 'catsix')
 			writefile(v, readfile(old))

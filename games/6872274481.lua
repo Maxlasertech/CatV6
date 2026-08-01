@@ -718,10 +718,10 @@ run(function()
 	RemoteHandler.CachedRemotes = {}
 	RemoteHandler.__index = RemoteHandler
 
-	--local RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
-	local GlobalMiddleware = nil--= RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
+	local RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
+	local GlobalMiddleware = RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
 	if not GlobalMiddleware or typeof(GlobalMiddleware) ~= "table" then
-		--notif('Cat', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
+		notif('Cat', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
 	end
 
 	function RemoteHandler.Get(self, RemoteID: string)
@@ -807,7 +807,7 @@ run(function()
 		local RateLimitValue: number = (typeof(GlobalFind) ~= "number" and 300) or GlobalFind
 
 		if not GlobalFind then
-			--[[local TargetRemote = RemotesInConstruct[RemoteName]
+			local TargetRemote = RemotesInConstruct[RemoteName]
 			local RemoteRateLimit = (TargetRemote and TargetRemote.ServerMiddleware)
 			if RemoteRateLimit and typeof(RemoteRateLimit) == "table" then
 				for i,v in RemoteRateLimit do
@@ -817,7 +817,7 @@ run(function()
 						break
 					end
 				end
-			end]]
+			end
 		end
 		
 		return RateLimitValue
@@ -880,6 +880,7 @@ run(function()
 		StatusEffectUtil = require(replicatedStorage.TS['status-effect']['status-effect-util']).StatusEffectUtil,
 		SoundList = require(replicatedStorage.TS.sound['game-sound']).GameSound,
 		SettingsMeta = require(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
+		SharedConstants = require(replicatedStorage.TS['shared-constants']).CpsConstants,
 		SoundManager = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).SoundManager,
 		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
 		TeamUpgradeMeta = debug.getupvalue(require(replicatedStorage.TS.games.bedwars['team-upgrade']['team-upgrade-meta']).getTeamUpgradeMetaForQueue, 6),
@@ -1774,15 +1775,19 @@ run(function()
 			task.cancel(Thread)
 		end
 	
-		Thread = task.delay(1 / 7, function()
+		Thread = task.delay(1 / 9, function()
 			repeat
 				if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
 					local blockPlacer = bedwars.BlockPlacementController.blockPlacer
 					if store.hand.toolType == 'block' and blockPlacer then
-						if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
-							local mouseinfo = blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
-							if mouseinfo and mouseinfo.placementPosition == mouseinfo.placementPosition then
-								task.spawn(blockPlacer.placeBlock, blockPlacer, mouseinfo.placementPosition)
+						if inputService.TouchEnabled then
+							blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
+						else
+							if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
+								local mouseinfo = blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
+								if mouseinfo and mouseinfo.placementPosition == mouseinfo.placementPosition then
+									task.spawn(blockPlacer.placeBlock, blockPlacer, mouseinfo.placementPosition)
+								end
 							end
 						end
 					elseif store.hand.toolType == 'sword' then
@@ -1813,15 +1818,17 @@ run(function()
 				end))
 	
 				if inputService.TouchEnabled then
-					pcall(function()
-						AutoClicker:Clean(lplr.PlayerGui.MobileUI['2'].MouseButton1Down:Connect(AutoClick))
-						AutoClicker:Clean(lplr.PlayerGui.MobileUI['2'].MouseButton1Up:Connect(function()
-							if Thread then
-								task.cancel(Thread)
-								Thread = nil
-							end
-						end))
-					end)
+					for _, v in {'2', '5'} do
+						pcall(function()
+							AutoClicker:Clean(lplr.PlayerGui.MobileUI[v].MouseButton1Down:Connect(AutoClick))
+							AutoClicker:Clean(lplr.PlayerGui.MobileUI[v].MouseButton1Up:Connect(function()
+								if Thread then
+									task.cancel(Thread)
+									Thread = nil
+								end
+							end))
+						end)
+					end
 				end
 			else
 				if Thread then
@@ -2931,7 +2938,7 @@ run(function()
 	local SwingRange
 	local AttackRange
 	local SwingTime
-	local Sync
+	local Sync = {}
 	local AngleSlider
 	local ChanceSlider
 	local MaxTargets
@@ -3131,7 +3138,7 @@ run(function()
 								if delta.Magnitude > AttackRange.Value then continue end
 
 								local actualRoot = v.Character.PrimaryPart
-								if actualRoot and (tick() - swingCooldown) >= 0.29 then
+								if actualRoot and (tick() - swingCooldown) >= (Sync.Enabled and SwingTime.Value or 0.292) then
 									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
 									local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
 									bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
@@ -3247,11 +3254,11 @@ run(function()
 		Default = 0.11,
 		Suffix = 'seconds'
 	})
-	Sync = Killaura:CreateToggle({
+	--[[Sync = Killaura:CreateToggle({
 		Name = 'Sync with hitreg',
 		Darker = true,
 		Tooltip = 'Syncs ur hitreg with the swing time'
-	})
+	})]]
 	MaxTargets = Killaura:CreateSlider({
 		Name = 'Max targets',
 		Min = 1,
