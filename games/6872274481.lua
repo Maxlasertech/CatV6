@@ -754,7 +754,7 @@ run(function()
 	function RemoteHandler:Fire(Method: string?, ...)
 		local Remote = self.Remote
 		if not self.Success or not Remote then
-			if tick() - lastNotify > 2 then
+			if tick() - lastNotify > 0.5 then
 				lastNotify = tick()
 				notif('Cat', `Tried to Fire remote {Remote.ID}, remote is invalid`, 10, 'alert')
 			end
@@ -766,7 +766,10 @@ run(function()
 		end
 
 		if self:GetCurrentRequests() >= self:GetRateLimit() then
-			return notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
+			if tick() - lastNotify > 0.5 then
+				notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
+			end
+			return
 		end
 
 		self:IncrementRequests()
