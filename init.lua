@@ -29,7 +29,7 @@ local function downloadFile(path, func)
 			downloader.Text = 'Downloading '.. path
 		end
 		local suc, res = pcall(function()
-			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catrewrite/profiles/commit.txt')..'/'..select(1, path:gsub('catrewrite/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/MaxlaserTech/CatV6/'..readfile('catsix/profiles/commit.txt')..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -57,7 +57,7 @@ local function wipeFolder(path)
 end
 
 
-for _, folder in {'catrewrite', 'catrewrite/games', 'catrewrite/profiles', 'catrewrite/assets', 'catrewrite/libraries', 'catrewrite/guis'} do
+for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
 	if not isfolder(folder) then
 		downloader.Text = 'Downloading '.. folder
 		makefolder(folder)
@@ -74,19 +74,19 @@ if not shared.VapeDeveloper then
 		commit = commit and subbed:sub(commit + 13, commit + 52) or nil
 		commit = commit and #commit == 40 and commit or 'main'
 	end
-	if commit == 'main' or (isfile('catrewrite/profiles/commit.txt') and readfile('catrewrite/profiles/commit.txt') or '') ~= commit then
-		if commit ~= 'main' and isfile('catrewrite/profiles/commit.txt') then
-			shared.updated = readfile('catrewrite/profiles/commit.txt')
+	if commit == 'main' or (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt') or '') ~= commit then
+		if commit ~= 'main' and isfile('catsix/profiles/commit.txt') then
+			shared.updated = readfile('catsix/profiles/commit.txt')
 		end
-		wipeFolder('catrewrite')
-		wipeFolder('catrewrite/games')
-		wipeFolder('catrewrite/guis')
-		wipeFolder('catrewrite/libraries')
+		wipeFolder('catsix')
+		wipeFolder('catsix/games')
+		wipeFolder('catsix/guis')
+		wipeFolder('catsix/libraries')
 	end
-	writefile('catrewrite/profiles/commit.txt', commit)
-	if #listfiles('catrewrite/profiles') < 4 then
+	writefile('catsix/profiles/commit.txt', commit)
+	if #listfiles('catsix/profiles') < 4 then
 		local req = request({
-			Url = 'https://api.github.com/repos/maxlasertech/catv6/contents/profiles',
+			Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
 			Method = 'GET'
 		})
 		if req.StatusCode == 200 then
@@ -94,7 +94,7 @@ if not shared.VapeDeveloper then
 			if body and typeof(body) == 'table' then
 				for _, v in body do
 					if v.type == 'file' then
-						pcall(downloadFile, 'catrewrite/'.. ({v.path:gsub(' ', '%%20')})[1])
+						pcall(downloadFile, 'catsix/'.. ({v.path:gsub(' ', '%%20')})[1])
 					end
 				end
 			end
@@ -103,4 +103,4 @@ if not shared.VapeDeveloper then
 end
 
 downloader.Text = ''
-return loadstring(downloadFile('catrewrite/main.lua'), 'main')(license)
+return loadstring(downloadFile('catsix/main.lua'), 'main')(license)
