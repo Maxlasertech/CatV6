@@ -756,7 +756,7 @@ run(function()
 		if not self.Success or not Remote then
 			if tick() - lastNotify > 0.5 then
 				lastNotify = tick()
-				notif('Cat', `Tried to Fire remote {Remote.ID}, remote is invalid`, 10, 'alert')
+				--notif('Cat', `Tried to Fire remote {Remote.ID}, remote is invalid`, 10, 'alert')
 			end
 			return
 		end
@@ -768,7 +768,7 @@ run(function()
 		if self:GetCurrentRequests() >= self:GetRateLimit() then
 			if tick() - lastNotify > 0.5 then
 				lastNotify = tick()
-				notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
+				--notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
 			end
 			return
 		end
