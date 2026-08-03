@@ -3289,6 +3289,7 @@ run(function()
 				end
 
 				local swingCooldown, BoxData = tick(), {}
+				local projectileIndex = 1
 				repeat
 					local attacked, sword, meta = {}, getAttackData()
 					Attacking = false
@@ -3358,7 +3359,6 @@ run(function()
 								local Meta = bedwars.ItemMeta[sword.itemType].sword
 								local BaseCooldown = math.max((bedwars.SwordController.lastAttack + Meta.attackSpeed) - workspace:GetServerTimeNow(), 0) + (store.ping.incoming - 0.0165)
 								local Cooldown = math.max(AttackSpeed.Value, BaseCooldown)
-								warn(Cooldown)
 								if actualRoot and (tick() - swingCooldown) >= Cooldown then
 									local Hit = Random.new():NextNumber(1, 100) <= HitRegChance.Value
 									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
