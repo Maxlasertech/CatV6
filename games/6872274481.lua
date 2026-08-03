@@ -3391,7 +3391,7 @@ run(function()
 												end
 												
 												local item, ammo, projectile, itemMeta = unpack(projectiles[projectileIndex])
-												if (tick() - store.total.ping) > (FireRates[item.itemType] or 0) then
+												if (tick() - store.ping.total) > (FireRates[item.itemType] or 0) then
 												local projmeta = bedwars.ProjectileMeta[projectile]
 												if not projmeta or type(projmeta.launchVelocity) ~= 'number' then continue end
 													local projSpeed, gravity = projmeta.launchVelocity, projmeta.gravitationalAcceleration or 196.2
