@@ -3357,7 +3357,7 @@ run(function()
 
 								local actualRoot = v.Character.PrimaryPart
 								local Meta = bedwars.ItemMeta[sword.itemType].sword
-								local BaseCooldown = math.max((bedwars.SwordController.lastAttack + Meta.attackSpeed) - workspace:GetServerTimeNow(), 0) + (0.0125)
+								local BaseCooldown = math.max((bedwars.SwordController.lastAttack + Meta.attackSpeed) - workspace:GetServerTimeNow(), 0) + store.ping.total
 								local Cooldown = math.max(AttackSpeed.Value, BaseCooldown)
 								if actualRoot and (tick() - swingCooldown) >= Cooldown then
 									local Hit = Random.new():NextNumber(1, 100) <= HitRegChance.Value
