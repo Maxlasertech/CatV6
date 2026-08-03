@@ -17,6 +17,7 @@ local mainapi = {
 	RainbowSpeed = {Value = 1},
 	RainbowUpdateSpeed = {Value = 60},
 	RainbowTable = {},
+	SaveCache = {},
 	Scale = {Value = 1},
 	ThreadFix = setthreadidentity and true or false,
 	ToggleNotifications = {},
@@ -500,6 +501,7 @@ components = {
 		local button = Instance.new('TextButton')
 		button.Name = optionsettings.Name..'Button'
 		button.Size = UDim2.new(1, 0, 0, 31)
+		button.LayoutOrder = optionsettings.LayoutOrder or 0
 		button.BackgroundColor3 = color.Dark(children.BackgroundColor3, optionsettings.Darker and 0.02 or 0)
 		button.BorderSizePixel = 0
 		button.AutoButtonColor = false
@@ -961,6 +963,7 @@ components = {
 		local dropdown = Instance.new('TextButton')
 		dropdown.Name = optionsettings.Name..'Dropdown'
 		dropdown.Size = UDim2.new(1, 0, 0, 40)
+		dropdown.LayoutOrder = optionsettings.LayoutOrder or 0
 		dropdown.BackgroundColor3 = color.Dark(children.BackgroundColor3, optionsettings.Darker and 0.02 or 0)
 		dropdown.BorderSizePixel = 0
 		dropdown.AutoButtonColor = false
@@ -1659,6 +1662,7 @@ components = {
 		local textbox = Instance.new('TextButton')
 		textbox.Name = optionsettings.Name..'TextBox'
 		textbox.Size = UDim2.new(1, 0, 0, 58)
+		textbox.LayoutOrder = optionsettings.LayoutOrder or 0
 		textbox.BackgroundColor3 = color.Dark(children.BackgroundColor3, optionsettings.Darker and 0.02 or 0)
 		textbox.BorderSizePixel = 0
 		textbox.AutoButtonColor = false
@@ -3915,6 +3919,7 @@ function mainapi:CreateCategory(categorysettings)
 			if not multiple then
 				mainapi:UpdateTextGUI()
 			end
+			mainapi:QueueSave()
 			task.spawn(modulesettings.Function, self.Enabled)
 		end
 
@@ -4368,6 +4373,7 @@ function mainapi:CreateCategoryList(categorysettings)
 	children.Name = 'Children'
 	children.Size = UDim2.new(1, 0, 1, -45)
 	children.Position = UDim2.fromOffset(0, 45)
+	children.BackgroundColor3 = uipallet.Main
 	children.BackgroundTransparency = 1
 	children.BorderSizePixel = 0
 	children.Visible = false
@@ -5186,6 +5192,7 @@ function mainapi:CreateLegit()
 				end
 				table.clear(moduleapi.Connections)
 			end
+			mainapi:QueueSave()
 			task.spawn(modulesettings.Function, moduleapi.Enabled)
 		end
 
@@ -5415,6 +5422,7 @@ function mainapi:Load(skipgui, profile)
 	end
 	local guidata = {}
 	local savecheck = true
+	local savenew
 
 	if isfile('catsix/profiles/'..game.GameId..'.gui.txt') then
 		guidata = loadJson('catsix/profiles/'..game.GameId..'.gui.txt')
@@ -5494,9 +5502,17 @@ function mainapi:Load(skipgui, profile)
 			object.Object.Position = UDim2.fromOffset(v.Position.X, v.Position.Y)
 		end
 
+		local modulelookup, legitlookup = {}, {}
+		for i, v in self.Modules do
+			modulelookup[i:gsub(' ', '')] = v
+		end
+		for i, v in self.Legit.Modules do
+			legitlookup[i:gsub(' ', '')] = v
+		end
+
 		for i, v in savedata.Modules do
 			i = i:gsub(' ', '')
-			local object = self.Modules[i]
+			local object = modulelookup[i]
 			if not object then continue end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
@@ -5515,7 +5531,7 @@ function mainapi:Load(skipgui, profile)
 
 		for i, v in savedata.Legit do
 			i = i:gsub(' ', '')
-			local object = self.Legit.Modules[i]
+			local object = legitlookup[i]
 			if not object then continue end
 			if object.Options and v.Options then
 				self:LoadOptions(object, v.Options)
@@ -5530,7 +5546,7 @@ function mainapi:Load(skipgui, profile)
 
 		self:UpdateTextGUI(true)
 	else
-		self:Save()
+		savenew = true
 	end
 
 	if self.Downloader then
@@ -5539,6 +5555,10 @@ function mainapi:Load(skipgui, profile)
 	end
 	self.Loaded = savecheck
 	self.Categories.Main.Options.Bind:SetBind(self.Keybind)
+
+	if savenew then
+		self:Save()
+	end
 
 	if not inputService.KeyboardEnabled or shared.VapeDeveloper then
 		local hide = isfile('catsix/profiles/hide.txt') and readfile('catsix/profiles/hide.txt') or nil
@@ -5671,8 +5691,26 @@ function mainapi:Save(newprofile)
 		}
 	end
 
-	writefile('catsix/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
-	writefile('catsix/profiles/'..self.Profile..self.Place..'.txt', httpService:JSONEncode(savedata))
+	local function writeSave(path, data)
+		if self.SaveCache[path] ~= data then
+			self.SaveCache[path] = data
+			writefile(path, data)
+		end
+	end
+
+	writeSave('catsix/profiles/'..game.GameId..'.gui.txt', httpService:JSONEncode(guidata))
+	writeSave('catsix/profiles/'..self.Profile..self.Place..'.txt', httpService:JSONEncode(savedata))
+end
+
+function mainapi:QueueSave()
+	if self.SaveQueued or not self.Loaded then return end
+	self.SaveQueued = true
+	task.delay(2, function()
+		self.SaveQueued = nil
+		if self.Loaded then
+			self:Save()
+		end
+	end)
 end
 
 function mainapi:SaveOptions(object, savedoptions)
@@ -5818,6 +5856,9 @@ end))
 
 mainapi:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(function()
 	mainapi:UpdateGUI(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value, true)
+	if not clickgui.Visible then
+		mainapi:QueueSave()
+	end
 	if clickgui.Visible and inputService.MouseEnabled then
 		repeat
 			local visibleCheck = clickgui.Visible
@@ -5949,6 +5990,7 @@ local Profiles = mainapi:CreateCategoryList({
 })
 Profiles:CreateButton({
 	Name = 'Sync to "default" profile',
+	LayoutOrder = 6,
 	Function = function()
 		mainapi:Save('default')
 		local newval = nil
@@ -5964,6 +6006,7 @@ Profiles:CreateButton({
 })
 Profiles:CreateButton({
 	Name = 'Reset current profile',
+	LayoutOrder = 7,
 	Function = function()
 		mainapi.Save = function() end
 		if isfile('catsix/profiles/'..mainapi.Profile..mainapi.Place..'.txt') and delfile then
@@ -5977,7 +6020,7 @@ Profiles:CreateButton({
 		end
 	end,
 	Tooltip = 'This will set your profile to the default settings of Cat Vape'
-})
+})	
 
 --[[
 	Targets
@@ -6541,6 +6584,8 @@ VapeLabelSorter.Parent = VapeLabelHolder
 local targetinfo
 local targetinfoobj
 local targetinfobcolor
+local targetinfobkg
+local targetinfofollow
 targetinfoobj = mainapi:CreateOverlay({
 	Name = 'Target Info',
 	Icon = getcustomasset('catsix/assets/new/targetinfoicon.png'),
@@ -6551,21 +6596,38 @@ targetinfoobj = mainapi:CreateOverlay({
 		if callback then
 			task.spawn(function()
 				repeat
-					targetinfo:UpdateInfo()
-					task.wait()
+					local target = targetinfo:UpdateInfo()
+					if targetinfofollow and targetinfofollow.Enabled and target then
+						local vec, screen = workspace.CurrentCamera:WorldToViewportPoint(target.Position)
+						if screen then
+							targetinfobkg.Parent.Parent.Parent.Position = UDim2.fromOffset(vec.X, vec.Y)
+						end
+					end
+					task.wait(0)
 				until not targetinfoobj.Button or not targetinfoobj.Button.Enabled
 			end)
 		end
 	end
 })
 
-local targetinfobkg = Instance.new('Frame')
+--[[
+	New
+]]
+
+local handler = Instance.new('Frame')
+handler.Size = UDim2.fromOffset(240, 89)
+handler.BackgroundColor3 = color.Dark(uipallet.Main, 0.1)
+handler.BackgroundTransparency = 1
+handler.Parent = targetinfoobj.Children
+
+targetinfobkg = Instance.new('Frame')
 targetinfobkg.Size = UDim2.fromOffset(240, 89)
 targetinfobkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.1)
 targetinfobkg.BackgroundTransparency = 0.5
-targetinfobkg.Parent = targetinfoobj.Children
+targetinfobkg.Parent = handler
+
 local targetinfoblurobj = addBlur(targetinfobkg)
-targetinfoblurobj.Visible = false
+targetinfoblurobj.Visible = true
 addCorner(targetinfobkg)
 local targetinfoshot = Instance.new('ImageLabel')
 targetinfoshot.Size = UDim2.fromOffset(26, 27)
@@ -6580,7 +6642,7 @@ targetinfoshotflash.BackgroundColor3 = Color3.new(1, 0, 0)
 targetinfoshotflash.Parent = targetinfoshot
 addCorner(targetinfoshotflash)
 local targetinfoshotblur = addBlur(targetinfoshot)
-targetinfoshotblur.Visible = false
+targetinfoshotblur.Visible = true
 addCorner(targetinfoshot)
 local targetinfoname = Instance.new('TextLabel')
 targetinfoname.Size = UDim2.fromOffset(145, 20)
@@ -6638,17 +6700,146 @@ end)
 local targetinfohealthblur = addBlur(targetinfohealthbkg)
 targetinfohealthblur.SliceCenter = Rect.new(52, 31, 261, 510)
 targetinfohealthblur.ImageColor3 = Color3.new()
-targetinfohealthblur.Visible = false
+targetinfohealthblur.Visible = true
 local targetinfob = Instance.new('UIStroke')
 targetinfob.Enabled = false
 targetinfob.Color = Color3.fromHSV(0.44, 1, 1)
 targetinfob.Parent = targetinfobkg
 
+--[[
+	Old
+]]
+
+local TargetInfoMainFrame = Instance.new('Frame')
+TargetInfoMainFrame.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+TargetInfoMainFrame.BorderSizePixel = 0
+TargetInfoMainFrame.BackgroundTransparency = 1
+TargetInfoMainFrame.Size = UDim2.new(0, 220, 0, 72)
+TargetInfoMainFrame.Position = UDim2.new(0, 0, 0, 5)
+TargetInfoMainFrame.Parent = targetinfoobj.Children
+TargetInfoMainFrame.Visible = false
+
+local TargetInfoFrameShadow = Instance.new('ImageLabel')
+TargetInfoFrameShadow.BackgroundTransparency = 1
+TargetInfoFrameShadow.Position = UDim2.fromScale(-0.041, -0.125)
+TargetInfoFrameShadow.Size = UDim2.fromOffset(237, 97)
+TargetInfoFrameShadow.ZIndex = -1
+TargetInfoFrameShadow.Image = 'rbxassetid://123343128195297'
+TargetInfoFrameShadow.Parent = TargetInfoMainFrame
+
+local TargetInfoMainInfo = Instance.new('Frame')
+TargetInfoMainInfo.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+TargetInfoMainInfo.Size = UDim2.new(0, 220, 0, 80)
+TargetInfoMainInfo.BackgroundTransparency = 0.5
+TargetInfoMainInfo.Position = UDim2.new(0, 0, 0, 0)
+TargetInfoMainInfo.Name = 'MainInfo'
+TargetInfoMainInfo.Parent = TargetInfoMainFrame
+local TargetInfoName = Instance.new('TextLabel')
+TargetInfoName.Font = Enum.Font.Arial
+TargetInfoName.TextColor3 = Color3.fromRGB(182, 182, 182)
+TargetInfoName.Position = UDim2.new(0, 70, 0, 13)
+TargetInfoName.TextStrokeTransparency = 1
+TargetInfoName.BackgroundTransparency = 1
+TargetInfoName.TextSize = 14
+TargetInfoName.Size = UDim2.new(0, 80, 0, 20)
+TargetInfoName.Text = 'None'
+TargetInfoName.ZIndex = 2
+TargetInfoName.TextXAlignment = Enum.TextXAlignment.Left
+TargetInfoName.TextYAlignment = Enum.TextYAlignment.Top
+TargetInfoName.Parent = TargetInfoMainInfo
+local TargetInfoNameShadow = TargetInfoName:Clone()
+TargetInfoNameShadow.Size = UDim2.new(1, 0, 1, 0)
+TargetInfoNameShadow.TextTransparency = 0.5
+TargetInfoNameShadow.TextColor3 = Color3.new()
+TargetInfoNameShadow.ZIndex = 1
+TargetInfoNameShadow.Position = UDim2.new(0, 1, 0, 1)
+TargetInfoName:GetPropertyChangedSignal('Text'):Connect(function()
+	TargetInfoNameShadow.Text = TargetInfoName.Text
+end)
+TargetInfoNameShadow.Parent = TargetInfoName
+local TargetInfoHealthBackground = Instance.new('Frame')
+TargetInfoHealthBackground.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+TargetInfoHealthBackground.Size = UDim2.new(0, 140, 0, 4)
+TargetInfoHealthBackground.Position = UDim2.new(0, 71, 0, 35)
+TargetInfoHealthBackground.Parent = TargetInfoMainInfo
+local TargetInfoHealthBackgroundShadow = Instance.new('ImageLabel')
+TargetInfoHealthBackgroundShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+TargetInfoHealthBackgroundShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+TargetInfoHealthBackgroundShadow.Image = 'rbxassetid://13350795660'
+TargetInfoHealthBackgroundShadow.BackgroundTransparency = 1
+TargetInfoHealthBackgroundShadow.ImageTransparency = 0.6
+TargetInfoHealthBackgroundShadow.ZIndex = -1
+TargetInfoHealthBackgroundShadow.Size = UDim2.new(1, 6, 1, 6)
+TargetInfoHealthBackgroundShadow.ImageColor3 = Color3.new()
+TargetInfoHealthBackgroundShadow.ScaleType = Enum.ScaleType.Slice
+TargetInfoHealthBackgroundShadow.SliceCenter = Rect.new(10, 10, 118, 118)
+TargetInfoHealthBackgroundShadow.Parent = TargetInfoHealthBackground
+local TargetInfoHealth = Instance.new('Frame')
+TargetInfoHealth.BackgroundColor3 = Color3.fromRGB(115, 255, 110)
+TargetInfoHealth.Size = UDim2.new(1, 0, 1, 0)
+TargetInfoHealth.ZIndex = 3
+TargetInfoHealth.BorderSizePixel = 0
+TargetInfoHealth.Parent = TargetInfoHealthBackground
+local TargetInfoHealthExtra = Instance.new('Frame')
+TargetInfoHealthExtra.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+TargetInfoHealthExtra.Size = UDim2.new(0, 0, 1, 0)
+TargetInfoHealthExtra.ZIndex = 4
+TargetInfoHealthExtra.BorderSizePixel = 0
+TargetInfoHealthExtra.AnchorPoint = Vector2.new(1, 0)
+TargetInfoHealthExtra.Position = UDim2.new(1, 0, 0, 0)
+TargetInfoHealthExtra.Parent = TargetInfoHealth
+local TargetInfoImage = Instance.new('ImageLabel')
+TargetInfoImage.Size = UDim2.new(0, 50, 0, 50)
+TargetInfoImage.BackgroundTransparency = 0
+TargetInfoImage.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+TargetInfoImage.Image = 'rbxthumb://type=AvatarHeadShot&id=1&w=420&h=420'
+TargetInfoImage.Position = UDim2.new(0, 10, 0, 16)
+
+local targetinfoshotflashold = Instance.new('Frame')
+targetinfoshotflashold.Size = UDim2.fromScale(1, 1)
+targetinfoshotflashold.BackgroundTransparency = 1
+targetinfoshotflashold.BackgroundColor3 = Color3.new(1, 0, 0)
+targetinfoshotflashold.Parent = TargetInfoImage
+addCorner(targetinfoshotflashold)
+
+TargetInfoImage.Parent = TargetInfoMainInfo
+local TargetInfoMainInfoCorner = Instance.new('UICorner')
+TargetInfoMainInfoCorner.CornerRadius = UDim.new(0, 6)
+TargetInfoMainInfoCorner.Parent = TargetInfoMainInfo
+local TargetInfoHealthBackgroundCorner = Instance.new('UICorner')
+TargetInfoHealthBackgroundCorner.CornerRadius = UDim.new(0, 2048)
+TargetInfoHealthBackgroundCorner.Parent = TargetInfoHealthBackground
+local TargetInfoHealthCorner = Instance.new('UICorner')
+TargetInfoHealthCorner.CornerRadius = UDim.new(0, 2048)
+TargetInfoHealthCorner.Parent = TargetInfoHealth
+local TargetInfoHealthCorner2 = Instance.new('UICorner')
+TargetInfoHealthCorner2.CornerRadius = UDim.new(0, 2048)
+TargetInfoHealthCorner2.Parent = TargetInfoHealthExtra
+local TargetInfoHealthExtraCorner = Instance.new('UICorner')
+TargetInfoHealthExtraCorner.CornerRadius = UDim.new(0, 8)
+TargetInfoHealthExtraCorner.Parent = TargetInfoImage
+
+local TargetInfoHud = isfile('catsix/profiles/hud.txt') and readfile('catsix/profiles/hud.txt') or 'new'
+targetinfoobj:CreateDropdown({
+	Name = 'Gui Mode',
+	List = {'old', 'new'},
+	Default = 'new',
+	Function = function(val)
+		TargetInfoHud = val
+		writefile('catsix/profiles/hud.txt', val)
+		TargetInfoMainFrame.Visible = val == 'old'
+		handler.Visible = val == 'new'
+	end
+})
+TargetInfoMainFrame.Visible = TargetInfoHud == 'old'
+handler.Visible = TargetInfoHud == 'new'
 targetinfoobj:CreateFont({
 	Name = 'Font',
 	Blacklist = 'Arial',
 	Function = function(val)
 		targetinfoname.FontFace = val
+		TargetInfoName.FontFace = val
+		TargetInfoNameShadow.FontFace = val
 	end
 })
 local targetinfobackgroundtransparency = {
@@ -6663,12 +6854,16 @@ targetinfoobj:CreateToggle({
 	Name = 'Render Background',
 	Function = function(callback)
 		targetinfobkg.BackgroundTransparency = callback and targetinfobackgroundtransparency.Value or 1
+		TargetInfoMainInfo.BackgroundTransparency = targetinfobkg.BackgroundTransparency
 		targetinfoshadow.Visible = not callback
 		targetinfoblurobj.Visible = callback
-		targetinfohealthblur.Visible = not callback
-		targetinfoshotblur.Visible = not callback
 		targetinfobackgroundtransparency.Object.Visible = callback
 	end,
+	Default = true
+})
+targetinfofollow = targetinfoobj:CreateToggle({
+	Name = 'Follow Player',
+	Function = function(callback) end,
 	Default = true
 })
 targetinfobackgroundtransparency = targetinfoobj:CreateSlider({
@@ -6732,6 +6927,7 @@ local lastmaxhealth = 0
 targetinfo = {
 	Targets = {},
 	Object = targetinfobkg,
+	oldparent = TargetInfoMainFrame,
 	UpdateInfo = function(self)
 		local entitylib = mainapi.Libraries
 		if not entitylib then return end
@@ -6751,9 +6947,14 @@ targetinfo = {
 		end
 
 		targetinfobkg.Visible = v ~= nil or mainapi.gui.ScaledGui.ClickGui.Visible
+		TargetInfoMainInfo.Visible = targetinfobkg.Visible
+		TargetInfoFrameShadow.Visible = targetinfobkg.Visible
 		if v then
 			targetinfoname.Text = v.Player and (targetinfodisplay.Enabled and v.Player.DisplayName or v.Player.Name) or v.Character and v.Character.Name or targetinfoname.Text
+			TargetInfoName.Text = targetinfoname.Text
+			TargetInfoNameShadow.Text = targetinfoname.Text
 			targetinfoshot.Image = 'rbxthumb://type=AvatarHeadShot&id='..(v.Player and v.Player.UserId or 1)..'&w=420&h=420'
+			TargetInfoImage.Image = targetinfoshot.Image
 
 			if not v.Character then
 				v.Health = v.Health or 0
@@ -6761,28 +6962,41 @@ targetinfo = {
 			end
 
 			if v.Health ~= lasthealth or v.MaxHealth ~= lastmaxhealth then
-				local percent = math.max(v.Health / v.MaxHealth, 0)
-				tween:Tween(targetinfohealth, TweenInfo.new(0.3), {
-					Size = UDim2.fromScale(math.min(percent, 1), 1), BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
-				})
-				tween:Tween(targetinfohealthextra, TweenInfo.new(0.3), {
-					Size = UDim2.fromScale(math.clamp(percent - 1, 0, 0.8), 1)
-				})
-				if lasthealth > v.Health and self.LastTarget == v then
-					tween:Cancel(targetinfoshotflash)
-					targetinfoshotflash.BackgroundTransparency = 0.3
-					tween:Tween(targetinfoshotflash, TweenInfo.new(0.5), {
-						BackgroundTransparency = 1
+				task.spawn(function()
+					local percent = math.max(v.Health / v.MaxHealth, 0)
+					tween:Tween(targetinfohealth, TweenInfo.new(0.3), {
+						Size = UDim2.fromScale(math.min(percent, 1), 1), BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
 					})
-				end
-				lasthealth = v.Health
-				lastmaxhealth = v.MaxHealth
+					tween:Tween(targetinfohealthextra, TweenInfo.new(0.3), {
+						Size = UDim2.fromScale(math.clamp(percent - 1, 0, 0.8), 1)
+					})
+					tween:Tween(TargetInfoHealth, TweenInfo.new(0.3), {
+						Size = UDim2.fromScale(math.min(percent, 1), 1), BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
+					})
+					tween:Tween(TargetInfoHealthExtra, TweenInfo.new(0.3), {
+						Size = UDim2.fromScale(math.clamp(percent - 1, 0, 0.8), 1)
+					})
+					if lasthealth > v.Health and self.LastTarget == v then
+						tween:Cancel(targetinfoshotflash)
+						tween:Cancel(targetinfoshotflashold)
+						targetinfoshotflash.BackgroundTransparency = 0.3
+						targetinfoshotflashold.BackgroundTransparency = 0.3
+						tween:Tween(targetinfoshotflash, TweenInfo.new(0.5), {
+							BackgroundTransparency = 1
+						})
+						tween:Tween(targetinfoshotflashold, TweenInfo.new(0.5), {
+							BackgroundTransparency = 1
+						})
+					end
+					lasthealth = v.Health
+					lastmaxhealth = v.MaxHealth
+				end)
 			end
 
 			if not v.Character then table.clear(v) end
 			self.LastTarget = v
 		end
-		return v
+		return v and v.Head
 	end
 }
 mainapi.Libraries.targetinfo = targetinfo
@@ -7103,6 +7317,10 @@ mainapi:Clean(inputService.InputEnded:Connect(function(inputObj)
 	local ind = table.find(mainapi.HeldKeybinds, inputObj.KeyCode.Name)
 	if ind then
 		table.remove(mainapi.HeldKeybinds, ind)
+	end
+
+	if clickgui.Visible then
+		mainapi:QueueSave()
 	end
 end))
 
