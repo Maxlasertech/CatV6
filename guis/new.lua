@@ -5416,6 +5416,125 @@ function mainapi:CreateNotification(title, text, duration, type)
 	end)
 end
 
+function mainapi:CreatePrompt(promptsettings)
+	local answered = false
+	local shadow = Instance.new('TextButton')
+	shadow.Name = 'PromptShadow'
+	shadow.Size = UDim2.fromScale(1, 1)
+	shadow.ZIndex = 10
+	shadow.BackgroundColor3 = Color3.new()
+	shadow.BackgroundTransparency = 0.6
+	shadow.AutoButtonColor = false
+	shadow.Modal = true
+	shadow.Text = ''
+	shadow.Parent = clickgui
+	local window = Instance.new('Frame')
+	window.Name = 'Prompt'
+	window.AnchorPoint = Vector2.new(0.5, 0.5)
+	window.Size = UDim2.fromOffset(360, 178)
+	window.Position = UDim2.fromScale(0.5, 0.5)
+	window.ZIndex = 11
+	window.BackgroundColor3 = uipallet.Main
+	window.Parent = shadow
+	addCorner(window)
+	addBlur(window)
+	local icon = Instance.new('ImageLabel')
+	icon.Name = 'Icon'
+	icon.Size = UDim2.fromOffset(16, 16)
+	icon.Position = UDim2.fromOffset(20, 20)
+	icon.ZIndex = 12
+	icon.BackgroundTransparency = 1
+	icon.Image = getcustomasset('catsix/assets/new/'..(promptsettings.Icon or 'info')..'.png')
+	icon.ImageColor3 = uipallet.Text
+	icon.Parent = window
+	local title = Instance.new('TextLabel')
+	title.Name = 'Title'
+	title.Size = UDim2.new(1, -60, 0, 16)
+	title.Position = UDim2.fromOffset(44, 20)
+	title.ZIndex = 12
+	title.BackgroundTransparency = 1
+	title.Text = promptsettings.Title or 'Vape'
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = uipallet.Text
+	title.TextSize = 14
+	title.FontFace = uipallet.FontSemiBold
+	title.Parent = window
+	local divider = Instance.new('Frame')
+	divider.Name = 'Divider'
+	divider.Size = UDim2.new(1, -40, 0, 1)
+	divider.Position = UDim2.fromOffset(20, 48)
+	divider.ZIndex = 12
+	divider.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
+	divider.BorderSizePixel = 0
+	divider.Parent = window
+	local text = Instance.new('TextLabel')
+	text.Name = 'Text'
+	text.Size = UDim2.new(1, -40, 0, 62)
+	text.Position = UDim2.fromOffset(20, 62)
+	text.ZIndex = 12
+	text.BackgroundTransparency = 1
+	text.Text = promptsettings.Text or ''
+	text.TextXAlignment = Enum.TextXAlignment.Left
+	text.TextYAlignment = Enum.TextYAlignment.Top
+	text.TextColor3 = color.Dark(uipallet.Text, 0.31)
+	text.TextSize = 13
+	text.TextWrapped = true
+	text.RichText = true
+	text.FontFace = uipallet.Font
+	text.Parent = window
+
+	local function answer(result)
+		if answered then return end
+		answered = true
+		shadow:ClearAllChildren()
+		shadow:Destroy()
+		if promptsettings.Function then
+			promptsettings.Function(result)
+		end
+	end
+
+	local function createButton(name, label, offset, accent)
+		local button = Instance.new('TextButton')
+		button.Name = name
+		button.Size = UDim2.fromOffset(158, 32)
+		button.Position = UDim2.new(0, offset, 1, -48)
+		button.ZIndex = 12
+		button.BackgroundColor3 = accent
+			and Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+			or color.Light(uipallet.Main, 0.02)
+		button.AutoButtonColor = false
+		button.Text = label
+		button.TextColor3 = accent and Color3.new(1, 1, 1) or color.Dark(uipallet.Text, 0.16)
+		button.TextSize = 13
+		button.FontFace = uipallet.FontSemiBold
+		button.Parent = window
+		addCorner(button, UDim.new(0, 6))
+		button.MouseEnter:Connect(function()
+			tween:Tween(button, uipallet.Tween, {
+				BackgroundColor3 = accent
+					and Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, math.clamp(mainapi.GUIColor.Value + 0.1, 0, 1))
+					or color.Light(uipallet.Main, 0.14)
+			})
+		end)
+		button.MouseLeave:Connect(function()
+			tween:Tween(button, uipallet.Tween, {
+				BackgroundColor3 = accent
+					and Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
+					or color.Light(uipallet.Main, 0.02)
+			})
+		end)
+		return button
+	end
+
+	createButton('Cancel', promptsettings.Cancel or 'No', 20, false).MouseButton1Click:Connect(function()
+		answer(false)
+	end)
+	createButton('Confirm', promptsettings.Confirm or 'Yes', 182, true).MouseButton1Click:Connect(function()
+		answer(true)
+	end)
+	return answer
+end
+
 function mainapi:Load(skipgui, profile)
 	if not skipgui then
 		self.GUIColor:SetValue(nil, nil, nil, 4)
@@ -7323,5 +7442,31 @@ mainapi:Clean(inputService.InputEnded:Connect(function(inputObj)
 		mainapi:QueueSave()
 	end
 end))
+
+if shared.VapePresetInstall then
+	local prompted = false
+	mainapi:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(function()
+		if prompted or not clickgui.Visible then return end
+		prompted = true
+		mainapi:CreatePrompt({
+			Title = 'Preset configs',
+			Text = 'It looks like this is your first time using Vape. Would you like to download the preset configs? They come with recommended settings for each supported game.',
+			Confirm = 'Download',
+			Cancel = 'No thanks',
+			Function = function(result)
+				local install = shared.VapePresetInstall
+				shared.VapePresetInstall = nil
+				if not result or not install then return end
+				task.spawn(function()
+					if install() then
+						mainapi:CreateNotification('Vape', 'Preset configs installed, rejoin to use them.', 8)
+					else
+						mainapi:CreateNotification('Vape', 'Failed to download preset configs.', 8, 'alert')
+					end
+				end)
+			end
+		})
+	end))
+end
 
 return mainapi

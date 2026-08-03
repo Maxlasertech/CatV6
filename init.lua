@@ -85,19 +85,21 @@ if not shared.VapeDeveloper then
 	end
 	writefile('catsix/profiles/commit.txt', commit)
 	if #listfiles('catsix/profiles') < 4 then
-		local req = request({
-			Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
-			Method = 'GET'
-		})
-		if req.StatusCode == 200 then
+		shared.VapePresetInstall = function()
+			local suc, req = pcall(request, {
+				Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
+				Method = 'GET'
+			})
+			if not suc or req.StatusCode ~= 200 then return false end
 			local body = cloneref(game:GetService('HttpService')):JSONDecode(req.Body)
-			if body and typeof(body) == 'table' then
-				for _, v in body do
-					if v.type == 'file' then
-						pcall(downloadFile, 'catsix/'.. ({v.path:gsub(' ', '%%20')})[1])
-					end
+			if not body or typeof(body) ~= 'table' then return false end
+			local installed = false
+			for _, v in body do
+				if v.type == 'file' and pcall(downloadFile, 'catsix/'.. ({v.path:gsub(' ', '%%20')})[1]) then
+					installed = true
 				end
 			end
+			return installed
 		end
 	end
 end

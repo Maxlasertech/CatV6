@@ -2248,8 +2248,7 @@ run(function()
 	                        local ray = workspace:Raycast(root.Position, Vector3.new(0, -1000, 0), rayParams)
 	                        if ray then
 	                            oldy = root.Position.Y
-	                            entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-	                            root.Velocity = Vector3.new(0, -2.5, 0)
+	                            runService.PostSimulation:Wait()
 	                            root.CFrame = CFrame.lookAlong(Vector3.new(root.CFrame.X, ray.Position.Y + (entitylib.character.HipHeight or 2.5), root.CFrame.Z), root.CFrame.LookVector)
 	                        end
 	                    end
@@ -7754,13 +7753,7 @@ run(function()
 		end
 	
 		for i, v in json do
-			i = i:gsub('DFInt', '')
-				:gsub('DFFlag', '')
-				:gsub('FFlag', '')
-				:gsub('FInt', '')
-				:gsub('DFString', '')
-				:gsub('FString', '')
-	
+			i = i:gsub('DFInt', ''):gsub('DFFlag', ''):gsub('FFlag', ''):gsub('FInt', ''):gsub('DFString', ''):gsub('FString', '')
 			pcall(setfflag, i, tostring(v))
 		end
 	
