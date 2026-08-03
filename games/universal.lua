@@ -7767,7 +7767,7 @@ run(function()
 		notif('Vape', 'FFlags applied, Go in a new game to take effect', 12, 'info')
 	end
 	
-	FFlag = vape.Categories.Legit:CreateModule({
+	FFlag = vape.Legit:CreateModule({
 		Name = 'FFlagEditor',
 		Function = function(call)
 			if call then
