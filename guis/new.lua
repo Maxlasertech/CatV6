@@ -1152,7 +1152,9 @@ components = {
 		}, children, api)
 		
 		fontdropdown.Object:GetPropertyChangedSignal('Visible'):Connect(function()
-			fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
+			if fontbox and fontbox.Object then
+				fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
+			end
 		end)
 		
 		return optionapi
