@@ -862,9 +862,9 @@ run(function()
 	function RemoteHandler:Fire(Method: string?, ...)
 		local Remote = self.Remote
 		if not self.Success or not Remote then
-			if tick() - lastNotify > 0.5 then
+			if tick() - lastNotify > 5 then
 				lastNotify = tick()
-				--notif('Cat', `Tried to Fire remote {Remote.ID}, remote is invalid`, 10, 'alert')
+				notif('Cat', `Tried to Fire remote {Remote.ID}, remote is invalid`, 10, 'alert')
 			end
 			return {
 				andThen = function() end
@@ -876,9 +876,9 @@ run(function()
 		end
 
 		if self:GetCurrentRequests() >= self:GetRateLimit() then
-			if tick() - lastNotify > 0.5 then
+			if tick() - lastNotify > 5 then
 				lastNotify = tick()
-				--notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
+				notif('Cat', `{self.ID} has hit its rate limit of {self.MaxRequestsPerMinute} requests per min`, 15, 'alert')
 			end
 			return {andThen = function() end}
 		end
@@ -3541,7 +3541,7 @@ run(function()
 	                                    fromPosition = origin,
 	                                    initialVelocity = dir
 	                                })
-	                                bedwars.Handler:Get('TridentUnanchor'):Fire('CallServer')
+									task.wait(store.ping.total)
 	                            end
 	                        end
 	                    end
@@ -6649,7 +6649,7 @@ run(function()
 							if (FireDelays[item.itemType] or 0) < tick() then
 								local ent = getEntity()
 								if (not Check.Enabled or ent) and hotbarSwitch(getHotbar(item.tool)) then
-									bedwars.Handler:Get('TridentUnanchor'):Fire('CallServer')
+									task.wait(store.ping.total)
 									local meta = bedwars.ProjectileMeta[projectile]
 									local projSpeed, gravity = meta.launchVelocity, meta.gravitationalAcceleration or 196.2
 									local calc = ent and prediction.SolveTrajectory(entitylib.character.RootPart.Position, projSpeed, gravity, ent.RootPart.Position, ent.RootPart.Velocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, rayCheck, ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(ent.RootPart.Velocity.Y) > 0.01, ent.RootPart.Position, ent.RootPart, nil, true) or nil
@@ -14662,17 +14662,9 @@ run(function()
 	corner.Parent = label
 end)
 task.spawn(function()
-	local incoming
 	repeat
-		if not incoming then
-			incoming = os.clock()
-			task.spawn(function()
-				bedwars.Handler:Get('TridentUnanchor'):Fire('CallServer')
-				store.ping.total = os.clock() - incoming
-				incoming = nil
-			end)
-		end
-		store.ping.incoming = os.clock() - incoming
+		store.ping.total = lplr:GetNetworkPing()
+		store.ping.incoming = store.ping.total
 		task.wait(1)
 	until vape.Loaded == nil
 end)
