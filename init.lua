@@ -84,7 +84,11 @@ if not shared.VapeDeveloper then
 		wipeFolder('catsix/libraries')
 	end
 	writefile('catsix/profiles/commit.txt', commit)
+<<<<<<< HEAD
 	if shared.updated or #listfiles('catsix/profiles') < 4 then
+=======
+	if #listfiles('catsix/profiles') < 4 then
+>>>>>>> 45ffc5c0c8120edf7e44e6a61cd6694b17b59c5a
 		shared.VapePresetInstall = function()
 			local suc, req = pcall(request, {
 				Url = 'https://api.github.com/repos/MaxlaserTech/CatV6/contents/profiles',
