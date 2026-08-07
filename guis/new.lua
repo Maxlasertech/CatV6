@@ -1188,9 +1188,7 @@ components = {
 		}, children, api)
 		
 		fontdropdown.Object:GetPropertyChangedSignal('Visible'):Connect(function()
-			if fontbox and fontbox.Object then
-				fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
-			end
+			fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
 		end)
 		
 		return optionapi
@@ -7407,13 +7405,8 @@ function mainapi:CreatePrompt(promptsettings)
 	icon.Position = UDim2.fromOffset(20, 20)
 	icon.ZIndex = 12
 	icon.BackgroundTransparency = 1
-<<<<<<< HEAD
 	icon.Image = getcustomasset('catsix/assets/new/'..(promptsettings.Icon or 'vape')..'.png')
 	icon.ImageColor3 = promptsettings.Icon and uipallet.Text or Color3.new(1, 1, 1)
-=======
-	icon.Image = getcustomasset('catsix/assets/new/'..(promptsettings.Icon or 'info')..'.png')
-	icon.ImageColor3 = uipallet.Text
->>>>>>> 45ffc5c0c8120edf7e44e6a61cd6694b17b59c5a
 	icon.Parent = window
 	local title = Instance.new('TextLabel')
 	title.Name = 'Title'
@@ -7472,13 +7465,9 @@ function mainapi:CreatePrompt(promptsettings)
 			or color.Light(uipallet.Main, 0.02)
 		button.AutoButtonColor = false
 		button.Text = label
-<<<<<<< HEAD
 		button.TextColor3 = accent
 			and mainapi:TextColor(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
 			or color.Dark(uipallet.Text, 0.16)
-=======
-		button.TextColor3 = accent and Color3.new(1, 1, 1) or color.Dark(uipallet.Text, 0.16)
->>>>>>> 45ffc5c0c8120edf7e44e6a61cd6694b17b59c5a
 		button.TextSize = 13
 		button.FontFace = uipallet.FontSemiBold
 		button.Parent = window
@@ -9480,37 +9469,12 @@ mainapi:Clean(inputService.InputEnded:Connect(function(inputObj)
 	end
 end))
 
-<<<<<<< HEAD
 if not shared.updated then
-=======
-if shared.VapePresetInstall then
->>>>>>> 45ffc5c0c8120edf7e44e6a61cd6694b17b59c5a
 	local prompted = false
 	mainapi:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(function()
 		if prompted or not clickgui.Visible then return end
 		prompted = true
-<<<<<<< HEAD
 		mainapi:PromptPresets()
-=======
-		mainapi:CreatePrompt({
-			Title = 'Preset configs',
-			Text = 'It looks like this is your first time using Vape. Would you like to download the preset configs? They come with recommended settings for each supported game.',
-			Confirm = 'Download',
-			Cancel = 'No thanks',
-			Function = function(result)
-				local install = shared.VapePresetInstall
-				shared.VapePresetInstall = nil
-				if not result or not install then return end
-				task.spawn(function()
-					if install() then
-						mainapi:CreateNotification('Vape', 'Preset configs installed, rejoin to use them.', 8)
-					else
-						mainapi:CreateNotification('Vape', 'Failed to download preset configs.', 8, 'alert')
-					end
-				end)
-			end
-		})
->>>>>>> 45ffc5c0c8120edf7e44e6a61cd6694b17b59c5a
 	end))
 end
 
