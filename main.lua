@@ -94,7 +94,7 @@ local function finishLoading()
 			vape:CreateNotification('Finished Loading', (getgenv().catname and `Authenticated as {getgenv().catname} with {getgenv().catrole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
 			task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
 				if shared.updated then
-					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catrewrite/profiles/commit.txt')}`, 10, 'info')
+					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catsix/profiles/commit.txt')}`, 10, 'info')
 				end
 			end)
 		end	
@@ -111,10 +111,12 @@ if not isfolder('catsix/assets/'..gui) then
 end
 vape = loadstring(downloadFile('catsix/guis/'..gui..'.lua'), 'gui')(license)
 shared.vape = vape
+shared.vapesmooth = true
 _G.vape = vape
 getgenv().used_init = true
 
-if hookmetamethod then
+if hookmetamethod and not getgenv().run then
+	getgenv().run = true
 	local old; old = hookmetamethod(game, '__namecall', function(self, Remote, ...)
 		if not checkcaller() and getnamecallmethod() == 'FireServer' then
 			if typeof(Remote) == "Instance" and Remote.Name == 'TabFreezeAnticheat_ClientToServerReport' then
@@ -145,7 +147,11 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-	loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
+	if shared.VapeDeveloper then
+		loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
+	else
+		loadstring(game:HttpGet('https://api.catvape.dev/download/libraries/premium.lua'), 'premium')(license)
+	end
 	finishLoading()
 else
 	vape.Init = finishLoading

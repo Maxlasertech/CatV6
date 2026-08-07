@@ -232,6 +232,7 @@ end
 
 local hash = loadstring(downloadFile('catsix/libraries/hash.lua'), 'hash')()
 local prediction = loadstring(downloadFile('catsix/libraries/prediction.lua'), 'prediction')()
+local gameengine = loadstring(downloadFile('catsix/libraries/gameengine.lua'), 'gameengine')()
 entitylib = loadstring(downloadFile('catsix/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},
@@ -252,6 +253,7 @@ vape.Libraries.entity = entitylib
 vape.Libraries.whitelist = whitelist
 vape.Libraries.prediction = prediction
 vape.Libraries.hash = hash
+vape.Libraries.gameengine = gameengine
 vape.Libraries.auraanims = {
 	Normal = {
 		{CFrame = CFrame.new(-0.17, -0.14, -0.12) * CFrame.Angles(math.rad(-53), math.rad(50), math.rad(-64)), Time = 0.1},
@@ -2248,8 +2250,7 @@ run(function()
 	                        local ray = workspace:Raycast(root.Position, Vector3.new(0, -1000, 0), rayParams)
 	                        if ray then
 	                            oldy = root.Position.Y
-	                            entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-	                            root.Velocity = Vector3.new(0, -2.5, 0)
+	                            runService.PostSimulation:Wait()
 	                            root.CFrame = CFrame.lookAlong(Vector3.new(root.CFrame.X, ray.Position.Y + (entitylib.character.HipHeight or 2.5), root.CFrame.Z), root.CFrame.LookVector)
 	                        end
 	                    end
@@ -6377,14 +6378,21 @@ run(function()
 end)
 
 run(function()
-	vape.Categories.Utility:CreateModule({
+	local time = tick()
+	local Panic; Panic = vape.Categories.Utility:CreateModule({
 		Name = 'Panic',
 		Function = function(callback)
 			if callback then
-				for _, v in vape.Modules do
-					if v.Enabled then
-						v:Toggle()
+				if time > tick() then
+					for _, v in vape.Modules do
+						if v.Enabled then
+							v:Toggle()
+						end
 					end
+				else
+					notif('Panic', 'Re-enable panic to confirm', 5, 'info')
+					time = tick() + 1
+					Panic:Toggle()
 				end
 			end
 		end,
@@ -7754,13 +7762,7 @@ run(function()
 		end
 	
 		for i, v in json do
-			i = i:gsub('DFInt', '')
-				:gsub('DFFlag', '')
-				:gsub('FFlag', '')
-				:gsub('FInt', '')
-				:gsub('DFString', '')
-				:gsub('FString', '')
-	
+			i = i:gsub('DFInt', ''):gsub('DFFlag', ''):gsub('FFlag', ''):gsub('FInt', ''):gsub('DFString', ''):gsub('FString', '')
 			pcall(setfflag, i, tostring(v))
 		end
 	
@@ -8283,7 +8285,10 @@ run(function()
 		Function = function(callback)
 			if callback then
 				old = lightingService.TimeOfDay
-				lightingService.TimeOfDay = Value.Value..':00:00'
+				repeat
+					lightingService.TimeOfDay = Value.Value..':00:00'
+					task.wait()
+				until not TimeChanger.Enabled
 			else
 				lightingService.TimeOfDay = old
 				old = nil
