@@ -232,7 +232,7 @@ end
 
 local hash = loadstring(downloadFile('catsix/libraries/hash.lua'), 'hash')()
 local prediction = loadstring(downloadFile('catsix/libraries/prediction.lua'), 'prediction')()
-local gameengine = nil--loadstring(downloadFile('catsix/libraries/gameengine.lua'), 'gameengine')()
+local gameengine = loadstring(downloadFile('catsix/libraries/gameengine.lua'), 'gameengine')()
 entitylib = loadstring(downloadFile('catsix/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},
