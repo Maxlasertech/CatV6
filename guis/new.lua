@@ -7073,7 +7073,7 @@ function mainapi:PromptPresets()
 
 	self:CreatePrompt({
 		Title = 'Preset configs',
-		Text = shared.updated and 'Cat Vape has updated. Would you like to install the latest preset configs? Any profile you already have is left alone.' or 'It looks like this is your first time using Vape. Would you like to download the preset configs? They come with recommended settings for each supported game.',
+		Text = 'Would you like to install a premade config, this will override ur default config.',
 		Confirm = 'Install',
 		Cancel = 'No thanks',
 		Function = function(result)
