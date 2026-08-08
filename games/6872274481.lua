@@ -59,6 +59,7 @@ end
 local rankCache = {}
 local store = {
 	attackReach = 0,
+	lastAttack = 0,
 	lastHit = 0,
 	attackReachUpdate = tick(),
 	damageBlockFail = tick(),
@@ -473,6 +474,11 @@ local function getReach(tool)
 	return itemmeta and itemmeta.sword and itemmeta.sword.attackRange or store.swordDistance
 end
 getgenv().getReach = getReach
+
+local function getLastAttack()
+	return math.max(store.lastAttack, bedwars.SwordController.lastAttack or 0)
+end
+getgenv().getLastAttack = getLastAttack
 
 local function getPlacedBlock(pos)
 	if not pos then
@@ -1559,7 +1565,7 @@ run(function()
 			local dblock, dpos = getPlacedBlock(pos)
 			if not dblock then return end
 
-			if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.4 then
+			if (workspace:GetServerTimeNow() - getLastAttack()) > 0.4 then
 				local breaktype = bedwars.ItemMeta[dblock.Name].block.breakType
 				local tool = store.tools[breaktype]
 				if tool then
@@ -3966,7 +3972,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				repeat
-					if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.3 then
+					if (workspace:GetServerTimeNow() - getLastAttack()) > 0.3 then
 						local ent = entitylib.EntityPosition({
 							Part = 'RootPart',
 							Range = Range.Value,
@@ -11567,7 +11573,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				AutoHephaestus:Clean(runService.Heartbeat:Connect(function()
-					if tick() >= lastRepair and store.equippedKit == 'tinker' and bedwars.TinkerKitController.mounted and bedwars.AbilityController:canUseAbility('tinker_self_repair', {disableBlockedAbilityAlert = true}) and (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 1 then
+					if tick() >= lastRepair and store.equippedKit == 'tinker' and bedwars.TinkerKitController.mounted and bedwars.AbilityController:canUseAbility('tinker_self_repair', {disableBlockedAbilityAlert = true}) and (workspace:GetServerTimeNow() - getLastAttack()) > 1 then
 						lastRepair = tick() + 0.5
 						bedwars.AbilityController:useAbility('tinker_self_repair')
 					end
