@@ -7088,7 +7088,7 @@ function mainapi:PromptPresets()
 			if not result then return end
 			task.spawn(function()
 				local loaded = self.Loaded
-				self.Loaded = nil
+				self.Loaded = false
 
 				if not installPresets() then
 					self.Loaded = loaded
