@@ -7058,10 +7058,18 @@ local function installPresets()
 	end)
 	if not decoded or type(body) ~= 'table' then return false end
 
+	local commit = isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt') or 'main'
 	local installed = false
 	for _, v in body do
-		if v.type == 'file' and pcall(downloadFile, 'catsix/'..({v.path:gsub(' ', '%%20')})[1]) then
-			installed = true
+		if v.type == 'file' then
+			local path = ({v.path:gsub(' ', '%%20')})[1]
+			local got, res = pcall(function()
+				return game:HttpGet(`https://raw.githubusercontent.com/MaxlaserTech/CatV6/{commit}/{path}`, true)
+			end)
+			if got and type(res) == 'string' and res ~= '' and res ~= '404: Not Found' then
+				writefile(`catsix/{path}`, res)
+				installed = true
+			end
 		end
 	end
 	return installed
@@ -7079,11 +7087,18 @@ function mainapi:PromptPresets()
 		Function = function(result)
 			if not result then return end
 			task.spawn(function()
-				if installPresets() then
-					self:CreateNotification('Vape', 'Preset configs installed, rejoin to use them.', 8)
-				else
+				local loaded = self.Loaded
+				self.Loaded = nil
+
+				if not installPresets() then
+					self.Loaded = loaded
 					self:CreateNotification('Vape', 'Failed to download preset configs.', 8, 'alert')
+					return
 				end
+
+				table.clear(self.SaveCache)
+				self:Load(true)
+				self:CreateNotification('Vape', `Loaded the preset config for {self.Profile}`, 8)
 			end)
 		end
 	})
