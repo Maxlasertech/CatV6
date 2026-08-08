@@ -7068,7 +7068,7 @@ local function installPresets()
 end
 
 function mainapi:PromptPresets()
-	if self.PromptedPresets or not shouldOfferPresets() then return end
+	if self.PromptedPresets then return end
 	self.PromptedPresets = true
 
 	self:CreatePrompt({
