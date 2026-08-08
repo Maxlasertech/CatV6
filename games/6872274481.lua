@@ -475,11 +475,6 @@ local function getReach(tool)
 end
 getgenv().getReach = getReach
 
-local function getLastAttack()
-	return math.max(store.lastAttack, bedwars.SwordController.lastAttack or 0)
-end
-getgenv().getLastAttack = getLastAttack
-
 local function getPlacedBlock(pos)
 	if not pos then
 		return
@@ -979,7 +974,7 @@ entitylib.start()
 
 local calculatePath
 run(function()
-	local Client, OldGet, OldBreak, OldHit
+	local Client, OldGet, OldBreak, OldHit, OldWallcheck
 	if gameengine.probe() then
 		bedwars = gameengine.build()
 		Client = bedwars.Client
@@ -1244,6 +1239,50 @@ run(function()
 		return bedwars.QueryUtil:raycast(origin, direction, params)
 	end
 	prediction.Raycast = entitylib.Raycast
+
+	OldWallcheck = entitylib.Wallcheck
+	local wallcheckParams = RaycastParams.new()
+	wallcheckParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local function getFeetPosition(character)
+		local root = character.PrimaryPart
+		if not root then return nil end
+
+		local humanoid = character:FindFirstChildWhichIsA('Humanoid')
+		return root.Position - Vector3.new(0, (humanoid and humanoid.HipHeight or 0) + (root.Size.Y / 2), 0)
+	end
+
+	local function isSegmentBlocked(from, to)
+		return entitylib.Raycast(from, to - from, wallcheckParams) or entitylib.Raycast(to, from - to, wallcheckParams)
+	end
+
+	entitylib.Wallcheck = function(origin, position, ignoreobject, entity)
+		local character = entity and entity.Character
+		local selfcharacter = lplr.Character
+		local selffeet = selfcharacter and getFeetPosition(selfcharacter)
+		local targetfeet = character and getFeetPosition(character)
+		if not selffeet or not targetfeet then
+			return OldWallcheck(origin, position, ignoreobject)
+		end
+
+		local humanoid = selfcharacter:FindFirstChildWhichIsA('Humanoid')
+		local scale = humanoid and humanoid:FindFirstChild('BodyHeightScale')
+		local height = Vector3.new(0, 5 * (scale and scale.Value or 1), 0)
+		local selfhead, targethead = selffeet + height, targetfeet + height
+
+		local filter = {selfcharacter, character}
+		for _, v in collectionService:GetTagged('DontBlockSwordRaycast') do
+			table.insert(filter, v)
+		end
+		if typeof(ignoreobject) == 'table' then
+			for _, v in ignoreobject do
+				table.insert(filter, v)
+			end
+		end
+		wallcheckParams.FilterDescendantsInstances = filter
+
+		return isSegmentBlocked(selffeet, targetfeet) and isSegmentBlocked(selfhead, targethead) and isSegmentBlocked((selffeet + selfhead) / 2, (targetfeet + targethead) / 2) or nil
+	end
 
 	OldBreak = bedwars.BlockController.isBlockBreakable
 	OldHit = bedwars.BlockBreaker.hitBlock
@@ -1565,7 +1604,7 @@ run(function()
 			local dblock, dpos = getPlacedBlock(pos)
 			if not dblock then return end
 
-			if (workspace:GetServerTimeNow() - getLastAttack()) > 0.4 then
+			if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.4 then
 				local breaktype = bedwars.ItemMeta[dblock.Name].block.breakType
 				local tool = store.tools[breaktype]
 				if tool then
@@ -1974,7 +2013,7 @@ run(function()
 		if (localPosition - ent.RootPart.Position).Magnitude > Distance.Value then
 			return false
 		end
-		if Targets.Walls.Enabled and entitylib.Wallcheck(localPosition, ent.RootPart.Position, Targets.Walls.Enabled) then
+		if Targets.Walls.Enabled and entitylib.Wallcheck(localPosition, ent.RootPart.Position, Targets.Walls.Enabled, ent) then
 			return false
 		end
 		return true
@@ -3972,7 +4011,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				repeat
-					if (workspace:GetServerTimeNow() - getLastAttack()) > 0.3 then
+					if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.3 then
 						local ent = entitylib.EntityPosition({
 							Part = 'RootPart',
 							Range = Range.Value,
@@ -11573,7 +11612,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				AutoHephaestus:Clean(runService.Heartbeat:Connect(function()
-					if tick() >= lastRepair and store.equippedKit == 'tinker' and bedwars.TinkerKitController.mounted and bedwars.AbilityController:canUseAbility('tinker_self_repair', {disableBlockedAbilityAlert = true}) and (workspace:GetServerTimeNow() - getLastAttack()) > 1 then
+					if tick() >= lastRepair and store.equippedKit == 'tinker' and bedwars.TinkerKitController.mounted and bedwars.AbilityController:canUseAbility('tinker_self_repair', {disableBlockedAbilityAlert = true}) and (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 1 then
 						lastRepair = tick() + 0.5
 						bedwars.AbilityController:useAbility('tinker_self_repair')
 					end
