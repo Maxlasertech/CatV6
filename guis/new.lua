@@ -3783,7 +3783,12 @@ function mainapi:CreateCategory(categorysettings)
 		modulebutton.TextColor3 = color.Dark(uipallet.Text, 0.16)
 		modulebutton.TextSize = 14
 		modulebutton.FontFace = uipallet.Font
-		modulebutton.Parent = children
+		if not pcall(function()
+			modulebutton.Parent = children
+		end) and mainapi.ThreadFix then
+			setthreadidentity(8)
+			modulebutton.Parent = children
+		end
 		local indicatorholder = Instance.new('Frame')
 		indicatorholder.Parent = modulebutton
 		indicatorholder.Size = UDim2.fromOffset(0, 21)
@@ -4753,6 +4758,10 @@ function mainapi:CreateCategoryList(categorysettings)
 		end
 
 		local function refreshModules()
+			if mainapi.ThreadFix then
+				setthreadidentity(8)
+			end
+			
 			for _, old in modulelist:GetChildren() do
 				if old:IsA('TextButton') then
 					old:Destroy()
@@ -7016,21 +7025,39 @@ local function escapeRich(text)
 	return (text:gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;'))
 end
 
+local markerColors = {
+	['+'] = '#57a64a',
+	['-'] = '#e06c75',
+	['*'] = '#5c9fd6',
+	['!'] = '#e5c07b'
+}
+
 local function formatNotes(text)
 	local lines = {}
 	for _, line in string.split(text, '\n') do
-		local escaped = escapeRich(line)
-		if line:sub(1, 1) == '+' then
-			table.insert(lines, `<font color="#57a64a">{escaped}</font>`)
-		elseif line:sub(1, 1) == '-' then
-			table.insert(lines, `<font color="#e06c75">{escaped}</font>`)
-		elseif line:match('^%[.+%]$') then
+		local clean = line:gsub('\27%[[%d;]*m', '')
+		local escaped = escapeRich(clean):gsub('%[PAID%]', '<font color="#c678dd">[PAID]</font>')
+		local color = markerColors[clean:match('^%[(.)%] ') or '']
+		if color then
+			table.insert(lines, `<font color="{color}">{escaped}</font>`)
+		elseif clean:match('^%[.+%]$') then
 			table.insert(lines, `<font color="#dcddde">{escaped}</font>`)
 		else
 			table.insert(lines, escaped)
 		end
 	end
 	return table.concat(lines, '\n')
+end
+
+local presetPromptFile = 'catsix/profiles/presetprompt.txt'
+
+local function getCommit()
+	return isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt') or nil
+end
+
+local function dismissedPresets()
+	local commit = getCommit()
+	return commit ~= nil and isfile(presetPromptFile) and readfile(presetPromptFile) == commit
 end
 
 local function shouldOfferPresets()
@@ -7058,7 +7085,7 @@ local function installPresets()
 	end)
 	if not decoded or type(body) ~= 'table' then return false end
 
-	local commit = isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt') or 'main'
+	local commit = getCommit() or 'main'
 	local installed = false
 	for _, v in body do
 		if v.type == 'file' then
@@ -7076,7 +7103,7 @@ local function installPresets()
 end
 
 function mainapi:PromptPresets()
-	if self.PromptedPresets then return end
+	if self.PromptedPresets or dismissedPresets() then return end
 	self.PromptedPresets = true
 
 	self:CreatePrompt({
@@ -7084,7 +7111,13 @@ function mainapi:PromptPresets()
 		Text = 'Would you like to install a premade config, this will override ur default config.',
 		Confirm = 'Install',
 		Cancel = 'No thanks',
+		Dismiss = 'Dont show until next update',
 		Function = function(result)
+			if result == 'dismiss' then
+				pcall(writefile, presetPromptFile, getCommit() or 'main')
+				self:CreateNotification('Vape', 'Preset configs wont be offered again until the next update.', 8)
+				return
+			end
 			if not result then return end
 			task.spawn(function()
 				local loaded = self.Loaded
@@ -7407,7 +7440,7 @@ function mainapi:CreatePrompt(promptsettings)
 	local window = Instance.new('Frame')
 	window.Name = 'Prompt'
 	window.AnchorPoint = Vector2.new(0.5, 0.5)
-	window.Size = UDim2.fromOffset(360, 178)
+	window.Size = UDim2.fromOffset(360, promptsettings.Dismiss and 218 or 178)
 	window.Position = UDim2.fromScale(0.5, 0.5)
 	window.ZIndex = 11
 	window.BackgroundColor3 = uipallet.Main
@@ -7469,11 +7502,11 @@ function mainapi:CreatePrompt(promptsettings)
 		end
 	end
 
-	local function createButton(name, label, offset, accent)
+	local function createButton(name, label, offset, width, bottom, accent)
 		local button = Instance.new('TextButton')
 		button.Name = name
-		button.Size = UDim2.fromOffset(158, 32)
-		button.Position = UDim2.new(0, offset, 1, -48)
+		button.Size = UDim2.fromOffset(width, 32)
+		button.Position = UDim2.new(0, offset, 1, -bottom)
 		button.ZIndex = 12
 		button.BackgroundColor3 = accent
 			and Color3.fromHSV(mainapi.GUIColor.Hue, mainapi.GUIColor.Sat, mainapi.GUIColor.Value)
@@ -7504,12 +7537,18 @@ function mainapi:CreatePrompt(promptsettings)
 		return button
 	end
 
-	createButton('Cancel', promptsettings.Cancel or 'No', 20, false).MouseButton1Click:Connect(function()
+	local row = promptsettings.Dismiss and 88 or 48
+	createButton('Cancel', promptsettings.Cancel or 'No', 20, 158, row, false).MouseButton1Click:Connect(function()
 		answer(false)
 	end)
-	createButton('Confirm', promptsettings.Confirm or 'Yes', 182, true).MouseButton1Click:Connect(function()
+	createButton('Confirm', promptsettings.Confirm or 'Yes', 182, 158, row, true).MouseButton1Click:Connect(function()
 		answer(true)
 	end)
+	if promptsettings.Dismiss then
+		createButton('Dismiss', promptsettings.Dismiss, 20, 320, 48, false).MouseButton1Click:Connect(function()
+			answer('dismiss')
+		end)
+	end
 	return answer
 end
 
@@ -7727,6 +7766,9 @@ function mainapi:LoadOptions(object, savedoptions)
 	for i, v in savedoptions do
 		local option = object.Options[i]
 		if not option then continue end
+		if mainapi.ThreadFix then
+			setthreadidentity(8)
+		end
 		option:Load(v)
 	end
 end
@@ -7871,7 +7913,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
 if mainapi.ThreadFix then
-	gui.Parent = (gethui and gethui()) or cloneref(game:GetService('CoreGui'))
+	gui.Parent = cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
 	gui.ResetOnSpawn = false

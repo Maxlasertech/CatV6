@@ -153,7 +153,7 @@ entitylib.EntityMouse = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(entitysettings.Origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(entitysettings.Origin, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.clear(entitysettings)
 			table.clear(sortingTable)
@@ -187,7 +187,7 @@ entitylib.EntityPosition = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.clear(entitysettings)
 			table.clear(sortingTable)
@@ -222,7 +222,7 @@ entitylib.AllPosition = function(entitysettings)
 
 		for _, v in sortingTable do
 			if entitysettings.Wallcheck then
-				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck) then continue end
+				if entitylib.Wallcheck(localPosition, v.Entity[entitysettings.Part].Position, entitysettings.Wallcheck, v.Entity) then continue end
 			end
 			table.insert(returned, v.Entity)
 			if #returned >= (entitysettings.Limit or math.huge) then break end
