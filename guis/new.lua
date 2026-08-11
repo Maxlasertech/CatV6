@@ -19,7 +19,7 @@ local mainapi = {
 	RainbowTable = {},
 	SaveCache = {},
 	Scale = {Value = 1},
-	ThreadFix = setthreadidentity and true or false,
+	ThreadFix = false,--setthreadidentity and true or false,
 	ToggleNotifications = {},
 	Version = '4.18',
 	Windows = {}
