@@ -19,7 +19,7 @@ local mainapi = {
 	RainbowTable = {},
 	SaveCache = {},
 	Scale = {Value = 1},
-	ThreadFix = false,--setthreadidentity and true or false,
+	ThreadFix = setthreadidentity and true or false,
 	ToggleNotifications = {},
 	Version = '4.18',
 	Windows = {}
@@ -7912,7 +7912,7 @@ gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
-if mainapi.ThreadFix then
+if false then
 	gui.Parent = cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
