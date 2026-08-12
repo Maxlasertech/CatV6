@@ -2797,7 +2797,6 @@ run(function()
 	end
 	
 	local function destroyClone()
-	            clone = nil
 		local char = lplr.Character
 		if oldroot and oldroot.Parent and char then 
 			char.Parent = replicatedStorage
