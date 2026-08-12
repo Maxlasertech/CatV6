@@ -26,7 +26,7 @@ local guiService = cloneref(game:GetService('GuiService'))
 local coreGui = cloneref(game:GetService('CoreGui'))
 local starterGui = cloneref(game:GetService('StarterGui'))
 
-local isnetworkowner = shared.VapeDeveloper and isnetworkowner or function()
+local isnetworkowner = isnetworkowner or function()
 	return true
 end
 local gameCamera = workspace.CurrentCamera
@@ -392,14 +392,15 @@ local function getRoactRender(func)
 end
 
 local function getSword()
-	local bestSword, bestSwordSlot, bestSwordDamage = nil, nil, -1
+	local bestSword, bestSwordSlot, bestSwordDamage, bestSwordRange = nil, nil, -1, -1
 	for slot, item in store.inventory.inventory.items do
 		local itemMeta = bedwars.ItemMeta[item.itemType]
 		local swordMeta = itemMeta and itemMeta.sword or nil
 		if swordMeta then
 			local swordDamage = swordMeta.damage or 0
-			if swordDamage > bestSwordDamage then
-				bestSword, bestSwordSlot, bestSwordDamage = item, slot, swordDamage
+			local swordRange = swordMeta.attackRange or store.swordDistance or 0
+			if swordDamage > bestSwordDamage or (swordDamage == bestSwordDamage and swordRange > bestSwordRange) then
+				bestSword, bestSwordSlot, bestSwordDamage, bestSwordRange = item, slot, swordDamage, swordRange
 			end
 		end
 	end
@@ -1399,6 +1400,35 @@ run(function()
 			return root[1], root[2]
 		end
 
+		local routes = {}
+		local function isOpen(cell)
+			if routes[cell] ~= nil then
+				return routes[cell]
+			end
+			local queue, seen, open = {cell}, {[cell] = true}, true
+
+			for _ = 1, 400 do
+				local current = table.remove(queue)
+				if not current then
+					open = false
+					break
+				end
+				if (current - blockpos).Magnitude > 15 then break end
+
+				for _, side in sides do
+					side = current + side
+					if seen[side] or getPlacedBlock(side) then continue end
+					seen[side] = true
+					table.insert(queue, side)
+				end
+			end
+
+			for reached in seen do
+				routes[reached] = open
+			end
+			return open
+		end
+
 		local visited, distances, exposed, path = {}, {[blockpos] = 0}, {}, {}
 		local gaps, sources = {[blockpos] = 0}, {[blockpos] = blockpos}
 		push(0, blockpos)
@@ -1426,7 +1456,7 @@ run(function()
 					end
 
 					local gap = current and 1 or (gaps[node] + 1)
-					if not solidonly and gap <= 2 and (side - blockpos).Magnitude <= 15 and cost < (distances[side] or math.huge) then
+					if not solidonly and gap <= 2 and (side - blockpos).Magnitude <= 15 and cost < (distances[side] or math.huge) and not isOpen(side) then
 						distances[side] = cost
 						gaps[side] = gap
 						sources[side] = source
@@ -1460,35 +1490,6 @@ run(function()
 			end
 			return a[1] < b[1]
 		end)
-
-		local routes = {}
-		local function isOpen(cell)
-			if routes[cell] ~= nil then
-				return routes[cell]
-			end
-			local queue, seen, open = {cell}, {[cell] = true}, true
-
-			for _ = 1, 400 do
-				local current = table.remove(queue)
-				if not current then
-					open = false
-					break
-				end
-				if (current - blockpos).Magnitude > 15 then break end
-
-				for _, side in sides do
-					side = current + side
-					if seen[side] or getPlacedBlock(side) then continue end
-					seen[side] = true
-					table.insert(queue, side)
-				end
-			end
-
-			for reached in seen do
-				routes[reached] = open
-			end
-			return open
-		end
 
 		local function boundary(index, component, delta)
 			if delta == 0 then
@@ -1535,6 +1536,7 @@ run(function()
 		local function canReach(cell)
 			if not reachable then
 				local start = bedwars.BlockController:getBlockPosition(origin) * 3
+				local limit = math.max((start - blockpos).Magnitude, 18)
 				local queue, index = {start}, 1
 				reachable = {[start] = true}
 
@@ -1545,7 +1547,7 @@ run(function()
 
 					for _, side in sides do
 						side = current + side
-						if reachable[side] or (side - blockpos).Magnitude > 18 or getPlacedBlock(side) then continue end
+						if reachable[side] or (side - blockpos).Magnitude > limit or getPlacedBlock(side) then continue end
 						reachable[side] = true
 						table.insert(queue, side)
 					end
@@ -1555,22 +1557,38 @@ run(function()
 			return reachable[cell] or false
 		end
 
-		local pos, cost = nil, nil
-		for _, candidate in candidates do
-			if (candidate[2] - origin).Magnitude > 30 then continue end
-			local bed = not solidonly and getPlacedBlock(candidate[2]) == target
+		local pos, cost, blocked = nil, nil, false
+		local opencells = not solidonly and (blockpos - origin).Magnitude <= 30 and exposed[blockpos]
 
-			for _, cell in candidate[3] do
-				if isOpen(cell) and (not bed or canSee(cell) or canReach(cell)) then
-					pos, cost = candidate[2], candidate[1]
+		if opencells then
+			for _, cell in opencells do
+				if not isOpen(cell) then continue end
+				blocked = true
+
+				if canSee(cell) or canReach(cell) then
+					pos, cost, blocked = blockpos, distances[blockpos], false
 					break
 				end
 			end
-
-			if pos then break end
 		end
 
-		if not pos then
+		if not pos and not blocked then
+			for _, candidate in candidates do
+				if (candidate[2] - origin).Magnitude > 30 then continue end
+				if not solidonly and getPlacedBlock(candidate[2]) == target then continue end
+
+				for _, cell in candidate[3] do
+					if isOpen(cell) then
+						pos, cost = candidate[2], candidate[1]
+						break
+					end
+				end
+
+				if pos then break end
+			end
+		end
+
+		if not pos and not blocked then
 			for _, candidate in candidates do
 				if solidonly or getPlacedBlock(candidate[2]) ~= target then
 					pos, cost = candidate[2], candidate[1]
@@ -4150,7 +4168,10 @@ run(function()
 			if callback then
 				Speed:Clean(runService.PreSimulation:Connect(function(dt)
 					bedwars.StatefulEntityKnockbackController.lastImpulseTime = callback and math.huge or time()
-					if entitylib.isAlive and not Fly.Enabled and not InfiniteFly.Enabled and not LongJump.Enabled and isnetworkowner(entitylib.character.RootPart) then	
+					if entitylib.isAlive and not Fly.Enabled and not InfiniteFly.Enabled and not LongJump.Enabled and isnetworkowner(entitylib.character.RootPart) then
+						local state = entitylib.character.Humanoid:GetState()
+						if state == Enum.HumanoidStateType.Climbing then return end
+	
 						local root, velo = entitylib.character.RootPart, getSpeed()
 						local moveDirection = AntiFallDirection or entitylib.character.Humanoid.MoveDirection
 						local destination = (moveDirection * math.max(Value.Value - velo, 0) * dt)
@@ -4158,9 +4179,9 @@ run(function()
 						if WallCheck.Enabled then
 							rayCheck.FilterDescendantsInstances = {lplr.Character, gameCamera}
 							rayCheck.CollisionGroup = root.CollisionGroup
-							local ray = workspace:Raycast(root.Position, moveDirection * 2, rayCheck)
+							local ray = workspace:Raycast(root.Position, destination, rayCheck)
 							if ray then
-								destination = Vector3.zero--((ray.Position + ray.Normal) - root.Position)
+								destination = ((ray.Position + ray.Normal) - root.Position)
 							end
 						end
 	
@@ -4738,6 +4759,276 @@ run(function()
 		end,
 		Tooltip = 'Displays your health in the center of your screen.'
 	})
+end)
+
+run(function()
+	local InventoryESP
+	local Armor
+	local Empty
+	local Color = {}
+	local window, headshot, nametag, grid, armorholder, armordivider
+	local slots, armorslots = {}, {}
+	
+	local SlotCount = 24
+	local SlotSize = 32
+	local SlotPadding = 4
+	local Columns = 6
+	local HeaderHeight = 46
+	
+	local function createSlot(parent)
+		local slot = Instance.new('Frame')
+		slot.Size = UDim2.fromOffset(SlotSize, SlotSize)
+		slot.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
+		slot.BorderSizePixel = 0
+		slot.Visible = false
+		slot.Parent = parent
+		local corner = Instance.new('UICorner')
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = slot
+		local stroke = Instance.new('UIStroke')
+		stroke.Color = color.Light(uipallet.Main, 0.034)
+		stroke.Parent = slot
+		local icon = Instance.new('ImageLabel')
+		icon.Name = 'Icon'
+		icon.Size = UDim2.fromOffset(SlotSize - 8, SlotSize - 8)
+		icon.Position = UDim2.fromScale(0.5, 0.5)
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.BackgroundTransparency = 1
+		icon.Parent = slot
+		local amount = Instance.new('TextLabel')
+		amount.Name = 'Amount'
+		amount.Size = UDim2.fromOffset(SlotSize - 4, 11)
+		amount.Position = UDim2.fromOffset(0, SlotSize - 13)
+		amount.BackgroundTransparency = 1
+		amount.Text = ''
+		amount.TextXAlignment = Enum.TextXAlignment.Right
+		amount.TextSize = 11
+		amount.TextColor3 = uipallet.Text
+		amount.TextStrokeColor3 = Color3.new()
+		amount.TextStrokeTransparency = 0.4
+		amount.FontFace = uipallet.Font
+		amount.Parent = slot
+		return slot
+	end
+	
+	local function buildWindow()
+		window = Instance.new('Frame')
+		window.Name = 'InventoryESP'
+		window.Size = UDim2.fromOffset(240, HeaderHeight)
+		window.Position = UDim2.fromOffset(12, 260)
+		window.BackgroundColor3 = uipallet.Main
+		window.BackgroundTransparency = 1 - (Color.Opacity or 0.5)
+		window.Visible = false
+		window.Parent = vape.gui.ScaledGui
+		addBlur(window)
+		local corner = Instance.new('UICorner')
+		corner.CornerRadius = UDim.new(0, 5)
+		corner.Parent = window
+	
+		headshot = Instance.new('ImageLabel')
+		headshot.Name = 'Headshot'
+		headshot.Size = UDim2.fromOffset(26, 26)
+		headshot.Position = UDim2.fromOffset(14, 11)
+		headshot.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
+		headshot.Image = ''
+		headshot.Parent = window
+		local headcorner = Instance.new('UICorner')
+		headcorner.CornerRadius = UDim.new(0, 4)
+		headcorner.Parent = headshot
+	
+		nametag = Instance.new('TextLabel')
+		nametag.Name = 'Name'
+		nametag.Size = UDim2.new(1, -60, 0, 26)
+		nametag.Position = UDim2.fromOffset(48, 11)
+		nametag.BackgroundTransparency = 1
+		nametag.Text = ''
+		nametag.TextXAlignment = Enum.TextXAlignment.Left
+		nametag.TextSize = 13
+		nametag.TextColor3 = uipallet.Text
+		nametag.TextTruncate = Enum.TextTruncate.AtEnd
+		nametag.FontFace = uipallet.Font
+		nametag.Parent = window
+	
+		local divider = Instance.new('Frame')
+		divider.Name = 'Divider'
+		divider.Size = UDim2.new(1, 0, 0, 1)
+		divider.Position = UDim2.fromOffset(0, HeaderHeight - 1)
+		divider.BackgroundColor3 = color.Light(uipallet.Main, 0.04)
+		divider.BorderSizePixel = 0
+		divider.Parent = window
+	
+		grid = Instance.new('Frame')
+		grid.Name = 'Items'
+		grid.Size = UDim2.new(1, -28, 0, 0)
+		grid.Position = UDim2.fromOffset(14, HeaderHeight + 10)
+		grid.BackgroundTransparency = 1
+		grid.Parent = window
+		local layout = Instance.new('UIGridLayout')
+		layout.CellSize = UDim2.fromOffset(SlotSize, SlotSize)
+		layout.CellPadding = UDim2.fromOffset(SlotPadding, SlotPadding)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = grid
+	
+		for i = 1, SlotCount do
+			local slot = createSlot(grid)
+			slot.LayoutOrder = i
+			slots[i] = slot
+		end
+	
+		armordivider = Instance.new('Frame')
+		armordivider.Name = 'ArmorDivider'
+		armordivider.Size = UDim2.new(1, 0, 0, 1)
+		armordivider.BackgroundColor3 = color.Light(uipallet.Main, 0.04)
+		armordivider.BorderSizePixel = 0
+		armordivider.Parent = window
+	
+		armorholder = Instance.new('Frame')
+		armorholder.Name = 'Armor'
+		armorholder.Size = UDim2.fromOffset(240, SlotSize)
+		armorholder.BackgroundTransparency = 1
+		armorholder.Parent = window
+		local armorlayout = Instance.new('UIListLayout')
+		armorlayout.FillDirection = Enum.FillDirection.Horizontal
+		armorlayout.Padding = UDim.new(0, SlotPadding)
+		armorlayout.Parent = armorholder
+	
+		for i = 1, 4 do
+			local slot = createSlot(armorholder)
+			slot.LayoutOrder = i
+			armorslots[i] = slot
+		end
+	end
+	
+	local function setSlot(slot, item, highlight)
+		if not item or not item.itemType then
+			slot.Visible = false
+			return
+		end
+	
+		slot.Visible = true
+		slot.Icon.Image = bedwars.getIcon(item, true)
+		slot.Amount.Text = (item.amount or 1) > 1 and tostring(item.amount) or ''
+		slot.UIStroke.Color = highlight and Color3.fromHSV(Color.Hue, Color.Sat, Color.Value) or color.Light(uipallet.Main, 0.034)
+	end
+	
+	local function getTarget()
+		local best, highest = nil, tick()
+		for ent, expiry in targetinfo.Targets do
+			if expiry < tick() then
+				targetinfo.Targets[ent] = nil
+				continue
+			end
+			if expiry > highest then
+				best, highest = ent, expiry
+			end
+		end
+		return best
+	end
+	
+	local function refresh()
+		local ent = getTarget()
+		local player = ent and ent.Player or nil
+		local inventory = player and store.inventories[player] or nil
+	
+		if not ent or (not inventory and not Empty.Enabled) then
+			window.Visible = false
+			return
+		end
+	
+		window.Visible = true
+		nametag.Text = player and player.DisplayName or (ent.Character and ent.Character.Name) or ''
+		headshot.Image = 'rbxthumb://type=AvatarHeadShot&id='..(player and player.UserId or 1)..'&w=420&h=420'
+	
+		inventory = inventory or {items = {}, armor = {}}
+		local hand = inventory.hand
+		local shown = 0
+	
+		for i, slot in slots do
+			local item = inventory.items[i]
+			setSlot(slot, item, item and hand and item.tool == hand.tool)
+			if slot.Visible then
+				shown = i
+			end
+		end
+	
+		local rows = math.max(math.ceil(shown / Columns), 1)
+		local gridheight = (rows * SlotSize) + ((rows - 1) * SlotPadding)
+		grid.Size = UDim2.new(1, -28, 0, gridheight)
+	
+		local height = HeaderHeight + 10 + gridheight + 10
+		if Armor.Enabled then
+			armordivider.Visible = true
+			armorholder.Visible = true
+			armordivider.Position = UDim2.fromOffset(0, height - 1)
+	
+			local armorcount = 0
+			for i = 1, 3 do
+				local item = inventory.armor[i + 3]
+				setSlot(armorslots[i], item)
+				if armorslots[i].Visible then
+					armorcount += 1
+				end
+			end
+			setSlot(armorslots[4], hand, true)
+	
+			armorholder.Position = UDim2.fromOffset(14, height + 9)
+			height += SlotSize + 19
+		else
+			armordivider.Visible = false
+			armorholder.Visible = false
+		end
+	
+		window.Size = UDim2.fromOffset(240, height)
+	end
+	
+	InventoryESP = vape.Categories.Render:CreateModule({
+		Name = 'InventoryESP',
+		Function = function(callback)
+			if callback then
+				if not window then
+					buildWindow()
+				end
+	
+				repeat
+					if vape.ThreadFix then
+						setthreadidentity(8)
+					end
+					refresh()
+					task.wait(0.1)
+				until not InventoryESP.Enabled
+	
+				window.Visible = false
+			elseif window then
+				window.Visible = false
+			end
+		end,
+		Tooltip = 'Shows the inventory of whoever you are currently targeting'
+	})
+	Armor = InventoryESP:CreateToggle({
+		Name = 'Show armor',
+		Function = function()
+			if InventoryESP.Enabled then
+				refresh()
+			end
+		end,
+		Default = true
+	})
+	Empty = InventoryESP:CreateToggle({
+		Name = 'Show without data',
+		Tooltip = 'Keeps the panel up when the server has not shared their inventory yet'
+	})
+	Color = InventoryESP:CreateColorSlider({
+		Name = 'Background Color',
+		DefaultValue = 0,
+		DefaultOpacity = 0.5,
+		Function = function(hue, sat, val, opacity)
+			if window then
+				window.BackgroundColor3 = uipallet.Main
+				window.BackgroundTransparency = 1 - opacity
+			end
+		end
+	})
+	
 end)
 
 run(function()
@@ -5890,39 +6181,64 @@ run(function()
 	Folder.Parent = vape.gui
 	
 	local Reference = {}
+	local Template
 	
-	local function Added(ent)
-		if not ent.Name:find('potion') or Reference[ent] then return end
+	local function getTemplate()
+		if Template then return Template end
+	
+		local assets = replicatedStorage:FindFirstChild('Assets')
+		local blocks = assets and assets:FindFirstChild('Blocks')
+		local model = blocks and blocks:FindFirstChild('desert_pot')
+		Template = model and model:FindFirstChildWhichIsA('MeshPart', true)
+	
+		return Template
+	end
+	
+	local function Added(block)
+		if block.Name ~= 'desert_pot' or Reference[block] then return end
 	
 		local billboard = Instance.new('BillboardGui')
 		billboard.Parent = Folder
-		billboard.Name = ent.Name
-		billboard.StudsOffsetWorldSpace = Vector3.new(0, 2, 0)
-		billboard.Size = UDim2.fromOffset(30, 30)
+		billboard.Name = block.Name
+		billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+		billboard.Size = UDim2.fromOffset(36, 36)
 		billboard.AlwaysOnTop = true
 		billboard.ClipsDescendants = false
-		billboard.Adornee = ent
+		billboard.Adornee = block
 		local blur = addBlur(billboard)
 		blur.Visible = Background.Enabled
-		local image = Instance.new('ImageLabel')
-		image.Size = UDim2.fromOffset(30, 30)
-		image.Position = UDim2.fromScale(0.5, 0.5)
-		image.AnchorPoint = Vector2.new(0.5, 0.5)
-		image.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
-		image.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
-		image.BorderSizePixel = 0
-		image.Image = bedwars.getIcon({itemType = ent.Name}, true)
-		image.Parent = billboard
+		local viewport = Instance.new('ViewportFrame')
+		viewport.Size = UDim2.fromOffset(36, 36)
+		viewport.Position = UDim2.fromScale(0.5, 0.5)
+		viewport.AnchorPoint = Vector2.new(0.5, 0.5)
+		viewport.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
+		viewport.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
+		viewport.BorderSizePixel = 0
+		viewport.Ambient = Color3.new(1, 1, 1)
+		viewport.LightColor = Color3.new(1, 1, 1)
+		viewport.Parent = billboard
 		local uicorner = Instance.new('UICorner')
 		uicorner.CornerRadius = UDim.new(0, 4)
-		uicorner.Parent = image
-		Reference[ent] = billboard
+		uicorner.Parent = viewport
+	
+		local mesh = getTemplate()
+		if mesh then
+			mesh = mesh:Clone()
+			mesh.CFrame = CFrame.Angles(0, math.rad(25), 0)
+			mesh.Parent = viewport
+			local camera = Instance.new('Camera')
+			camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.75, 3.9), Vector3.new(0, 0.05, 0))
+			camera.Parent = viewport
+			viewport.CurrentCamera = camera
+		end
+	
+		Reference[block] = billboard
 	end
 	
-	local function Removing(ent)
-		if Reference[ent] then
-			Reference[ent]:Destroy()
-			Reference[ent] = nil
+	local function Removing(block)
+		if Reference[block] then
+			Reference[block]:Destroy()
+			Reference[block] = nil
 		end
 	end
 	
@@ -5930,25 +6246,25 @@ run(function()
 		Name = 'PotESP',
 		Function = function(callback)
 			if callback then
-				for _, v in collectionService:GetTagged('ItemDrop') do
+				for _, v in collectionService:GetTagged('block') do
 					Added(v)
 				end
-				PotESP:Clean(collectionService:GetInstanceAddedSignal('ItemDrop'):Connect(Added))
-				PotESP:Clean(collectionService:GetInstanceRemovedSignal('ItemDrop'):Connect(Removing))
+				PotESP:Clean(collectionService:GetInstanceAddedSignal('block'):Connect(Added))
+				PotESP:Clean(collectionService:GetInstanceRemovedSignal('block'):Connect(Removing))
 			else
 				for i in Reference do
 					Removing(i)
 				end
 			end
 		end,
-		Tooltip = 'Renders an icon over dropped potions'
+		Tooltip = 'Renders an icon over desert pots'
 	})
 	Background = PotESP:CreateToggle({
 		Name = 'Background',
 		Function = function(callback)
 			if Color.Object then Color.Object.Visible = callback end
 			for _, v in Reference do
-				v.ImageLabel.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
+				v.ViewportFrame.BackgroundTransparency = 1 - (callback and Color.Opacity or 0)
 				v.Blur.Visible = callback
 			end
 		end,
@@ -5960,12 +6276,13 @@ run(function()
 		DefaultOpacity = 0.5,
 		Function = function(hue, sat, val, opacity)
 			for _, v in Reference do
-				v.ImageLabel.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-				v.ImageLabel.BackgroundTransparency = 1 - opacity
+				v.ViewportFrame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
+				v.ViewportFrame.BackgroundTransparency = 1 - opacity
 			end
 		end,
 		Darker = true
 	})
+	
 end)
 
 run(function()
@@ -6140,13 +6457,28 @@ run(function()
 		local template = replicatedStorage.Items:FindFirstChild(getSkin(accessory.Name) or '')
 		if not handle or not template or added[accessory] then return end
 	
-		local parts = {}
-		added[accessory] = parts
+		local grip = handle:FindFirstChild('RightGripAttachment')
+		local templategrip = template.Handle:FindFirstChild('RightGripAttachment')
+		local record = {
+			Parts = {},
+			Size = handle.Size,
+			Grip = grip and grip.CFrame or nil
+		}
+		added[accessory] = record
+	
 		handle:ApplyMesh(template.Handle)
+		handle.Size = template.Handle.Size
+		if grip and templategrip then
+			grip.CFrame = templategrip.CFrame
+		end
 	
 		for _, v in template.Handle:GetChildren() do
 			if v:IsA('BasePart') then
 				local part = v:Clone()
+				part.CanCollide = false
+				part.CanTouch = false
+				part.CanQuery = false
+				part.Massless = true
 				part.CFrame = handle.CFrame * (template.Handle.CFrame:Inverse() * v.CFrame)
 				part.Parent = handle
 	
@@ -6154,7 +6486,7 @@ run(function()
 				weld.Part0 = handle
 				weld.Part1 = part
 				weld.Parent = part
-				table.insert(parts, part)
+				table.insert(record.Parts, part)
 			end
 		end
 	end
@@ -6162,15 +6494,24 @@ run(function()
 	local function restoreModel(accessory)
 		local handle = accessory:FindFirstChild('Handle')
 		local template = replicatedStorage.Items:FindFirstChild(accessory.Name)
-		if not added[accessory] then return end
+		local record = added[accessory]
+		if not record then return end
 	
-		for _, v in added[accessory] do
+		for _, v in record.Parts do
 			v:Destroy()
 		end
 		added[accessory] = nil
 	
-		if handle and template then
-			handle:ApplyMesh(template.Handle)
+		if handle then
+			if template then
+				handle:ApplyMesh(template.Handle)
+			end
+			handle.Size = record.Size
+	
+			local grip = handle:FindFirstChild('RightGripAttachment')
+			if grip and record.Grip then
+				grip.CFrame = record.Grip
+			end
 		end
 	end
 	
@@ -8438,9 +8779,155 @@ run(function()
 	local Party
 	local Profile
 	local Users
+	local Viewer
 	local blacklistedclans = {'gg', 'gg2', 'DV', 'DV2'}
 	local blacklisteduserids = {1502104539, 3826146717, 4531785383, 1049767300, 4926350670, 653085195, 184655415, 2752307430, 5087196317, 5744061325, 1536265275}
 	local joined = {}
+	local counts = {Spec = 0, Mod = 0, Impossible = 0}
+	local entries = {}
+	local window, listholder, expanded, arrow
+	local counters = {}
+	
+	local function categoryOf(checktype)
+		if checktype == 'impossible_join' then
+			return 'Impossible'
+		elseif checktype == 'spectator' then
+			return 'Spec'
+		end
+		return 'Mod'
+	end
+	
+	local function refreshViewer()
+		if not window then return end
+	
+		for name, label in counters do
+			label.Text = name..': '..counts[name]
+		end
+	
+		for _, v in listholder:GetChildren() do
+			if v:IsA('TextLabel') then
+				v:Destroy()
+			end
+		end
+	
+		listholder.Visible = expanded and #entries > 0
+		window.Divider.Visible = listholder.Visible
+	
+		if listholder.Visible then
+			for i = #entries, math.max(#entries - 7, 1), -1 do
+				local entry = entries[i]
+				local row = Instance.new('TextLabel')
+				row.Size = UDim2.new(1, 0, 0, 16)
+				row.BackgroundTransparency = 1
+				row.Text = entry.Name..'  <font color="rgb(180,180,180)">'..entry.Reason..'</font>'
+				row.RichText = true
+				row.TextXAlignment = Enum.TextXAlignment.Left
+				row.TextTruncate = Enum.TextTruncate.AtEnd
+				row.TextSize = 12
+				row.TextColor3 = uipallet.Text
+				row.FontFace = uipallet.Font
+				row.LayoutOrder = #entries - i
+				row.Parent = listholder
+			end
+		end
+	
+		local rows = listholder.Visible and math.min(#entries, 8) or 0
+		listholder.Size = UDim2.new(1, -28, 0, rows * 16)
+		window.Size = UDim2.fromOffset(220, rows > 0 and 113 + (rows * 16) or 98)
+		arrow.Text = #entries > 0 and tostring(#entries) or ''
+	end
+	
+	local function buildViewer()
+		window = Instance.new('Frame')
+		window.Name = 'StaffDetectorViewer'
+		window.Size = UDim2.fromOffset(220, 88)
+		window.Position = UDim2.fromOffset(12, 120)
+		window.BackgroundColor3 = uipallet.Main
+		window.BackgroundTransparency = 0.5
+		window.Parent = vape.gui.ScaledGui
+		addBlur(window)
+		local corner = Instance.new('UICorner')
+		corner.CornerRadius = UDim.new(0, 5)
+		corner.Parent = window
+	
+		local header = Instance.new('TextButton')
+		header.Name = 'Header'
+		header.Size = UDim2.new(1, 0, 0, 28)
+		header.BackgroundTransparency = 1
+		header.Text = ''
+		header.AutoButtonColor = false
+		header.Parent = window
+	
+		local title = Instance.new('TextLabel')
+		title.Size = UDim2.new(1, -46, 1, 0)
+		title.Position = UDim2.fromOffset(14, 0)
+		title.BackgroundTransparency = 1
+		title.Text = 'StaffDetector'
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextSize = 13
+		title.TextColor3 = uipallet.Text
+		title.FontFace = uipallet.Font
+		title.Parent = header
+	
+		arrow = Instance.new('TextLabel')
+		arrow.Name = 'Count'
+		arrow.Size = UDim2.fromOffset(40, 28)
+		arrow.Position = UDim2.new(1, -54, 0, 0)
+		arrow.BackgroundTransparency = 1
+		arrow.Text = ''
+		arrow.TextXAlignment = Enum.TextXAlignment.Right
+		arrow.TextSize = 12
+		arrow.TextColor3 = color.Dark(uipallet.Text, 0.43)
+		arrow.FontFace = uipallet.Font
+		arrow.Parent = header
+	
+		for i, name in {'Spec', 'Mod', 'Impossible'} do
+			local label = Instance.new('TextLabel')
+			label.Name = name
+			label.Size = UDim2.new(1, -28, 0, 16)
+			label.Position = UDim2.fromOffset(14, 24 + (i * 16))
+			label.BackgroundTransparency = 1
+			label.Text = name..': 0'
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.TextSize = 12
+			label.TextColor3 = uipallet.Text
+			label.FontFace = uipallet.Font
+			label.Parent = window
+			counters[name] = label
+		end
+	
+		local divider = Instance.new('Frame')
+		divider.Name = 'Divider'
+		divider.Size = UDim2.new(1, -28, 0, 1)
+		divider.Position = UDim2.fromOffset(14, 94)
+		divider.BackgroundColor3 = color.Light(uipallet.Main, 0.04)
+		divider.BorderSizePixel = 0
+		divider.Visible = false
+		divider.Parent = window
+	
+		listholder = Instance.new('Frame')
+		listholder.Name = 'List'
+		listholder.Size = UDim2.new(1, -28, 0, 0)
+		listholder.Position = UDim2.fromOffset(14, 103)
+		listholder.BackgroundTransparency = 1
+		listholder.Visible = false
+		listholder.Parent = window
+		local layout = Instance.new('UIListLayout')
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = listholder
+	
+		header.MouseButton1Click:Connect(function()
+			expanded = not expanded
+			refreshViewer()
+		end)
+	end
+	
+	local function record(plr, checktype)
+		local category = categoryOf(checktype)
+		counts[category] += 1
+		table.insert(entries, {Name = plr.Name, Reason = checktype})
+		refreshViewer()
+	end
 	
 	local function getRole(plr, id)
 		local suc, res = pcall(function()
@@ -8459,6 +8946,7 @@ run(function()
 	
 		notif('StaffDetector', 'Staff Detected ('..checktype..'): '..plr.Name..' ('..plr.UserId..')', 60, 'alert')
 		whitelist.customtags[plr.Name] = {{text = 'GAME STAFF', color = Color3.new(1, 0, 0)}}
+		record(plr, checktype)
 	
 		if Party.Enabled and not checktype:find('clan') then
 			bedwars.PartyController:leaveParty()
@@ -8521,6 +9009,7 @@ run(function()
 				return true
 			else
 				notif('StaffDetector', string.format('Spectator %s joined from %s', plr.Name, friend), 20, 'warning')
+				record(plr, 'spectator')
 			end
 		end
 	end
@@ -8593,6 +9082,20 @@ run(function()
 	Users = StaffDetector:CreateTextList({
 		Name = 'Users',
 		Placeholder = 'player (userid)'
+	})
+	Viewer = StaffDetector:CreateToggle({
+		Name = 'Viewer',
+		Function = function(callback)
+			if callback and not window then
+				buildViewer()
+			end
+	
+			if window then
+				window.Visible = callback
+				refreshViewer()
+			end
+		end,
+		Tooltip = 'Shows a panel with detection counts, click it to list who tripped them'
 	})
 	task.spawn(function()
 		repeat task.wait(1) until vape.Loaded or vape.Loaded == nil
@@ -10707,21 +11210,27 @@ run(function()
 		local folder = value and value.Value or nil
 		if not folder then return end
 	
-		getInventoryRemote('SetObservedChest'):SendToServer(folder)
-	
+		local items = {}
 		for _, v in folder:GetChildren() do
 			if v:IsA('Accessory') then
-				local itemType = v.Name
-				task.spawn(function()
-					local suc, res = pcall(function()
-						return getInventoryRemote('ChestGetItem'):CallServer(folder, v)
-					end)
-	
-					if suc and res then
-						table.insert(Stash, {Type = itemType, Expire = tick() + 5})
-					end
-				end)
+				table.insert(items, v)
 			end
+		end
+		if #items == 0 then return end
+	
+		getInventoryRemote('SetObservedChest'):SendToServer(folder)
+	
+		for _, v in items do
+			local itemType = v.Name
+			task.spawn(function()
+				local suc, res = pcall(function()
+					return getInventoryRemote('ChestGetItem'):CallServer(folder, v)
+				end)
+	
+				if suc and res then
+					table.insert(Stash, {Type = itemType, Expire = tick() + 5})
+				end
+			end)
 		end
 	
 		getInventoryRemote('SetObservedChest'):SendToServer(nil)
@@ -11451,8 +11960,14 @@ run(function()
 	local Switch
 	local Break
 	local Jump
+	local LimitItem
 	
 	local old, oldAim
+	
+	local function canBreak()
+		if not LimitItem.Enabled then return true end
+		return store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock ~= nil
+	end
 	
 	AutoDavey = vape.Categories.Minigames:CreateModule({
 		Name = 'AutoDavey',
@@ -11462,7 +11977,7 @@ run(function()
 				bedwars.CannonController.startAiming = function(self, block, ...)
 					local call = oldAim(self, block, ...)
 	
-					if Break.Enabled and block and block.Parent and entitylib.isAlive then
+					if Break.Enabled and block and block.Parent and entitylib.isAlive and canBreak() then
 						task.spawn(function()
 							if getBlockHits(block, block.Position) > 1 then
 								bedwars.breakBlock(block, true, true, nil, Switch.Enabled)
@@ -11477,7 +11992,7 @@ run(function()
 				bedwars.CannonHandController.launchSelf = function(self, block, ...)
 					local call = old(self, block, ...)
 	
-					if Break.Enabled and block and block.Parent and entitylib.isAlive and (block.Position - entitylib.character.RootPart.Position).Magnitude <= 30 then
+					if Break.Enabled and block and block.Parent and entitylib.isAlive and (block.Position - entitylib.character.RootPart.Position).Magnitude <= 30 and canBreak() then
 						task.delay(0, function()
 							for i = 1, 2 do
 								task.spawn(bedwars.breakBlock, block, true, true, nil, Switch.Enabled)
@@ -11503,6 +12018,11 @@ run(function()
 	Break = AutoDavey:CreateToggle({Name = 'Break on impact'})
 	
 	Switch = AutoDavey:CreateToggle({Name = 'Legit switch'})
+	
+	LimitItem = AutoDavey:CreateToggle({
+		Name = 'Limit to items',
+		Tooltip = 'Only breaks when tools are held'
+	})
 end)
 
 run(function()
@@ -13926,7 +14446,6 @@ run(function()
 	local CustomHealth = {}
 	local Animation
 	local SelfBreak
-	local InstantBreak
 	local LimitItem
 	local Wallcheck
 	local AutoTool
@@ -14053,18 +14572,16 @@ run(function()
 	
 				hit += 1
 				local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, AutoTool.Enabled, Wallcheck.Enabled, breakmethods[Mode.Value])
-				if path then
-					local currentnode = target
-					for _, part in parts do
-						part.Position = currentnode or Vector3.zero
-						if currentnode then
-							part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
-						end
-						currentnode = path[currentnode]
+				local currentnode = target
+				for _, part in parts do
+					part.Position = currentnode or Vector3.zero
+					if currentnode then
+						part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
 					end
+					currentnode = path and path[currentnode]
 				end
 	
-				task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
+				task.wait(BreakSpeed.Value)
 	
 				return true
 			end
@@ -14226,7 +14743,6 @@ run(function()
 	})
 	Animation = Breaker:CreateToggle({Name = 'Animation'})
 	SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
-	InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
 	Wallcheck = Breaker:CreateToggle({
 		Name = 'Legit mode',
 		Default = true,

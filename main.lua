@@ -147,11 +147,7 @@ if not shared.VapeIndependent then
 			end
 		end
 	end
-	if shared.VapeDeveloper then
-		loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
-	else
-		loadstring(game:HttpGet('https://api.catvape.dev/download/libraries/premium.lua'), 'premium')(license)
-	end
+	loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
 	finishLoading()
 else
 	vape.Init = finishLoading
