@@ -1,24 +1,15 @@
 {
 	"added": [
-		"AutoBank",
-		"AutoCyber",
-		"DaveyAim"
+		"DeviceSpoofer"
 	],
 	"updated": [
-		"Speed",
-		"NoFall",
-		"SoundChanger",
-		"PickupRange",
-		"NameTags",
-		"Clutch",
-		"AutoSmoke",
-		"AutoNazar",
-		"AutoNahila",
-		"ReplayMod",
-		"AutoBuy",
-		"AutoFish",
 		"Killaura",
-		"StaffDetector"
+		"FastBreak",
+		"AimAssist",
+		"Breaker",
+		"Block-In",
+		"KitESP",
+		"ProjectileAura"
 	],
-	"text": "[BEDWARS]\n\u001b[2;32m[+]\u001b[0m Added autobank to free version\n\u001b[2;32m[+]\u001b[0m Added autocyber to free version\n\u001b[2;33m[!]\u001b[0m Fixed speed not working with zephyr, speed pots, etc\n\u001b[2;33m[!]\u001b[0m Fixed nofall not working on free version\n\u001b[2;33m[!]\u001b[0m Fixed sounds not playing on pickups, shop, kits and soundchanger\n\u001b[2;33m[!]\u001b[0m Fixed nametags health not updating\n\u001b[2;33m[!]\u001b[0m Fixed nametags showing %s instead of the distance\n\u001b[2;33m[!]\u001b[0m Fixed clutch, autosmoke, autonazar and autonahila never triggering on low health\n\u001b[2;33m[!]\u001b[0m Fixed autobuy tools not working\n\u001b[2;34m[*]\u001b[0m Improved autofish auto cast to find a fishing spot itself instead of following your camera\n\u001b[2;34m[*]\u001b[0m Improved killaura to keep up with fury potion (43 hitreg)\n\u001b[2;34m[*]\u001b[0m Improved staffdetector viewer design and gave every flag its own colour\n\u001b[2;34m[*]\u001b[0m Reworked DaveyAim (100% accuracy, never misses💯)\n\u001b[2;31m[-]\u001b[0m Removed ClickTP\n[GENERAL]\n\u001b[2;34m[*]\u001b[0m Improved loadtime\n\u001b[2;34m[*]\u001b[0m Improved script performance"
+	"text": "[BEDWARS]\n\u001b[2;32m[+]\u001b[0m Added devicespoofer to the lobby\n\u001b[2;32m[+]\u001b[0m Added Smoothness slider to AimAssist\n\u001b[2;32m[+]\u001b[0m Added When near mode to Block-In\n\u001b[2;33m[!]\u001b[0m Fixed fastbreak not applying its break speed\n\u001b[2;33m[!]\u001b[0m Fixed aimassist not pausing while breaking blocks\n\u001b[2;33m[!]\u001b[0m Fixed breaker jumping between blocks instead of finishing one\n\u001b[2;33m[!]\u001b[0m Fixed breaker breaking blocks around the bed instead of the ones covering it\n\u001b[2;33m[!]\u001b[0m Fixed killaura playing the swing animation twice while autoclicking\n\u001b[2;33m[!]\u001b[0m Fixed kitesp not showing anything after you switch kits\n\u001b[2;34m[*]\u001b[0m Improved block-in to place at the games own block cps\n\u001b[2;34m[*]\u001b[0m Improved projectile prediction to track every player at all times\n\u001b[2;34m[*]\u001b[0m Improved projectile prediction to lead knockback before the projectile lands"
 }

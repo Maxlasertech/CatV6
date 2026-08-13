@@ -232,7 +232,6 @@ end
 
 local hash = loadstring(downloadFile('catsix/libraries/hash.lua'), 'hash')()
 local prediction = loadstring(downloadFile('catsix/libraries/prediction.lua'), 'prediction')()
-local gameengine = nil--loadstring(downloadFile('catsix/libraries/gameengine.lua'), 'gameengine')()
 entitylib = loadstring(downloadFile('catsix/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},
@@ -253,7 +252,6 @@ vape.Libraries.entity = entitylib
 vape.Libraries.whitelist = whitelist
 vape.Libraries.prediction = prediction
 vape.Libraries.hash = hash
-vape.Libraries.gameengine = gameengine
 vape.Libraries.auraanims = {
 	Normal = {
 		{CFrame = CFrame.new(-0.17, -0.14, -0.12) * CFrame.Angles(math.rad(-53), math.rad(50), math.rad(-64)), Time = 0.1},

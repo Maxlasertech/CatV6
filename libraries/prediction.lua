@@ -399,6 +399,24 @@ function module.markKnockback(target, multiplier, impulse)
 		state.knockbackHint = horizontal.Magnitude > eps and horizontal or nil
 		state.knockbackHintTime = state.knockbackMark
 	end
+	state.expectedImpulse = nil
+	state.expectedTime = nil
+	targetMotion[root] = state
+end
+
+function module.expectKnockback(target, arrival, impulse, multiplier)
+	if typeof(target) ~= 'Instance' then return end
+
+	local root = target:IsA('BasePart') and target or target:IsA('Model') and target.PrimaryPart
+	if not root or not validNumber(arrival) or not validVector(impulse) then return end
+
+	local horizontal = impulse * horizontalMask
+	if horizontal.Magnitude <= eps then return end
+
+	local state = targetMotion[root] or {}
+	state.expectedImpulse = horizontal
+	state.expectedTime = arrival
+	state.expectedMultiplier = multiplier
 	targetMotion[root] = state
 end
 
@@ -606,6 +624,8 @@ local getTargetMotion = function(root, position, velocity, airborne, playerGravi
 			impulse = knockback and state.knockbackImpulse,
 			knockback = knockback,
 			knockbackBase = knockback and state.knockbackBase,
+			expectedImpulse = state.expectedImpulse,
+			expectedTime = state.expectedTime,
 			missRate = state.missRate,
 			position = state.position,
 			state = state,
@@ -816,6 +836,18 @@ local getTargetMotion = function(root, position, velocity, airborne, playerGravi
 		and (impulseChange.Magnitude > 1.5 or math.abs(currentVelocity.Y - previousVelocity.Y) > 1.5)
 	if not knockbackStarted and humanoid and humanoid.PlatformStand then
 		knockbackStarted = impulseChange.Magnitude > 5 or math.abs(currentVelocity.Y - previousVelocity.Y) > 5
+	end
+
+	if state.expectedTime then
+		if knockbackStarted or time > state.expectedTime + 0.35 then
+			state.expectedImpulse, state.expectedTime, state.expectedMultiplier = nil, nil, nil
+		elseif time >= state.expectedTime then
+			state.knockbackHint = state.expectedImpulse
+			state.knockbackHintTime = time
+			state.knockbackMark = time
+			state.knockbackMultiplier = state.expectedMultiplier
+			state.expectedImpulse, state.expectedTime, state.expectedMultiplier = nil, nil, nil
+		end
 	end
 
 	local hint = state.knockbackHint
@@ -1035,6 +1067,8 @@ local getTargetMotion = function(root, position, velocity, airborne, playerGravi
 		impulse = knockback and knockbackImpulse,
 		knockback = knockback,
 		knockbackBase = knockback and state.knockbackBase,
+		expectedImpulse = state.expectedImpulse,
+		expectedTime = state.expectedTime,
 		missRate = state.missRate,
 		position = position,
 		state = state,
@@ -1046,6 +1080,21 @@ local getTargetMotion = function(root, position, velocity, airborne, playerGravi
 		turnSeen = state.turnSeen,
 		velocity = currentVelocity
 	}
+end
+
+local gradeSpeed, gradeGravity, gradeInterval = 240, 35, 0.1
+
+function module.Observe(root, position, velocity, airborne, playerGravity, origin, playerHeight, playerJump)
+	if typeof(root) ~= 'Instance' then return end
+
+	local motion = getTargetMotion(root, position, velocity, airborne, playerGravity)
+	local state = motion.state
+	if not state or not validVector(origin) then return end
+
+	local now = workspace:GetServerTimeNow()
+	if now - (state.gradeTime or -math.huge) < gradeInterval then return end
+
+	module.SolveTrajectory(origin, gradeSpeed, gradeGravity, position, velocity, playerGravity, playerHeight, playerJump, nil, airborne, position, root, nil, true)
 end
 
 local solveMotionTime = function(origin, speed, projectileAcceleration, positionAtTime, minimum)
@@ -1450,6 +1499,25 @@ module.SolveTrajectory = function(origin, projectileSpeed, gravity, targetPos, t
 		positionAtTime = function(value)
 			local total = latency + value
 			local horizontalOffset = baseVelocity * total + impulse * ((1 - math.exp(-decay * total)) / decay)
+			local vertical = landingTime and total >= landingTime
+				and groundY
+				or basePosition.Y + targetVelocity.Y * total + targetAcceleration.Y * (0.5 * total * total)
+			return Vector3.new(basePosition.X + horizontalOffset.X, vertical, basePosition.Z + horizontalOffset.Z)
+		end
+		time = solveMotionTime(origin, projectileSpeed, projectileAcceleration, positionAtTime, minimumTime)
+	elseif motion.expectedImpulse and motion.expectedTime then
+		local basePosition = targetPos
+		local baseVelocity = horizontalVelocity
+		local impulse = motion.expectedImpulse
+		local decay = math.max(motion.decay or (targetAirborne and 1.8 or 3.5), eps)
+		local delay = math.max(motion.expectedTime - workspace:GetServerTimeNow(), 0) + latency
+		positionAtTime = function(value)
+			local total = latency + value
+			local horizontalOffset = baseVelocity * total
+			if total > delay then
+				local since = total - delay
+				horizontalOffset += impulse * ((1 - math.exp(-decay * since)) / decay)
+			end
 			local vertical = landingTime and total >= landingTime
 				and groundY
 				or basePosition.Y + targetVelocity.Y * total + targetAcceleration.Y * (0.5 * total * total)

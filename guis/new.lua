@@ -21,7 +21,7 @@ local mainapi = {
 	Scale = {Value = 1},
 	ThreadFix = setthreadidentity and true or false,
 	ToggleNotifications = {},
-	Version = '4.18',
+	Version = '6',
 	Windows = {}
 }
 
@@ -1188,7 +1188,9 @@ components = {
 		}, children, api)
 		
 		fontdropdown.Object:GetPropertyChangedSignal('Visible'):Connect(function()
-			fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
+			if fontbox.Object then
+				fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
+			end
 		end)
 		
 		return optionapi
@@ -7137,6 +7139,1766 @@ function mainapi:PromptPresets()
 	})
 end
 
+local function parseTimestamp(value)
+	if type(value) == 'number' then return value end
+	if type(value) ~= 'string' then return 0 end
+
+	local year, month, day, hour, min, sec = value:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)')
+	if not year then return tonumber(value) or 0 end
+
+	return os.time({
+		year = tonumber(year),
+		month = tonumber(month),
+		day = tonumber(day),
+		hour = tonumber(hour),
+		min = tonumber(min),
+		sec = tonumber(sec)
+	})
+end
+
+local function parseFilename(entry)
+	local id, name = tostring(entry.filename or ''):match('^%((%d+)%)%-%((.+)%)%.json$')
+	local fallbackName = entry.config_name
+	local fallbackAuthor = entry.discord_username
+
+	return name or (fallbackName ~= 'unknown' and fallbackName) or 'Unnamed',
+		(fallbackAuthor ~= 'unknown' and fallbackAuthor) or id or 'unknown'
+end
+
+local avatarCache = {}
+local avatarPlaceholder = 'rbxasset://textures/ui/GuiImagePlaceholder.png'
+
+local function applyAvatar(image, url)
+	image.Image = avatarPlaceholder
+	if type(url) ~= 'string' or not url:find('^https?://') then return end
+
+	if avatarCache[url] then
+		image.Image = avatarCache[url]
+		return
+	end
+
+	task.spawn(function()
+		if not isfolder('catsix/assets/pfp') then
+			makefolder('catsix/assets/pfp')
+		end
+
+		local path = 'catsix/assets/pfp/'..url:gsub('%W', ''):sub(-48)..'.png'
+		if not isfile(path) then
+			local suc, res = pcall(request, {Url = url, Method = 'GET'})
+			if not suc or not res or not res.Body or res.Body == '' then return end
+			writefile(path, res.Body)
+		end
+
+		local ok, asset = pcall(getcustomasset, path)
+		if not ok or not asset then return end
+
+		avatarCache[url] = asset
+		if image.Parent then
+			image.Image = asset
+		end
+	end)
+end
+
+local function relativeDays(uploaded)
+	local days = math.floor((os.time() - (tonumber(uploaded) or os.time())) / 86400)
+	if days <= 0 then return 'Today' end
+	return days..(days == 1 and ' day ago' or ' days ago')
+end
+
+function mainapi:CreatePublicProfiles()
+	local publicapi = {Configs = {}, Cards = {}, Owned = {}, Accents = {}, Sort = 'newest', Search = ''}
+
+	local function accentColor()
+		local guicolor = mainapi.GUIColor
+		if not guicolor then return Color3.fromRGB(5, 133, 102) end
+		return Color3.fromHSV(guicolor.Hue, guicolor.Sat, guicolor.Value)
+	end
+
+	local function accentTextColor()
+		local guicolor = mainapi.GUIColor
+		if not guicolor then return Color3.new(1, 1, 1) end
+		return mainapi:TextColor(guicolor.Hue, guicolor.Sat, guicolor.Value)
+	end
+
+	local sorts = {
+		newest = function(a, b)
+			return a.Uploaded > b.Uploaded
+		end,
+		oldest = function(a, b)
+			return a.Uploaded < b.Uploaded
+		end,
+		name = function(a, b)
+			return a.Name:lower() < b.Name:lower()
+		end
+	}
+
+	local window = Instance.new('Frame')
+	window.Name = 'PublicProfilesGUI'
+	window.Size = UDim2.fromOffset(700, 389)
+	window.Position = UDim2.new(0.5, -350, 0.5, -194)
+	window.BackgroundColor3 = uipallet.Main
+	window.Visible = false
+	window.Parent = scaledgui
+	addBlur(window)
+	addCorner(window)
+	makeDraggable(window)
+	local modal = Instance.new('TextButton')
+	modal.BackgroundTransparency = 1
+	modal.Text = ''
+	modal.Modal = true
+	modal.Parent = window
+	local icon = Instance.new('ImageLabel')
+	icon.Name = 'Icon'
+	icon.Size = UDim2.fromOffset(16, 10)
+	icon.Position = UDim2.fromOffset(10, 13)
+	icon.BackgroundTransparency = 1
+	icon.Image = getcustomasset('catsix/assets/new/profilesicon.png')
+	icon.ImageColor3 = uipallet.Text
+	icon.Parent = window
+	local title = Instance.new('TextLabel')
+	title.Name = 'Title'
+	title.Size = UDim2.new(1, 20, 0, 20)
+	title.Position = UDim2.fromOffset(25, 0)
+	title.BackgroundTransparency = 1
+	title.Text = 'Public Profiles'
+	title.TextColor3 = Color3.fromRGB(200, 200, 200)
+	title.TextSize = 13
+	title.FontFace = uipallet.Font
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextYAlignment = Enum.TextYAlignment.Top
+	title.Parent = icon
+	local close = addCloseButton(window)
+	local divider = Instance.new('Frame')
+	divider.Name = 'Divider'
+	divider.Size = UDim2.new(1, 0, 0, 1)
+	divider.Position = UDim2.new(0, 0, 0.102827765, 0)
+	divider.BorderSizePixel = 0
+	divider.BackgroundColor3 = Color3.new(1, 1, 1)
+	divider.BackgroundTransparency = 0.95
+	divider.Parent = window
+
+	local publish = Instance.new('TextButton')
+	publish.Name = 'Publish'
+	publish.Size = UDim2.fromOffset(167, 30)
+	publish.Position = UDim2.new(0.0142857144, 0, 0.136246786, 0)
+	publish.BackgroundColor3 = accentColor()
+	publish.AutoButtonColor = false
+	publish.Text = ('create new'):upper()
+	publish.TextColor3 = accentTextColor()
+	publish.TextSize = 12
+	publish.FontFace = uipallet.Font
+	publish.Parent = window
+	addCorner(publish)
+	table.insert(publicapi.Accents, publish)
+
+	local searchbkg = Instance.new('Frame')
+	searchbkg.Name = 'Search'
+	searchbkg.Size = UDim2.fromOffset(485, 35)
+	searchbkg.Position = UDim2.new(0.282000005, 0, 0.153999999, 0)
+	searchbkg.BackgroundColor3 = uipallet.Main
+	searchbkg.BorderSizePixel = 0
+	searchbkg.Parent = window
+	addCorner(searchbkg)
+	local searchstroke = Instance.new('UIStroke')
+	searchstroke.Color = Color3.fromRGB(42, 41, 42)
+	searchstroke.Parent = searchbkg
+	local searchicon = Instance.new('ImageLabel')
+	searchicon.Size = UDim2.fromOffset(13, 13)
+	searchicon.Position = UDim2.new(0.0189999994, 0, 0.300000012, 0)
+	searchicon.BackgroundTransparency = 1
+	searchicon.BorderSizePixel = 0
+	searchicon.Image = getcustomasset('catsix/assets/new/search.png')
+	searchicon.ImageTransparency = 0.7
+	searchicon.Parent = searchbkg
+	local searchbox = Instance.new('TextBox')
+	searchbox.Size = UDim2.new(0.509247422, 200, 0.899999976, 0)
+	searchbox.Position = UDim2.new(0.0787525922, 0, 0, 2)
+	searchbox.BackgroundTransparency = 1
+	searchbox.BorderSizePixel = 0
+	searchbox.Text = ''
+	searchbox.PlaceholderText = 'Search Profile / Username'
+	searchbox.PlaceholderColor3 = Color3.fromRGB(94, 94, 94)
+	searchbox.TextXAlignment = Enum.TextXAlignment.Left
+	searchbox.TextColor3 = Color3.fromRGB(171, 171, 171)
+	searchbox.TextSize = 12
+	searchbox.FontFace = uipallet.Font
+	searchbox.ClearTextOnFocus = false
+	searchbox.Parent = searchbkg
+
+	local sortframe = Instance.new('Frame')
+	sortframe.Name = 'Sorts'
+	sortframe.Size = UDim2.fromOffset(500, 28)
+	sortframe.Position = UDim2.new(0.282000005, 0, 0.270000011, 0)
+	sortframe.BackgroundTransparency = 1
+	sortframe.BorderSizePixel = 0
+	sortframe.Parent = window
+	local sortlayout = Instance.new('UIListLayout')
+	sortlayout.FillDirection = Enum.FillDirection.Horizontal
+	sortlayout.SortOrder = Enum.SortOrder.LayoutOrder
+	sortlayout.Padding = UDim.new(0, 5)
+	sortlayout.Parent = sortframe
+
+	local children = Instance.new('ScrollingFrame')
+	children.Name = 'Children'
+	children.Size = UDim2.fromOffset(500, 236)
+	children.Position = UDim2.new(0.282000035, 0, 0, 153)
+	children.BackgroundTransparency = 1
+	children.BorderSizePixel = 0
+	children.ScrollBarThickness = 2
+	children.ScrollBarImageTransparency = 0.75
+	children.CanvasSize = UDim2.new()
+	children.Parent = window
+	local gridlayout = Instance.new('UIGridLayout')
+	gridlayout.SortOrder = Enum.SortOrder.LayoutOrder
+	gridlayout.FillDirectionMaxCells = 4
+	gridlayout.CellSize = UDim2.fromOffset(157, 140)
+	gridlayout.CellPadding = UDim2.fromOffset(9, 5)
+	gridlayout.Parent = children
+
+	local owned = Instance.new('ScrollingFrame')
+	owned.Name = 'Owned'
+	owned.Size = UDim2.fromOffset(167, 288)
+	owned.Position = UDim2.new(0.0142857144, 0, 0, 91)
+	owned.BackgroundTransparency = 1
+	owned.BorderSizePixel = 0
+	owned.ScrollBarThickness = 0
+	owned.CanvasSize = UDim2.new()
+	owned.Parent = window
+	local ownedlayout = Instance.new('UIListLayout')
+	ownedlayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ownedlayout.Padding = UDim.new(0, 2)
+	ownedlayout.Parent = owned
+
+	local ownedempty = Instance.new('TextLabel')
+	ownedempty.Name = 'OwnedEmpty'
+	ownedempty.Size = UDim2.fromOffset(167, 20)
+	ownedempty.Position = UDim2.new(0.0142857144, 0, 0, 95)
+	ownedempty.BackgroundTransparency = 1
+	ownedempty.Text = 'Nothing published yet'
+	ownedempty.TextColor3 = Color3.fromRGB(94, 94, 94)
+	ownedempty.TextSize = 12
+	ownedempty.FontFace = uipallet.Font
+	ownedempty.TextXAlignment = Enum.TextXAlignment.Left
+	ownedempty.Visible = false
+	ownedempty.Parent = window
+
+	local empty = Instance.new('TextLabel')
+	empty.Name = 'Empty'
+	empty.Size = UDim2.fromOffset(500, 20)
+	empty.Position = UDim2.new(0.282000035, 0, 0, 230)
+	empty.BackgroundTransparency = 1
+	empty.Text = 'No profiles found'
+	empty.TextColor3 = Color3.fromRGB(171, 171, 171)
+	empty.TextSize = 12
+	empty.FontFace = uipallet.Font
+	empty.Visible = false
+	empty.Parent = window
+
+	publicapi.Window = window
+	table.insert(mainapi.Windows, window)
+
+	local overlay = Instance.new('TextButton')
+	overlay.Name = 'Overlay'
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.BackgroundColor3 = Color3.new()
+	overlay.BackgroundTransparency = 0.45
+	overlay.AutoButtonColor = false
+	overlay.Text = ''
+	overlay.ZIndex = 4
+	overlay.Visible = false
+	overlay.Parent = window
+	addCorner(overlay)
+
+	local function makePanel(name, height, width)
+		local panel = Instance.new('Frame')
+		panel.Name = name
+		panel.AnchorPoint = Vector2.new(0.5, 0.5)
+		panel.Position = UDim2.fromScale(0.5, 0.5)
+		panel.Size = UDim2.fromOffset(width or 440, height)
+		panel.BackgroundColor3 = Color3.fromRGB(33, 32, 33)
+		panel.ZIndex = 5
+		panel.Visible = false
+		panel.Parent = window
+		addBlur(panel).ZIndex = 4
+		addCorner(panel)
+		local stroke = Instance.new('UIStroke')
+		stroke.Color = Color3.fromRGB(42, 40, 42)
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = panel
+		return panel
+	end
+
+	local function makeAction(parent, text, accent, y, width, x)
+		local button = Instance.new('TextButton')
+		button.Size = UDim2.fromOffset(width, 30)
+		button.Position = UDim2.fromOffset(x, y)
+		button.BackgroundColor3 = color.Light(uipallet.Main, 0.034)--accent and accentColor() or color.Dark(uipallet.Main, 0.02)
+		button.AutoButtonColor = false
+		button.Text = text
+		button.TextColor3 = accent and accentTextColor() or Color3.new(1, 1, 1)
+		button.TextSize = 12
+		button.FontFace = uipallet.Font
+		button.ZIndex = 6
+		button.Parent = parent
+		addCorner(button)
+		if accent then
+			table.insert(publicapi.Accents, button)
+		end
+		return button
+	end
+
+	local details = makePanel('Details', 330, 646)
+	details.BackgroundColor3 = uipallet.Main
+	local sidebar = Instance.new('Frame')
+	sidebar.Name = 'Sidebar'
+	sidebar.Size = UDim2.fromOffset(215, 330)
+	sidebar.BackgroundColor3 = uipallet.Main -- skibidi yes
+	sidebar.BorderSizePixel = 0
+	sidebar.ZIndex = 6
+	sidebar.Parent = details
+	addCorner(sidebar)
+
+	local detailname = Instance.new('TextLabel')
+	detailname.Size = UDim2.fromOffset(183, 24)
+	detailname.Position = UDim2.fromOffset(16, 16)
+	detailname.BackgroundTransparency = 1
+	detailname.Text = ''
+	detailname.TextColor3 = Color3.new(1, 1, 1)
+	detailname.TextSize = 18
+	detailname.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+	detailname.TextXAlignment = Enum.TextXAlignment.Left
+	detailname.TextTruncate = Enum.TextTruncate.AtEnd
+	detailname.ZIndex = 7
+	detailname.Parent = sidebar
+
+	local avatar = Instance.new('ImageLabel')
+	avatar.Size = UDim2.fromOffset(20, 20)
+	avatar.Position = UDim2.fromOffset(16, 48)
+	avatar.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
+	avatar.Image = avatarPlaceholder
+	avatar.ZIndex = 7
+	avatar.Parent = sidebar
+	addCorner(avatar, UDim.new(1, 0))
+
+	local detailauthor = Instance.new('TextLabel')
+	detailauthor.Size = UDim2.fromOffset(151, 20)
+	detailauthor.Position = UDim2.fromOffset(44, 48)
+	detailauthor.BackgroundTransparency = 1
+	detailauthor.Text = ''
+	detailauthor.TextColor3 = Color3.fromRGB(171, 171, 171)
+	detailauthor.TextSize = 12
+	detailauthor.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+	detailauthor.TextXAlignment = Enum.TextXAlignment.Left
+	detailauthor.TextTruncate = Enum.TextTruncate.AtEnd
+	detailauthor.ZIndex = 7
+	detailauthor.Parent = sidebar
+
+	local function clearList(frame)
+		for _, old in frame:GetChildren() do
+			if not old:IsA('UIListLayout') and not old:IsA('UIPadding') then
+				old:Destroy()
+			end
+		end
+	end
+
+	local function addRow(parent, text, y, selected, onClick, order)
+		local row = onClick and Instance.new('TextButton') or Instance.new('Frame')
+		row.LayoutOrder = order or 0
+		if onClick then
+			row.AutoButtonColor = false
+			row.Text = ''
+			row.MouseButton1Click:Connect(function()
+				onClick(row)
+			end)
+		end
+		row.Size = UDim2.fromOffset(215, 34)
+		row.Position = UDim2.fromOffset(0, y)
+		row.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
+		row.BackgroundTransparency = selected and 0 or 1
+		row.BorderSizePixel = 0
+		row.ZIndex = 7
+		row.Parent = parent
+		local rowtext = Instance.new('TextLabel')
+		rowtext.Size = UDim2.fromOffset(170, 34)
+		rowtext.Position = UDim2.fromOffset(16, 0)
+		rowtext.BackgroundTransparency = 1
+		rowtext.Text = text
+		rowtext.TextColor3 = selected and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		rowtext.TextSize = 13
+		rowtext.FontFace = uipallet.Font
+		rowtext.TextXAlignment = Enum.TextXAlignment.Left
+		rowtext.TextTruncate = Enum.TextTruncate.AtEnd
+		rowtext.ZIndex = 8
+		rowtext.Parent = row
+		local chevron = Instance.new('TextLabel')
+		chevron.Size = UDim2.fromOffset(20, 34)
+		chevron.Position = UDim2.fromOffset(189, 0)
+		chevron.BackgroundTransparency = 1
+		chevron.Text = '>'
+		chevron.TextColor3 = Color3.fromRGB(120, 120, 120)
+		chevron.TextSize = 13
+		chevron.FontFace = uipallet.Font
+		chevron.ZIndex = 8
+		chevron.Parent = row
+		return row
+	end
+
+	local function fillModules(list, count, source, onClick)
+		clearList(list)
+
+		local active, rows = {}, {}
+		local decoded = source and select(2, pcall(httpService.JSONDecode, httpService, source))
+		for module, data in (type(decoded) == 'table' and decoded.Modules or {}) do
+			if type(data) == 'table' and data.Enabled then
+				table.insert(active, tostring(module))
+			end
+		end
+		table.sort(active)
+
+		count.Text = `<font color="rgb(255,255,255)">{#active}</font> AFFECTED MODULES`
+		for i, module in active do
+			rows[module] = addRow(list, module, 0, false, onClick and function()
+				onClick(module)
+			end or nil, i)
+		end
+		list.CanvasSize = UDim2.fromOffset(0, #active * 34)
+
+		return decoded, rows
+	end
+
+	local detailsrow
+
+	local modulecount = Instance.new('TextLabel')
+	modulecount.Size = UDim2.fromOffset(183, 16)
+	modulecount.Position = UDim2.fromOffset(16, 126)
+	modulecount.BackgroundTransparency = 1
+	modulecount.RichText = true
+	modulecount.Text = ''
+	modulecount.TextColor3 = Color3.fromRGB(171, 171, 171)
+	modulecount.TextSize = 11
+	modulecount.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+	modulecount.TextXAlignment = Enum.TextXAlignment.Left
+	modulecount.ZIndex = 7
+	modulecount.Parent = sidebar
+
+	local modulelist = Instance.new('ScrollingFrame')
+	modulelist.Name = 'Modules'
+	modulelist.Size = UDim2.fromOffset(215, 178)
+	modulelist.Position = UDim2.fromOffset(0, 148)
+	modulelist.BackgroundTransparency = 1
+	modulelist.BorderSizePixel = 0
+	modulelist.ScrollBarThickness = 0
+	modulelist.CanvasSize = UDim2.new()
+	modulelist.ZIndex = 7
+	modulelist.Parent = sidebar
+	local modulelayout = Instance.new('UIListLayout')
+	modulelayout.SortOrder = Enum.SortOrder.LayoutOrder
+	modulelayout.Padding = UDim.new(0, 0)
+	modulelayout.Parent = modulelist
+
+	local detailtitle = Instance.new('TextLabel')
+	detailtitle.Size = UDim2.fromOffset(200, 20)
+	detailtitle.Position = UDim2.fromOffset(231, 22)
+	detailtitle.BackgroundTransparency = 1
+	detailtitle.Text = 'Details'
+	detailtitle.TextColor3 = Color3.new(1, 1, 1)
+	detailtitle.TextSize = 15
+	detailtitle.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+	detailtitle.TextXAlignment = Enum.TextXAlignment.Left
+	detailtitle.ZIndex = 6
+	detailtitle.Parent = details
+
+	local created = Instance.new('TextLabel')
+	created.Size = UDim2.fromOffset(300, 18)
+	created.Position = UDim2.fromOffset(231, 62)
+	created.BackgroundTransparency = 1
+	created.Text = ''
+	created.TextColor3 = Color3.fromRGB(140, 140, 140)
+	created.TextSize = 13
+	created.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+	created.TextXAlignment = Enum.TextXAlignment.Left
+	created.ZIndex = 6
+	created.Parent = details
+
+	local function addStat(x, width, label)
+		local box = Instance.new('Frame')
+		box.Size = UDim2.fromOffset(width, 64)
+		box.Position = UDim2.fromOffset(x, 96)
+		box.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+		box.BorderSizePixel = 0
+		box.ZIndex = 6
+		box.Parent = details
+		addCorner(box)
+		local value = Instance.new('TextLabel')
+		value.Size = UDim2.new(1, 0, 0, 24)
+		value.Position = UDim2.fromOffset(0, 12)
+		value.BackgroundTransparency = 1
+		value.Text = ''
+		value.TextColor3 = Color3.new(1, 1, 1)
+		value.TextSize = 17
+		value.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+		value.ZIndex = 7
+		value.Parent = box
+		local caption = Instance.new('TextLabel')
+		caption.Size = UDim2.new(1, 0, 0, 16)
+		caption.Position = UDim2.fromOffset(0, 38)
+		caption.BackgroundTransparency = 1
+		caption.Text = label
+		caption.TextColor3 = Color3.fromRGB(140, 140, 140)
+		caption.TextSize = 11
+		caption.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+		caption.ZIndex = 7
+		caption.Parent = box
+
+		return box, value
+	end
+
+	local likesbox, likesvalue = addStat(231, 189, 'Positive reviews')
+	local updatedbox, updatedvalue = addStat(432, 189, 'Last updated')
+
+	local detaildesc = Instance.new('TextLabel')
+	detaildesc.Size = UDim2.fromOffset(390, 80)
+	detaildesc.Position = UDim2.fromOffset(231, 174)
+	detaildesc.BackgroundTransparency = 1
+	detaildesc.Text = ''
+	detaildesc.TextColor3 = Color3.fromRGB(171, 171, 171)
+	detaildesc.TextSize = 14
+	detaildesc.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+	detaildesc.TextXAlignment = Enum.TextXAlignment.Left
+	detaildesc.TextYAlignment = Enum.TextYAlignment.Top
+	detaildesc.TextWrapped = true
+	detaildesc.ZIndex = 6
+	detaildesc.Parent = details
+
+	local moduletitle = Instance.new('TextLabel')
+	moduletitle.Size = UDim2.fromOffset(390, 26)
+	moduletitle.Position = UDim2.fromOffset(231, 20)
+	moduletitle.BackgroundTransparency = 1
+	moduletitle.Text = ''
+	moduletitle.TextColor3 = Color3.new(1, 1, 1)
+	moduletitle.TextSize = 18
+	moduletitle.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+	moduletitle.TextXAlignment = Enum.TextXAlignment.Left
+	moduletitle.Visible = false
+	moduletitle.ZIndex = 6
+	moduletitle.Parent = details
+
+	local optionlist = Instance.new('ScrollingFrame')
+	optionlist.Name = 'Options'
+	optionlist.Size = UDim2.fromOffset(400, 208)
+	optionlist.Position = UDim2.fromOffset(231, 52)
+	optionlist.BackgroundTransparency = 1
+	optionlist.BorderSizePixel = 0
+	optionlist.ScrollBarThickness = 0
+	optionlist.CanvasSize = UDim2.new()
+	optionlist.Visible = false
+	optionlist.ZIndex = 6
+	optionlist.Parent = details
+	local optionlayout = Instance.new('UIListLayout')
+	optionlayout.SortOrder = Enum.SortOrder.LayoutOrder
+	optionlayout.Padding = UDim.new(0, 0)
+	optionlayout.Parent = optionlist
+
+	local detailview = {detailtitle, created, likesbox, updatedbox, detaildesc}
+	local selectModule
+	local uploadsource
+
+	local function showDetails(showModule)
+		for _, part in detailview do
+			part.Visible = not showModule
+		end
+		moduletitle.Visible = showModule
+		optionlist.Visible = showModule
+	end
+
+	local function formatOption(value)
+		if type(value) ~= 'table' then return tostring(value) end
+		if value.List then return `{#value.List} items` end
+		if value.Value ~= nil then
+			if type(value.Value) == 'number' then
+				return tostring(math.floor(value.Value * 10 + 0.5) / 10)
+			end
+			return tostring(value.Value)
+		end
+		if value.Min and value.Max then
+			return `{math.floor(value.Min * 10 + 0.5) / 10} - {math.floor(value.Max * 10 + 0.5) / 10}`
+		end
+		if value.Enabled ~= nil then return value.Enabled and 'ON' or 'OFF' end
+
+		local on = 0
+		for _, v in pairs(value) do
+			if v == true then on += 1 end
+		end
+		return on > 0 and `{on} on` or '-'
+	end
+
+	local function addOptionRow(parent, name, value, index)
+		local row = Instance.new('Frame')
+		row.Size = UDim2.fromOffset(400, 30)
+		row.BackgroundTransparency = 1
+		row.LayoutOrder = index
+		row.ZIndex = 7
+		row.Parent = parent
+		local label = Instance.new('TextLabel')
+		label.Size = UDim2.fromOffset(270, 30)
+		label.BackgroundTransparency = 1
+		label.Text = name
+		label.TextColor3 = Color3.fromRGB(171, 171, 171)
+		label.TextSize = 13
+		label.FontFace = uipallet.Font
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.ZIndex = 8
+		label.Parent = row
+		local text = formatOption(value)
+		local pill = Instance.new('Frame')
+		pill.Size = UDim2.fromOffset(math.max(#text * 7 + 16, 34), 20)
+		pill.Position = UDim2.new(1, -math.max(#text * 7 + 16, 34), 0, 5)
+		pill.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
+		pill.BorderSizePixel = 0
+		pill.ZIndex = 8
+		pill.Parent = row
+		addCorner(pill, UDim.new(0, 4))
+		local pilltext = Instance.new('TextLabel')
+		pilltext.Size = UDim2.fromScale(1, 1)
+		pilltext.BackgroundTransparency = 1
+		pilltext.Text = text
+		pilltext.TextColor3 = Color3.fromRGB(200, 200, 200)
+		pilltext.TextSize = 11
+		pilltext.FontFace = uipallet.Font
+		pilltext.ZIndex = 9
+		pilltext.Parent = pill
+	end
+
+	detailsrow = addRow(sidebar, 'Details', 80, true, function()
+		if selectModule then
+			selectModule(nil)
+		end
+	end)
+
+	local download = makeAction(details, 'Download', true, 276, 245, 385)
+
+	local function addThumb(parent, flipped)
+		local thumb = Instance.new('Frame')
+		thumb.Name = 'Thumb'
+		thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+		thumb.Size = UDim2.fromOffset(14, 14)
+		thumb.Position = UDim2.fromScale(0.5, 0.5)
+		thumb.BackgroundTransparency = 1
+		thumb.Rotation = flipped and 180 or 0
+		thumb.ZIndex = 8
+		thumb.Parent = parent
+
+		for _, shape in {{4, 7, 0, 7, 1}, {9, 8, 5, 6, 2}, {5, 7, 5, 0, 2}} do
+			local part = Instance.new('Frame')
+			part.Size = UDim2.fromOffset(shape[1], shape[2])
+			part.Position = UDim2.fromOffset(shape[3], shape[4])
+			part.BackgroundColor3 = Color3.fromRGB(171, 171, 171)
+			part.BorderSizePixel = 0
+			part.ZIndex = 8
+			part.Parent = thumb
+			addCorner(part, UDim.new(0, shape[5]))
+		end
+
+		return thumb
+	end
+
+	local voteframe = Instance.new('Frame')
+	voteframe.Name = 'Votes'
+	voteframe.Size = UDim2.fromOffset(92, 30)
+	voteframe.Position = UDim2.fromOffset(231, 276)
+	voteframe.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+	voteframe.BorderSizePixel = 0
+	voteframe.ClipsDescendants = true
+	voteframe.ZIndex = 6
+	voteframe.Parent = details
+	addCorner(voteframe)
+
+	local votedivider = Instance.new('Frame')
+	votedivider.Name = 'Divider'
+	votedivider.Size = UDim2.fromOffset(1, 18)
+	votedivider.Position = UDim2.fromOffset(45, 6)
+	votedivider.BackgroundColor3 = Color3.new(1, 1, 1)
+	votedivider.BackgroundTransparency = 0.9
+	votedivider.BorderSizePixel = 0
+	votedivider.ZIndex = 8
+	votedivider.Parent = voteframe
+
+	local function addVote(name, x, width, flipped)
+		local button = Instance.new('TextButton')
+		button.Name = name
+		button.Size = UDim2.fromOffset(width, 30)
+		button.Position = UDim2.fromOffset(x, 0)
+		button.BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
+		button.BackgroundTransparency = 1
+		button.AutoButtonColor = false
+		button.Text = ''
+		button.ZIndex = 7
+		button.Parent = voteframe
+
+		button.MouseEnter:Connect(function()
+			tween:Tween(button, uipallet.Tween, {BackgroundTransparency = 0})
+		end)
+		button.MouseLeave:Connect(function()
+			tween:Tween(button, uipallet.Tween, {BackgroundTransparency = 1})
+		end)
+
+		return button, addThumb(button, flipped)
+	end
+
+	local like, likethumb = addVote('Like', 0, 45, false)
+	local dislike, dislikethumb = addVote('Dislike', 46, 46, true)
+
+	local detailclose = addCloseButton(details, 12)
+	detailclose.ZIndex = 6
+
+	local uploader = makePanel('Uploader', 330, 646)
+	uploader.BackgroundColor3 = uipallet.Main
+	local uploadside = Instance.new('Frame')
+	uploadside.Name = 'Sidebar'
+	uploadside.Size = UDim2.fromOffset(215, 330)
+	uploadside.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+	uploadside.BorderSizePixel = 0
+	uploadside.ZIndex = 6
+	uploadside.Parent = uploader
+	addCorner(uploadside)
+
+	local uploadtitle = Instance.new('TextLabel')
+	uploadtitle.Size = UDim2.fromOffset(183, 24)
+	uploadtitle.Position = UDim2.fromOffset(16, 16)
+	uploadtitle.BackgroundTransparency = 1
+	uploadtitle.Text = 'New Profile'
+	uploadtitle.TextColor3 = Color3.new(1, 1, 1)
+	uploadtitle.TextSize = 18
+	uploadtitle.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+	uploadtitle.TextXAlignment = Enum.TextXAlignment.Left
+	uploadtitle.ZIndex = 7
+	uploadtitle.Parent = uploadside
+
+	local derived = Instance.new('TextLabel')
+	derived.Size = UDim2.fromOffset(183, 16)
+	derived.Position = UDim2.fromOffset(16, 46)
+	derived.BackgroundTransparency = 1
+	derived.RichText = true
+	derived.Text = ''
+	derived.TextColor3 = Color3.fromRGB(140, 140, 140)
+	derived.TextSize = 11
+	derived.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+	derived.TextXAlignment = Enum.TextXAlignment.Left
+	derived.TextTruncate = Enum.TextTruncate.AtEnd
+	derived.ZIndex = 7
+	derived.Parent = uploadside
+
+	addRow(uploadside, 'Details', 80, true)
+
+	local uploadcount = modulecount:Clone()
+	uploadcount.Parent = uploadside
+	local uploadmodules = Instance.new('ScrollingFrame')
+	uploadmodules.Name = 'Modules'
+	uploadmodules.Size = UDim2.fromOffset(215, 178)
+	uploadmodules.Position = UDim2.fromOffset(0, 148)
+	uploadmodules.BackgroundTransparency = 1
+	uploadmodules.BorderSizePixel = 0
+	uploadmodules.ScrollBarThickness = 0
+	uploadmodules.CanvasSize = UDim2.new()
+	uploadmodules.ZIndex = 7
+	uploadmodules.Parent = uploadside
+	local uploadlayout = Instance.new('UIListLayout')
+	uploadlayout.SortOrder = Enum.SortOrder.LayoutOrder
+	uploadlayout.Padding = UDim.new(0, 0)
+	uploadlayout.Parent = uploadmodules
+
+	local function addCaption(parent, text, y)
+		local caption = Instance.new('TextLabel')
+		caption.Size = UDim2.fromOffset(300, 14)
+		caption.Position = UDim2.fromOffset(231, y)
+		caption.BackgroundTransparency = 1
+		caption.Text = text
+		caption.TextColor3 = Color3.fromRGB(140, 140, 140)
+		caption.TextSize = 11
+		caption.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+		caption.TextXAlignment = Enum.TextXAlignment.Left
+		caption.ZIndex = 6
+		caption.Parent = parent
+		return caption
+	end
+
+	local function addInput(parent, placeholder, y)
+		local box = Instance.new('TextBox')
+		box.Size = UDim2.fromOffset(390, 26)
+		box.Position = UDim2.fromOffset(231, y)
+		box.BackgroundTransparency = 1
+		box.Text = ''
+		box.PlaceholderText = placeholder
+		box.PlaceholderColor3 = Color3.fromRGB(94, 94, 94)
+		box.TextXAlignment = Enum.TextXAlignment.Left
+		box.TextColor3 = uipallet.Text
+		box.TextSize = 14
+		box.FontFace = uipallet.Font
+		box.ClearTextOnFocus = false
+		box.ZIndex = 6
+		box.Parent = parent
+		local line = Instance.new('Frame')
+		line.Size = UDim2.fromOffset(390, 1)
+		line.Position = UDim2.fromOffset(231, y + 30)
+		line.BackgroundColor3 = Color3.new(1, 1, 1)
+		line.BackgroundTransparency = 0.93
+		line.BorderSizePixel = 0
+		line.ZIndex = 6
+		line.Parent = parent
+		return box
+	end
+
+	addCaption(uploader, 'NAME', 24)
+	local namebox = addInput(uploader, 'Enter profile name...', 42)
+	addCaption(uploader, 'DESCRIPTION', 90)
+	local descbox = addInput(uploader, 'Add Description (optional)', 108)
+	addCaption(uploader, 'PREFERENCES', 156)
+
+	local anonlabel = Instance.new('TextLabel')
+	anonlabel.Size = UDim2.fromOffset(300, 20)
+	anonlabel.Position = UDim2.fromOffset(231, 180)
+	anonlabel.BackgroundTransparency = 1
+	anonlabel.Text = 'Upload anonymously'
+	anonlabel.TextColor3 = uipallet.Text
+	anonlabel.TextSize = 13
+	anonlabel.FontFace = uipallet.Font
+	anonlabel.TextXAlignment = Enum.TextXAlignment.Left
+	anonlabel.ZIndex = 6
+	anonlabel.Parent = uploader
+
+	local function addToggle(parent, y)
+		local toggleapi = {Enabled = false}
+
+		local button = Instance.new('TextButton')
+		button.Size = UDim2.fromOffset(34, 18)
+		button.Position = UDim2.fromOffset(587, y)
+		button.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
+		button.AutoButtonColor = false
+		button.Text = ''
+		button.ZIndex = 6
+		button.Parent = parent
+		addCorner(button, UDim.new(1, 0))
+		local knob = Instance.new('Frame')
+		knob.Size = UDim2.fromOffset(14, 14)
+		knob.Position = UDim2.fromOffset(2, 2)
+		knob.BackgroundColor3 = Color3.fromRGB(140, 140, 140)
+		knob.BorderSizePixel = 0
+		knob.ZIndex = 7
+		knob.Parent = button
+		addCorner(knob, UDim.new(1, 0))
+
+		function toggleapi:Set(state)
+			self.Enabled = state
+			tween:Tween(knob, uipallet.Tween, {
+				Position = UDim2.fromOffset(state and 18 or 2, 2),
+				BackgroundColor3 = state and accentColor() or Color3.fromRGB(140, 140, 140)
+			})
+		end
+
+		button.MouseButton1Click:Connect(function()
+			toggleapi:Set(not toggleapi.Enabled)
+		end)
+
+		return toggleapi
+	end
+
+	local anontoggle = addToggle(uploader, 181)
+
+	local confirm = makeAction(uploader, 'PUBLISH', true, 276, 120, 501)
+	local cancel = makeAction(uploader, 'CANCEL', false, 276, 100, 391)
+	cancel.BackgroundTransparency = 1
+	cancel.TextSize = 12
+	local uploadclose = addCloseButton(uploader, 12)
+	uploadclose.ZIndex = 6
+
+	local editor = makePanel('Editor', 330, 646)
+	editor.BackgroundColor3 = uipallet.Main
+	local editorside = Instance.new('Frame')
+	editorside.Name = 'Sidebar'
+	editorside.Size = UDim2.fromOffset(215, 330)
+	editorside.BackgroundColor3 = uipallet.Main
+	editorside.BorderSizePixel = 0
+	editorside.ZIndex = 6
+	editorside.Parent = editor
+	addCorner(editorside)
+
+	local editortitle = uploadtitle:Clone()
+	editortitle.Text = ''
+	editortitle.Parent = editorside
+
+	local editorderived = Instance.new('TextButton')
+	editorderived.Name = 'Derived'
+	editorderived.Size = UDim2.fromOffset(183, 16)
+	editorderived.Position = UDim2.fromOffset(16, 46)
+	editorderived.BackgroundTransparency = 1
+	editorderived.AutoButtonColor = false
+	editorderived.RichText = true
+	editorderived.Text = ''
+	editorderived.TextColor3 = Color3.fromRGB(140, 140, 140)
+	editorderived.TextSize = 11
+	editorderived.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+	editorderived.TextXAlignment = Enum.TextXAlignment.Left
+	editorderived.TextTruncate = Enum.TextTruncate.AtEnd
+	editorderived.ZIndex = 7
+	editorderived.Parent = editorside
+
+	local selectEditorModule
+	local editordetailsrow = addRow(editorside, 'Details', 80, true, function()
+		selectEditorModule(nil)
+	end)
+
+	local editorcount = modulecount:Clone()
+	editorcount.Parent = editorside
+	local editormodules = Instance.new('ScrollingFrame')
+	editormodules.Name = 'Modules'
+	editormodules.Size = UDim2.fromOffset(215, 178)
+	editormodules.Position = UDim2.fromOffset(0, 148)
+	editormodules.BackgroundTransparency = 1
+	editormodules.BorderSizePixel = 0
+	editormodules.ScrollBarThickness = 0
+	editormodules.CanvasSize = UDim2.new()
+	editormodules.ZIndex = 7
+	editormodules.Parent = editorside
+	local editormoduleslayout = Instance.new('UIListLayout')
+	editormoduleslayout.SortOrder = Enum.SortOrder.LayoutOrder
+	editormoduleslayout.Padding = UDim.new(0, 0)
+	editormoduleslayout.Parent = editormodules
+
+	local editorsettings = Instance.new('Frame')
+	editorsettings.Name = 'Settings'
+	editorsettings.Size = UDim2.fromScale(1, 1)
+	editorsettings.BackgroundTransparency = 1
+	editorsettings.ZIndex = 6
+	editorsettings.Parent = editor
+
+	addCaption(editorsettings, 'DESCRIPTION', 24)
+	local editordesc = addInput(editorsettings, 'Add Description (optional)', 42)
+	addCaption(editorsettings, 'PREFERENCES', 90)
+
+	local editoranonlabel = anonlabel:Clone()
+	editoranonlabel.Position = UDim2.fromOffset(231, 114)
+	editoranonlabel.Parent = editorsettings
+	local editoranon = addToggle(editorsettings, 115)
+
+	addCaption(editorsettings, 'STATS', 162)
+
+	local editorstats = Instance.new('TextLabel')
+	editorstats.Size = UDim2.fromOffset(390, 20)
+	editorstats.Position = UDim2.fromOffset(231, 180)
+	editorstats.BackgroundTransparency = 1
+	editorstats.Text = ''
+	editorstats.TextColor3 = uipallet.Text
+	editorstats.TextSize = 13
+	editorstats.FontFace = uipallet.Font
+	editorstats.TextXAlignment = Enum.TextXAlignment.Left
+	editorstats.ZIndex = 6
+	editorstats.Parent = editorsettings
+
+	local editormoduletitle = moduletitle:Clone()
+	editormoduletitle.Parent = editor
+
+	local editoroptions = Instance.new('ScrollingFrame')
+	editoroptions.Name = 'Options'
+	editoroptions.Size = UDim2.fromOffset(400, 208)
+	editoroptions.Position = UDim2.fromOffset(231, 52)
+	editoroptions.BackgroundTransparency = 1
+	editoroptions.BorderSizePixel = 0
+	editoroptions.ScrollBarThickness = 0
+	editoroptions.CanvasSize = UDim2.new()
+	editoroptions.Visible = false
+	editoroptions.ZIndex = 6
+	editoroptions.Parent = editor
+	local editoroptionslayout = Instance.new('UIListLayout')
+	editoroptionslayout.SortOrder = Enum.SortOrder.LayoutOrder
+	editoroptionslayout.Padding = UDim.new(0, 0)
+	editoroptionslayout.Parent = editoroptions
+
+	local update = makeAction(editor, 'UPDATE', true, 276, 120, 501)
+	local editorcancel = makeAction(editor, 'CANCEL', false, 276, 100, 391)
+	editorcancel.BackgroundTransparency = 1
+	editorcancel.TextSize = 12
+	local editorremove = makeAction(editor, 'REMOVE', false, 276, 100, 231)
+	editorremove.BackgroundTransparency = 1
+	editorremove.TextColor3 = Color3.fromRGB(220, 90, 90)
+	editorremove.TextSize = 12
+	editorremove.TextXAlignment = Enum.TextXAlignment.Left
+	local editorclose = addCloseButton(editor, 12)
+	editorclose.ZIndex = 6
+
+	local sourcemenu, sourcecatcher, sourceaction
+
+	local function setSourceMenu(state)
+		if not sourcemenu then return end
+		sourcemenu.Visible = state
+		sourcecatcher.Visible = state
+	end
+
+	local function showPanel(panel)
+		overlay.Visible = panel ~= nil
+		details.Visible = panel == details
+		uploader.Visible = panel == uploader
+		editor.Visible = panel == editor
+		setSourceMenu(false)
+	end
+
+	local editing
+	local editorsource
+	local openEditor
+	local selected
+	local dislikes = {}
+	local voting = false
+
+	local function paintThumb(thumb, tint)
+		for _, part in thumb:GetChildren() do
+			if part:IsA('Frame') then
+				tween:Tween(part, uipallet.Tween, {BackgroundColor3 = tint})
+			end
+		end
+	end
+
+	local function renderVotes(entry)
+		likesvalue.Text = tostring(entry.likes or 0)
+		paintThumb(likethumb, entry.liked and accentColor() or Color3.fromRGB(171, 171, 171))
+		paintThumb(dislikethumb, dislikes[entry.filename] and Color3.fromRGB(220, 90, 90) or Color3.fromRGB(171, 171, 171))
+	end
+
+	local function sendLike(entry, wanted)
+		local liked, likes = entry.liked, entry.likes or 0
+		entry.liked = wanted
+		entry.likes = math.max(likes + (wanted and 1 or -1), 0)
+		voting = true
+		renderVotes(entry)
+
+		task.spawn(function()
+			local res = request({
+				Url = 'https://api.catvape.dev/configs/like',
+				Method = 'POST',
+				Headers = {
+					['Content-Type'] = 'application/json'
+				},
+				Body = httpService:JSONEncode({
+					key = license.Key or '_key',
+					filename = entry.filename,
+					like = wanted
+				})
+			})
+			voting = false
+
+			if res and res.Body then
+				local body = httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
+				entry.liked = body.liked == true
+				entry.likes = math.max(likes + ((entry.liked and 1 or 0) - (liked and 1 or 0)), 0)
+			else
+				entry.liked, entry.likes = liked, likes
+				mainapi:CreateNotification('Cat', `Failed to {wanted and 'like' or 'unlike'} "{entry.Name}"`, 8, 'warning')
+			end
+
+			if selected == entry then
+				renderVotes(entry)
+			end
+		end)
+	end
+
+	like.MouseButton1Click:Connect(function()
+		if voting or not selected or not selected.filename then return end
+		local entry = selected
+		dislikes[entry.filename] = nil
+		sendLike(entry, not entry.liked)
+	end)
+
+	dislike.MouseButton1Click:Connect(function()
+		if voting or not selected or not selected.filename then return end
+		local entry = selected
+		local disliked = not dislikes[entry.filename]
+		dislikes[entry.filename] = disliked or nil
+
+		if disliked and entry.liked then
+			sendLike(entry, false)
+			return
+		end
+		renderVotes(entry)
+	end)
+
+	local function addCard(entry)
+		local name = entry.Name
+		local author = entry.Author
+
+		local card = Instance.new('TextButton')
+		card.Name = name
+		card.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+		card.AutoButtonColor = false
+		card.Text = ''
+		card.Parent = children
+		addCorner(card)
+		local stroke = Instance.new('UIStroke')
+		stroke.Transparency = 1
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Color = color.Light(uipallet.Main, 0.034)
+		stroke.Thickness = 2
+		stroke.Parent = card
+		local label = Instance.new('TextLabel')
+		label.Size = UDim2.new(0.753427446, -16, 0.423529416, 20)
+		label.Position = UDim2.fromOffset(16, 20)
+		label.BackgroundTransparency = 1
+		label.RichText = true
+		label.Text = `{name}\n\n\n<font tr="0.7">@{author}</font>`
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextTransparency = 0.3
+		label.TextSize = 13
+		label.FontFace = uipallet.Font
+		label.TextWrapped = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.Parent = card
+		local badge = Instance.new('Frame')
+		badge.Size = UDim2.fromOffset(72, 22)
+		badge.Position = UDim2.fromOffset(16, 104)
+		badge.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
+		badge.Parent = card
+		addCorner(badge, UDim.new(1, 0))
+		local badgetext = Instance.new('TextLabel')
+		badgetext.Size = UDim2.fromScale(1, 1)
+		badgetext.BackgroundTransparency = 1
+		badgetext.Text = relativeDays(entry.Uploaded)
+		badgetext.TextColor3 = Color3.fromRGB(171, 171, 171)
+		badgetext.TextSize = 11
+		badgetext.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+		badgetext.Parent = badge
+
+		card.MouseEnter:Connect(function()
+			tween:Tween(card, uipallet.Tween, {BackgroundColor3 = color.Light(uipallet.Main, 0.0875)})
+			tweenService:Create(stroke, uipallet.Tween, {Transparency = 0}):Play()
+		end)
+		card.MouseLeave:Connect(function()
+			tween:Tween(card, uipallet.Tween, {BackgroundColor3 = color.Light(uipallet.Main, 0.034)})
+			tweenService:Create(stroke, uipallet.Tween, {Transparency = 1}):Play()
+		end)
+		card.MouseButton1Click:Connect(function()
+			selected = entry
+			detailname.Text = name
+			detailauthor.Text = `By {author}`
+			applyAvatar(avatar, entry.discord_pfp)
+			created.Text = `Created: {entry.Uploaded and os.date('%b %d, %Y', entry.Uploaded) or 'unknown'}`
+			updatedvalue.Text = relativeDays(entry.Uploaded)
+			renderVotes(entry)
+			detaildesc.Text = (entry.description and entry.description ~= '' and entry.description ~= 'unknown') and entry.description or 'No description provided'
+
+			clearList(modulelist)
+
+			local active = {}
+			local decoded = entry.config and select(2, pcall(httpService.JSONDecode, httpService, entry.config))
+			for module, data in (type(decoded) == 'table' and decoded.Modules or {}) do
+				if type(data) == 'table' and data.Enabled then
+					table.insert(active, tostring(module))
+				end
+			end
+			table.sort(active)
+
+			modulecount.Text = `<font color="rgb(255,255,255)">{#active}</font> AFFECTED MODULES`
+
+			local rows = {}
+			local function selectRow(chosen)
+				for module, row in rows do
+					local on = module == chosen
+					row.BackgroundTransparency = on and 0 or 1
+					row.TextLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+				end
+				detailsrow.BackgroundTransparency = chosen and 1 or 0
+				detailsrow.TextLabel.TextColor3 = chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
+
+				if not chosen then
+					showDetails(false)
+					return
+				end
+
+				moduletitle.Text = chosen
+				clearList(optionlist)
+
+				local options = decoded.Modules[chosen].Options or {}
+				local names = {}
+				for option in pairs(options) do
+					table.insert(names, tostring(option))
+				end
+				table.sort(names)
+				for i, option in names do
+					addOptionRow(optionlist, option, options[option], i)
+				end
+				optionlist.CanvasSize = UDim2.fromOffset(0, #names * 30)
+				showDetails(true)
+			end
+
+			selectModule = selectRow
+			for i, module in active do
+				rows[module] = addRow(modulelist, module, 0, false, function()
+					selectRow(module)
+				end, i)
+			end
+			modulelist.CanvasSize = UDim2.fromOffset(0, #active * 34)
+			selectRow(nil)
+
+			showPanel(details)
+		end)
+
+		table.insert(publicapi.Cards, card)
+	end
+
+	local function clearCards()
+		for _, card in publicapi.Cards do
+			card:Destroy()
+		end
+		table.clear(publicapi.Cards)
+	end
+
+	local function showSkeletons()
+		clearCards()
+		empty.Visible = false
+
+		for _ = 1, 6 do
+			local card = Instance.new('Frame')
+			card.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+			card.Parent = children
+			addCorner(card)
+
+			for _, shape in {{118, 16, 20}, {58, 12, 44}, {72, 22, 104}} do
+				local bar = Instance.new('Frame')
+				bar.Size = UDim2.fromOffset(shape[1], shape[2])
+				bar.Position = UDim2.fromOffset(16, shape[3])
+				bar.BackgroundColor3 = color.Light(uipallet.Main, 0.08)
+				bar.BorderSizePixel = 0
+				bar.Parent = card
+				addCorner(bar, UDim.new(0, 4))
+			end
+
+			table.insert(publicapi.Cards, card)
+		end
+	end
+
+	local function addOwned(entry, order)
+		local row = Instance.new('TextButton')
+		row.Name = entry.Name
+		row.Size = UDim2.fromOffset(167, 32)
+		row.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
+		row.BorderSizePixel = 0
+		row.AutoButtonColor = false
+		row.Text = ''
+		row.LayoutOrder = order
+		row.Parent = owned
+		local label = Instance.new('TextLabel')
+		label.Size = UDim2.fromOffset(143, 32)
+		label.Position = UDim2.fromOffset(12, 0)
+		label.BackgroundTransparency = 1
+		label.Text = entry.Name
+		label.TextColor3 = Color3.fromRGB(171, 171, 171)
+		label.TextSize = 13
+		label.FontFace = uipallet.Font
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Parent = row
+
+		row.MouseEnter:Connect(function()
+			tween:Tween(row, uipallet.Tween, {BackgroundColor3 = color.Light(uipallet.Main, 0.0875)})
+			label.TextColor3 = Color3.new(1, 1, 1)
+		end)
+		row.MouseLeave:Connect(function()
+			tween:Tween(row, uipallet.Tween, {BackgroundColor3 = color.Light(uipallet.Main, 0.034)})
+			label.TextColor3 = Color3.fromRGB(171, 171, 171)
+		end)
+		row.MouseButton1Click:Connect(function()
+			openEditor(entry)
+		end)
+
+		table.insert(publicapi.Owned, row)
+	end
+
+	local function renderOwned()
+		for _, row in publicapi.Owned do
+			row:Destroy()
+		end
+		table.clear(publicapi.Owned)
+
+		local count = 0
+		for _, entry in publicapi.Configs do
+			if entry.mine then
+				count += 1
+				addOwned(entry, count)
+			end
+		end
+
+		ownedempty.Visible = count == 0
+		owned.CanvasSize = UDim2.fromOffset(0, count * 34)
+	end
+
+	local function render()
+		clearCards()
+
+		local filtered = {}
+		local query = publicapi.Search:lower()
+		for _, entry in publicapi.Configs do
+			local name = entry.Name:lower()
+			local author = entry.Author:lower()
+			if query == '' or name:find(query, 1, true) or author:find(query, 1, true) then
+				table.insert(filtered, entry)
+			end
+		end
+
+		table.sort(filtered, sorts[publicapi.Sort])
+		for _, entry in filtered do
+			addCard(entry)
+		end
+		empty.Visible = #filtered == 0
+	end
+
+	local function refresh()
+		showSkeletons()
+
+		local res = request({
+			Url = 'https://api.catvape.dev/configs/get',
+			Method = 'POST',
+			Headers = {
+				['Content-Type'] = 'application/json'
+			},
+			Body = httpService:JSONEncode({key = license.Key or '_key'})
+		})
+		local payload = res and res.Body and httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
+		local configs = payload and payload.configs
+		table.clear(publicapi.Configs)
+		publicapi.Viewer = payload and payload.viewer
+
+		if configs then
+			for _, v in configs do
+				if v.config_name then
+					v.Uploaded = parseTimestamp(v.uploaded_at)
+					v.Name, v.Author = parseFilename(v)
+					v.likes = tonumber(v.likes) or 0
+					v.liked = v.liked == true
+					v.mine = v.mine == true
+					table.insert(publicapi.Configs, v)
+				end
+			end
+		end
+		renderOwned()
+		render()
+	end
+
+	publicapi.Refresh = refresh
+
+	local function addSort(name, label)
+		local button = Instance.new('TextButton')
+		button.Name = name
+		button.Size = UDim2.new(0, 70, 1, 0)
+		button.BackgroundColor3 = accentColor()
+		button.BackgroundTransparency = publicapi.Sort == name and 0 or 1
+		button.AutoButtonColor = false
+		button.Text = (label or name):upper()
+		button.TextColor3 = publicapi.Sort == name and accentTextColor() or Color3.new(1, 1, 1)
+		button.TextTransparency = publicapi.Sort == name and 0 or 0.85
+		button.TextSize = 10
+		button.FontFace = Font.fromEnum(Enum.Font.ArialBold)
+		button.Parent = sortframe
+		addCorner(button, UDim.new(1, 0))
+		table.insert(publicapi.Accents, button)
+
+		button.MouseButton1Click:Connect(function()
+			publicapi.Sort = name
+			for _, other in sortframe:GetChildren() do
+				if other:IsA('TextButton') then
+					local on = other.Name == name
+					other.BackgroundTransparency = on and 0 or 1
+					other.TextColor3 = on and accentTextColor() or Color3.new(1, 1, 1)
+					other.TextTransparency = on and 0 or 0.85
+				end
+			end
+			render()
+		end)
+	end
+
+	addSort('newest', 'Newest')
+	addSort('oldest', 'Oldest')
+	addSort('name', 'A - Z')
+
+	searchbox:GetPropertyChangedSignal('Text'):Connect(function()
+		publicapi.Search = searchbox.Text
+		render()
+	end)
+
+	download.MouseButton1Click:Connect(function()
+		if not selected then return end
+		local entry = selected
+		local content = entry.config or (entry.metadata and entry.metadata.content)
+		if not content then
+			mainapi:CreateNotification('Cat', `Could not fetch "{entry.Name}"`, 8, 'warning')
+			return
+		end
+
+		local profile = `{entry.Name} (@{entry.Author})`
+		table.insert(mainapi.Profiles, {Name = profile, Bind = {}})
+		mainapi:Save(profile)
+		writefile('catsix/profiles/'..profile..mainapi.Place..'.txt', content)
+		mainapi:Load(true, profile)
+		showPanel(nil)
+		mainapi:CreateNotification('Cat', `Downloaded "{entry.Name}" by {entry.Author}`, 8, 'info')
+	end)
+
+	for _, v in {detailclose, uploadclose, cancel, overlay} do
+		v.MouseButton1Click:Connect(showPanel)
+	end
+
+	sourcecatcher = Instance.new('TextButton')
+	sourcecatcher.Name = 'CreateFromCatcher'
+	sourcecatcher.Size = UDim2.fromScale(1, 1)
+	sourcecatcher.BackgroundTransparency = 1
+	sourcecatcher.AutoButtonColor = false
+	sourcecatcher.Text = ''
+	sourcecatcher.Visible = false
+	sourcecatcher.ZIndex = 8
+	sourcecatcher.Parent = window
+	sourcecatcher.MouseButton1Click:Connect(function()
+		local mouse = inputService:GetMouseLocation() - game:GetService('GuiService'):GetGuiInset()
+		local origin, size = sourcemenu.AbsolutePosition, sourcemenu.AbsoluteSize
+		if mouse.X >= origin.X and mouse.X <= origin.X + size.X and mouse.Y >= origin.Y and mouse.Y <= origin.Y + size.Y then
+			return
+		end
+		setSourceMenu(false)
+	end)
+
+	sourcemenu = Instance.new('Frame')
+	sourcemenu.Active = true
+	sourcemenu.Name = 'CreateFrom'
+	sourcemenu.Size = UDim2.fromOffset(216, 60)
+	sourcemenu.Position = UDim2.fromOffset(96, 60)
+	sourcemenu.BackgroundColor3 = accentColor()
+	sourcemenu.BorderSizePixel = 0
+	sourcemenu.Visible = false
+	sourcemenu.ZIndex = 9
+	sourcemenu.Parent = window
+	addCorner(sourcemenu)
+	table.insert(publicapi.Accents, sourcemenu)
+
+	local sourcetitle = Instance.new('TextLabel')
+	sourcetitle.Size = UDim2.new(1, 0, 0, 20)
+	sourcetitle.Position = UDim2.fromOffset(0, 14)
+	sourcetitle.BackgroundTransparency = 1
+	sourcetitle.Text = 'Create from...'
+	sourcetitle.TextColor3 = accentTextColor()
+	sourcetitle.TextSize = 14
+	sourcetitle.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+	sourcetitle.ZIndex = 10
+	sourcetitle.Parent = sourcemenu
+
+	local sourcelist = Instance.new('ScrollingFrame')
+	sourcelist.Size = UDim2.fromOffset(216, 20)
+	sourcelist.Position = UDim2.fromOffset(0, 40)
+	sourcelist.BackgroundTransparency = 1
+	sourcelist.BorderSizePixel = 0
+	sourcelist.ScrollBarThickness = 0
+	sourcelist.CanvasSize = UDim2.new()
+	sourcelist.ZIndex = 10
+	sourcelist.Parent = sourcemenu
+	local sourcelayout = Instance.new('UIListLayout')
+	sourcelayout.SortOrder = Enum.SortOrder.LayoutOrder
+	sourcelayout.Padding = UDim.new(0, 0)
+	sourcelayout.Parent = sourcelist
+
+	local function profileSource(profile)
+		if not profile then
+			mainapi:Save(mainapi.Profile)
+		end
+
+		local path = 'catsix/profiles/'..(profile or mainapi.Profile)..mainapi.Place..'.txt'
+		return isfile(path) and readfile(path) or nil
+	end
+
+	local function openUploader(profile)
+		setSourceMenu(false)
+		namebox.Text = ''
+		descbox.Text = ''
+		anontoggle:Set(false)
+		derived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{profile or 'Current settings'}</font>`
+
+		uploadsource = profileSource(profile)
+		fillModules(uploadmodules, uploadcount, uploadsource)
+		showPanel(uploader)
+	end
+
+	local editorrows, editordecoded = {}, nil
+
+	function selectEditorModule(chosen)
+		for module, row in editorrows do
+			local on = module == chosen
+			row.BackgroundTransparency = on and 0 or 1
+			row.TextLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		end
+		editordetailsrow.BackgroundTransparency = chosen and 1 or 0
+		editordetailsrow.TextLabel.TextColor3 = chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
+
+		editorsettings.Visible = not chosen
+		editormoduletitle.Visible = chosen ~= nil
+		editoroptions.Visible = chosen ~= nil
+
+		if not chosen then return end
+
+		editormoduletitle.Text = chosen
+		clearList(editoroptions)
+
+		local options = editordecoded.Modules[chosen].Options or {}
+		local names = {}
+		for option in pairs(options) do
+			table.insert(names, tostring(option))
+		end
+		table.sort(names)
+		for i, option in names do
+			addOptionRow(editoroptions, option, options[option], i)
+		end
+		editoroptions.CanvasSize = UDim2.fromOffset(0, #names * 30)
+	end
+
+	local function setEditorModules(source)
+		editordecoded, editorrows = fillModules(editormodules, editorcount, source, selectEditorModule)
+		selectEditorModule(nil)
+	end
+
+	local function setEditorSource(profile)
+		setSourceMenu(false)
+		editorsource = profileSource(profile)
+		editorderived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{profile or 'Current settings'}</font>`
+		setEditorModules(editorsource)
+	end
+
+	function openEditor(entry)
+		editing = entry
+		editorsource = nil
+		editortitle.Text = entry.Name
+		editordesc.Text = (entry.description ~= 'unknown' and entry.description) or ''
+		editorderived.Text = 'DERIVED FROM <font color="rgb(255,255,255)">Published copy</font>'
+		editorstats.Text = `{entry.likes or 0} positive reviews    {entry.downloads or 0} downloads`
+		editoranon:Set(entry.discord_username == 'unknown')
+
+		setEditorModules(entry.config)
+		showPanel(editor)
+	end
+
+	local function addSource(text, profile, order)
+		local row = Instance.new('TextButton')
+		row.Size = UDim2.fromOffset(216, 30)
+		row.BackgroundColor3 = accentColor()
+		row.BorderSizePixel = 0
+		row.AutoButtonColor = true
+		row.Text = ''
+		row.LayoutOrder = order
+		row.ZIndex = 10
+		row.Parent = sourcelist
+		local plus = Instance.new('TextLabel')
+		plus.Size = UDim2.fromOffset(20, 30)
+		plus.Position = UDim2.fromOffset(16, 0)
+		plus.BackgroundTransparency = 1
+		plus.Text = '+'
+		plus.TextColor3 = accentTextColor()
+		plus.TextSize = 16
+		plus.FontFace = uipallet.Font
+		plus.ZIndex = 11
+		plus.Parent = row
+		local label = Instance.new('TextLabel')
+		label.Size = UDim2.fromOffset(160, 30)
+		label.Position = UDim2.fromOffset(40, 0)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextColor3 = accentTextColor()
+		label.TextSize = 13
+		label.FontFace = uipallet.Font
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.ZIndex = 11
+		label.Parent = row
+		row.MouseButton1Click:Connect(function()
+			sourceaction(profile)
+		end)
+		return row
+	end
+
+	local function showSourceMenu(action, title, x, y)
+		sourceaction = action
+
+		for _, old in sourcelist:GetChildren() do
+			if old:IsA('TextButton') or old:IsA('TextLabel') then
+				old:Destroy()
+			end
+		end
+
+		sourcetitle.Text = title
+		sourcetitle.TextColor3 = accentTextColor()
+		addSource('Current settings', nil, 1)
+
+		local caption = Instance.new('TextLabel')
+		caption.Size = UDim2.fromOffset(216, 24)
+		caption.BackgroundTransparency = 1
+		caption.Text = '      PRIVATE PROFILES'
+		caption.TextColor3 = accentTextColor()
+		caption.TextTransparency = 0.35
+		caption.TextSize = 11
+		caption.FontFace = Font.new('rbxasset://fonts/families/Arial.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+		caption.TextXAlignment = Enum.TextXAlignment.Left
+		caption.LayoutOrder = 2
+		caption.ZIndex = 11
+		caption.Parent = sourcelist
+
+		local count = 0
+		for _, profile in mainapi.Profiles do
+			count += 1
+			addSource(profile.Name, profile.Name, 2 + count)
+		end
+
+		local height = 30 + 24 + count * 30
+		sourcelist.Size = UDim2.fromOffset(216, math.min(height, 210))
+		sourcelist.CanvasSize = UDim2.fromOffset(0, height)
+		sourcemenu.Size = UDim2.fromOffset(216, 40 + math.min(height, 210) + 10)
+		sourcemenu.Position = UDim2.fromOffset(x, y)
+		setSourceMenu(true)
+	end
+
+	publish.MouseButton1Click:Connect(function()
+		showSourceMenu(openUploader, 'Create from...', 96, 60)
+	end)
+
+	editorderived.MouseButton1Click:Connect(function()
+		showSourceMenu(setEditorSource, 'Update from...', 43, 96)
+	end)
+
+	confirm.MouseButton1Click:Connect(function()
+		if namebox.Text == '' then
+			mainapi:CreateNotification('Cat', 'No profile name provided', 5, 'warning')
+			return
+		end
+
+		if not uploadsource then
+			mainapi:CreateNotification('Cat', 'That profile has no saved settings yet', 8, 'warning')
+			return
+		end
+
+		showPanel(nil)
+		mainapi:CreateNotification('Cat', 'Publishing profile', 5, 'info')
+
+		local res = request({
+			Url = 'https://api.catvape.dev/configs/set',
+			Method = 'POST',
+			Headers = {
+				['Content-Type'] = 'application/json'
+			},
+			Body = httpService:JSONEncode({
+				key = license.Key or '_key',
+				config_name = namebox.Text,
+				config = uploadsource,
+				description = descbox.Text,
+				anonymous = anontoggle.Enabled
+			})
+		})
+
+		if res and res.Body then
+			mainapi:CreateNotification('Cat', `Published "{namebox.Text}"`, 10, 'info')
+			refresh()
+		else
+			mainapi:CreateNotification('Cat', 'Failed to publish profile', 10, 'warning')
+		end
+	end)
+
+	update.MouseButton1Click:Connect(function()
+		if not editing then return end
+		local entry = editing
+		local content = editorsource or entry.config
+
+		if not content then
+			mainapi:CreateNotification('Cat', `Could not read the settings for "{entry.Name}"`, 8, 'warning')
+			return
+		end
+
+		showPanel(nil)
+		mainapi:CreateNotification('Cat', `Updating "{entry.Name}"`, 5, 'info')
+
+		local res = request({
+			Url = 'https://api.catvape.dev/configs/set',
+			Method = 'POST',
+			Headers = {
+				['Content-Type'] = 'application/json'
+			},
+			Body = httpService:JSONEncode({
+				key = license.Key or '_key',
+				config_name = entry.config_name,
+				config = content,
+				description = editordesc.Text,
+				anonymous = editoranon.Enabled
+			})
+		})
+
+		if res and res.Body then
+			mainapi:CreateNotification('Cat', `Updated "{entry.Name}"`, 10, 'info')
+			refresh()
+		else
+			mainapi:CreateNotification('Cat', `Failed to update "{entry.Name}"`, 10, 'warning')
+		end
+	end)
+
+	editorremove.MouseButton1Click:Connect(function()
+		if not editing then return end
+		local entry = editing
+
+		showPanel(nil)
+		local res = request({
+			Url = 'https://api.catvape.dev/configs/delete',
+			Method = 'POST',
+			Headers = {
+				['Content-Type'] = 'application/json'
+			},
+			Body = httpService:JSONEncode({
+				key = license.Key or '_key',
+				config_name = entry.config_name
+			})
+		})
+		local body = res and res.Body and httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
+
+		if body and body.success then
+			mainapi:CreateNotification('Cat', `Removed "{entry.Name}"`, 8, 'info')
+			refresh()
+		else
+			mainapi:CreateNotification('Cat', `Failed to remove "{entry.Name}"`, 8, 'warning')
+		end
+	end)
+
+	editorcancel.MouseButton1Click:Connect(function()
+		showPanel(nil)
+	end)
+	editorclose.MouseButton1Click:Connect(function()
+		showPanel(nil)
+	end)
+
+	close.MouseButton1Click:Connect(function()
+		window.Visible = false
+		clickgui.Visible = true
+	end)
+
+	local loading = false
+	window:GetPropertyChangedSignal('Visible'):Connect(function()
+		self:UpdateGUI(self.GUIColor.Hue, self.GUIColor.Sat, self.GUIColor.Value)
+		if window.Visible and not loading then
+			loading = true
+			task.spawn(function()
+				refresh()
+				loading = false
+			end)
+		end
+	end)
+	gridlayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+		if self.ThreadFix then
+			setthreadidentity(8)
+		end
+		children.CanvasSize = UDim2.fromOffset(0, gridlayout.AbsoluteContentSize.Y / scale.Scale)
+	end)
+
+	showPanel(nil)
+	self.PublicProfiles = publicapi
+
+	return publicapi
+end
+
 function mainapi:CreateChangelogs()
 	local changelogapi = {}
 
@@ -7912,7 +9674,7 @@ gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
 gui.OnTopOfCoreBlur = true
-if false then
+if false then--mainapi.ThreadFix
 	gui.Parent = cloneref(game:GetService('CoreGui'))
 else
 	gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
@@ -8191,6 +9953,7 @@ mainapi:Clean(targets.Update)
 
 mainapi:CreateLegit()
 mainapi:CreateChangelogs()
+mainapi:CreatePublicProfiles()
 mainapi:CreateSearch()
 mainapi.Categories.Main:CreateOverlayBar()
 mainapi.Categories.Main:CreateSettingsDivider()

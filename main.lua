@@ -129,7 +129,11 @@ end
 
 if shared.maincat then
 	redirect()
-	playersService.LocalPlayer:Kick('Your script is outdated, Get new one at discord.gg/catvape')
+	playersService.LocalPlayer:Kick('Your script is outdated, get new one at discord.gg/catvape')
+	return
+end
+if table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) then
+	playersService.LocalPlayer:Kick('Your executor is unsupported, please switch executors!')
 	return
 end
 
