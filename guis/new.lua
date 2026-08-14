@@ -9531,7 +9531,11 @@ function mainapi:LoadOptions(object, savedoptions)
 		if mainapi.ThreadFix then
 			setthreadidentity(8)
 		end
-		pcall(option.Load, option, v)
+		if not pcall(function()
+			option:Load(v)
+		end) then
+			mainapi:CreateNotification('Cat', `Failed to load config for {i}`, 5, 'warning')
+		end
 	end
 end
 
