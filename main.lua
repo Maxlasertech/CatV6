@@ -94,7 +94,7 @@ local function finishLoading()
 			vape:CreateNotification('Finished Loading', (getgenv().catname and `Authenticated as {getgenv().catname} with {getgenv().catrole}, ` or '').. (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
 			task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
 				if shared.updated then
-					vape:CreateNotification('Cat', `Script has updated from {shared.updated} to {readfile('catsix/profiles/commit.txt')}`, 10, 'info')
+					vape:CreateNotification('Cat', `Script has updated from {(shared.updated or ""):sub(1, 8)} to {(readfile('catsix/profiles/commit.txt') or ""):sub(1, 8)}`, 10, 'info')
 				end
 			end)
 		end	

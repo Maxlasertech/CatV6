@@ -57,6 +57,7 @@ local store = {
 	attackReachUpdate = tick(),
 	damageBlockFail = tick(),
 	hand = {},
+	swordSpeeds = {},
 	inventory = {
 		inventory = {
 			items = {},
@@ -464,6 +465,12 @@ local function getReach(tool)
 	return itemmeta and itemmeta.sword and itemmeta.sword.attackRange or store.swordDistance
 end
 getgenv().getReach = getReach
+
+local function getSwordSpeed(tool)
+	local itemmeta = tool and bedwars.ItemMeta[tool.Name]
+	return store.swordSpeeds[tool and tool.Name] or (itemmeta and itemmeta.sword and itemmeta.sword.attackSpeed) or 0.3
+end
+getgenv().getSwordSpeed = getSwordSpeed
 
 local function getPlacedBlock(pos)
 	if not pos then
@@ -1149,6 +1156,7 @@ run(function()
 
 	bedwars = setmetatable({
 		AbilityController = Flamework.resolveDependency('@easy-games/game-core:client/controllers/ability/ability-controller@AbilityController'),
+		AbilityIndicatorUtil = require(replicatedStorage.TS.games.bedwars.items['ability-indicator']['ability-indicator-util']).AbilityIndicatorUtil,
 		AnimationType = require(replicatedStorage.TS.animation['animation-type']).AnimationType,
 		AnimationUtil = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out['shared'].util['animation-util']).AnimationUtil,
 		AdetundeUtil = require(replicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-util']).FrostyHammerUtil,
@@ -1221,6 +1229,9 @@ run(function()
 		SettingsMeta = require(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
 		SharedConstants = require(replicatedStorage.TS['shared-constants']).CpsConstants,
 		SoulBrokerConstants = require(replicatedStorage.TS.games.bedwars.kit.kits['soul-broker']['soul-broker-constants']).SoulBrokerConstants,
+		SorcererBalance = require(replicatedStorage.TS.balance['sorcerer-balance']).SorcererBalance,
+		SorcererTierMeta = require(replicatedStorage.TS.balance['sorcerer-balance']).SorcererTierMeta,
+		SummonerUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-util']),
 		AudioManager = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).AudioManager,
 		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
 		SyncEvents = require(lplr.PlayerScripts.TS['client-sync-events']).ClientSyncEvents,
@@ -1850,6 +1861,15 @@ run(function()
 		vapeEvents.EntityDamageEvent:Fire(damageTable)
 	end))
 
+	local swordSwing = bedwars.SyncEvents.SwordSwing:setPriority(500):connect(function(event)
+		if store.swordSpeeds and event.swordType and typeof(event.attackSpeed) == 'number' then
+			store.swordSpeeds[event.swordType] = event.attackSpeed
+		end
+	end)
+	vape:Clean(function()
+		swordSwing:Destroy()
+	end)
+
 	vape:Clean(bedwars.SyncEvents.ProjectileLaunched:connect(function(event)
 		if typeof(event.origin) ~= 'Vector3' or typeof(event.launchVelocity) ~= 'Vector3' then return end
 		if event.shooter == lplr.Character then return end
@@ -2332,10 +2352,10 @@ run(function()
 				if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
 					local blockPlacer = bedwars.BlockPlacementController.blockPlacer
 					if store.hand.toolType == 'block' and (Wool.Enabled and store.hand.tool.Name:find('wool_') or not Wool.Enabled) and blockPlacer and canPlace() then
-						if inputService.TouchEnabled then
-							task.spawn(blockPlacer.autoBridge, blockPlacer, workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
-						else
-							if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
+						if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
+							if inputService.TouchEnabled then
+								blockPlacer:autoBridge(workspace:GetServerTimeNow() - bedwars.KnockbackController:getLastKnockbackTime() >= 0.2)
+							else
 								local mouseinfo = blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
 								if mouseinfo and mouseinfo.placementPosition == mouseinfo.placementPosition then
 									task.spawn(blockPlacer.placeBlock, blockPlacer, mouseinfo.placementPosition)
@@ -2430,6 +2450,211 @@ run(function()
 		DefaultMin = 12,
 		DefaultMax = 12,
 		Darker = true
+	})
+end)
+
+run(function()
+	local BowAssist
+	local Targets
+	local Sort
+	local AimPart
+	local FOV
+	local AimSpeed
+	local Smoothness
+	local Distance
+	local Shake
+	local Clear
+	
+	local drawStart, oldStart, oldStop = 0
+	
+	local arcCheck = RaycastParams.new()
+	arcCheck.FilterType = Enum.RaycastFilterType.Exclude
+	
+	local function getSource()
+		local meta = store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name]
+		local source = meta and meta.projectileSource
+		if not source or not source.projectileType then return nil end
+	
+		local ammo = store.hand.tool.Name
+		if source.ammoItemTypes and #source.ammoItemTypes > 0 then
+			ammo = nil
+			for _, other in store.inventory.inventory.items do
+				if table.find(source.ammoItemTypes, other.itemType) then
+					ammo = other.itemType
+					break
+				end
+			end
+		end
+		if not ammo then return nil end
+	
+		local projmeta = bedwars.ProjectileMeta[source.projectileType(ammo)]
+		if not projmeta or type(projmeta.launchVelocity) ~= 'number' then return nil end
+	
+		local scalar = source.minStrengthScalar or 1
+		local ratio = source.maxStrengthChargeSec and math.clamp((tick() - drawStart) / source.maxStrengthChargeSec, 0, 1) or 1
+		return projmeta, projmeta.launchVelocity * (scalar + (1 - scalar) * ratio)
+	end
+	
+	BowAssist = vape.Categories.Combat:CreateModule({
+		Name = 'BowAssist',
+		Function = function(callback)
+			if callback then
+				oldStart = bedwars.DefaultProjectileSourceController.onStartCharging
+				bedwars.DefaultProjectileSourceController.onStartCharging = function(self, ...)
+					drawStart = tick()
+					return oldStart(self, ...)
+				end
+	
+				oldStop = bedwars.DefaultProjectileSourceController.onStopCharging
+				bedwars.DefaultProjectileSourceController.onStopCharging = function(self, ...)
+					drawStart = 0
+					return oldStop(self, ...)
+				end
+	
+				BowAssist:Clean(runService.PostSimulation:Connect(function(dt)
+					if drawStart == 0 or not entitylib.isAlive then return end
+	
+					local projmeta, projSpeed = getSource()
+					if not projmeta then return end
+	
+					local localPosition = entitylib.character.RootPart.Position
+					local ent = entitylib.EntityMouse({
+						Range = FOV.Value,
+						Part = 'RootPart',
+						Wallcheck = Targets.Walls.Enabled,
+						Players = Targets.Players.Enabled,
+						NPCs = Targets.NPCs.Enabled,
+						Origin = localPosition,
+						Sort = sortmethods[Sort.Value]
+					})
+					if not ent or (localPosition - ent.RootPart.Position).Magnitude > Distance.Value then return end
+	
+					local targetPosition = ent[AimPart.Value].Position
+					local shootPosition = (CFrame.new(localPosition, targetPosition) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+					local gravity = projmeta.gravitationalAcceleration or 196.2
+					local calc, _, travelTime = prediction.SolveTrajectory(shootPosition, projSpeed, gravity, targetPosition, ent.RootPart.AssemblyLinearVelocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, nil, ent.Humanoid.FloorMaterial == Enum.Material.Air or math.abs(ent.RootPart.AssemblyLinearVelocity.Y) > 0.01, ent.RootPart.Position, ent.RootPart, nil, true)
+					if not calc then return end
+	
+					if Clear.Enabled and travelTime then
+						local ignorelist = {gameCamera, lplr.Character}
+						for _, other in entitylib.List do
+							if other.Character then
+								table.insert(ignorelist, other.Character)
+							end
+						end
+						arcCheck.FilterDescendantsInstances = ignorelist
+						if not prediction.IsTrajectoryClear(shootPosition, calc - shootPosition, gravity, travelTime, arcCheck) then return end
+					end
+	
+					targetinfo.Targets[ent] = tick() + 1
+					local rng = Random.new()
+					local jitter = Vector3.new((rng:NextNumber() - 0.5) * Shake.Value * dt, (rng:NextNumber() - 0.5) * Shake.Value * dt, (rng:NextNumber() - 0.5) * Shake.Value * dt)
+					gameCamera.CFrame = gameCamera.CFrame:Lerp(CFrame.lookAt(gameCamera.CFrame.Position, calc + jitter), math.clamp((AimSpeed.Value / Smoothness.Value) * dt, 0, 1))
+				end))
+			else
+				drawStart = 0
+				bedwars.DefaultProjectileSourceController.onStartCharging = oldStart
+				bedwars.DefaultProjectileSourceController.onStopCharging = oldStop
+			end
+		end,
+		Tooltip = 'Eases your camera onto the arrow drop while you draw a bow'
+	})
+	Targets = BowAssist:CreateTargets({
+		Players = true,
+		Walls = true
+	})
+	local methods = {'Distance', 'Damage'}
+	for i in sortmethods do
+		if not table.find(methods, i) then
+			table.insert(methods, i)
+		end
+	end
+	Sort = BowAssist:CreateDropdown({
+		Name = 'Target mode',
+		List = methods,
+		Default = 'Distance'
+	})
+	AimPart = BowAssist:CreateDropdown({
+		Name = 'Part',
+		List = {'RootPart', 'Head'}
+	})
+	FOV = BowAssist:CreateSlider({
+		Name = 'FOV',
+		Min = 1,
+		Max = 1000,
+		Default = 220,
+		Tooltip = 'How far from your crosshair a target can sit before it gets ignored'
+	})
+	Distance = BowAssist:CreateSlider({
+		Name = 'Distance',
+		Min = 1,
+		Max = 300,
+		Default = 200,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	AimSpeed = BowAssist:CreateSlider({
+		Name = 'Aim speed',
+		Min = 1,
+		Max = 20,
+		Default = 5
+	})
+	Smoothness = BowAssist:CreateSlider({
+		Name = 'Smoothness',
+		Min = 1,
+		Max = 20,
+		Default = 2,
+		Decimal = 10,
+		Tooltip = 'Divides the aim speed to soften the pull, 1 leaves it unchanged'
+	})
+	Shake = BowAssist:CreateSlider({
+		Name = 'Shake',
+		Min = 0,
+		Max = 100,
+		Default = 0,
+		Tooltip = 'Adds random jitter so the pull does not read as a straight line'
+	})
+	Clear = BowAssist:CreateToggle({
+		Name = 'Clear shot only',
+		Default = true,
+		Tooltip = 'Stops assisting when a block is in the way of the arc'
+	})
+end)
+
+run(function()
+	local HitregAdjuster
+	local Hitreg
+	local swordSpeed, swingSpeed, swingRestore
+	
+	HitregAdjuster = vape.Categories.Combat:CreateModule({
+		Name = 'HitregAdjuster',
+		Function = function(callback)
+			if callback then
+				swingSpeed = bedwars.SyncEvents.SwordSwing:setPriority(150):connect(function(event)
+					swordSpeed = event.attackSpeed
+					event.attackSpeed = 10 / math.max(Hitreg.Value - 1, 1)
+				end)
+				swingRestore = bedwars.SyncEvents.SwordSwing:setPriority(300):connect(function(event)
+					event.attackSpeed = swordSpeed
+				end)
+				HitregAdjuster:Clean(function()
+					swingSpeed:Destroy()
+					swingRestore:Destroy()
+				end)
+			end
+		end,
+		Tooltip = 'Swaps the games attack cooldown for a hit count of your own'
+	})
+	Hitreg = HitregAdjuster:CreateSlider({
+		Name = 'Hitreg',
+		Min = 1,
+		Max = 36,
+		Default = 35,
+		Suffix = function(val)
+			return val == 1 and 'hit / 10s' or 'hits / 10s'
+		end,
+		Tooltip = 'Spacing your manual and autoclicker hits fire at, 35 is the killaura spacing'
 	})
 end)
 
@@ -2742,38 +2967,88 @@ end)
 
 run(function()
 	local TriggerBot
+	local Targets
+	local Range
+	local Angle
 	local CPS
+	local Limit
+	local Region
+	local Mouse
+	local GUI
+	local BoxColor
+	local BoxTween
+	local BoxSpeed
+	
+	local box
 	local rayParams = RaycastParams.new()
+	
+	local function getTarget(localPosition, attackRange, angle)
+		if angle > 0 then
+			local ent = entitylib.EntityMouse({
+				Part = 'RootPart',
+				Range = angle,
+				MouseOrigin = gameCamera.ViewportSize / 2,
+				Players = Targets.Players.Enabled,
+				NPCs = Targets.NPCs.Enabled,
+				Wallcheck = Targets.Walls.Enabled,
+				Origin = localPosition
+			})
+			if not ent or (localPosition - ent.RootPart.Position).Magnitude > attackRange then return nil end
+	
+			return ent
+		end
+	
+		local unit = lplr:GetMouse().UnitRay
+		rayParams.FilterDescendantsInstances = {lplr.Character}
+		local ray = bedwars.QueryUtil:raycast(unit.Origin, unit.Direction * 200, rayParams)
+		if not ray then return nil end
+	
+		for _, ent in entitylib.List do
+			if ent.Targetable and ray.Instance:IsDescendantOf(ent.Character) and (localPosition - ent.RootPart.Position).Magnitude <= attackRange then
+				if Targets.Players.Enabled and ent.Player or Targets.NPCs.Enabled and not ent.Player then
+					if not Targets.Walls.Enabled or not entitylib.Wallcheck(localPosition, ent.RootPart.Position, true, ent) then
+						return ent
+					end
+				end
+			end
+		end
+	
+		return nil
+	end
 	
 	TriggerBot = vape.Categories.Combat:CreateModule({
 		Name = 'TriggerBot',
 		Function = function(callback)
 			if callback then
 				repeat
-					local doAttack
-					if not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
-						if entitylib.isAlive and store.hand.toolType == 'sword' and bedwars.DaoController.chargingMaid == nil then
-							local attackRange = bedwars.ItemMeta[store.hand.tool.Name].sword.attackRange
-							rayParams.FilterDescendantsInstances = {lplr.Character}
-	
-							local unit = lplr:GetMouse().UnitRay
-							local localPos = entitylib.character.RootPart.Position
-							local rayRange = (attackRange or 14.4)
-							local ray = bedwars.QueryUtil:raycast(unit.Origin, unit.Direction * 200, rayParams)
-							if ray and (localPos - ray.Instance.Position).Magnitude <= rayRange then
-								local limit = (attackRange)
-								for _, ent in entitylib.List do
-									doAttack = ent.Targetable and ray.Instance:IsDescendantOf(ent.Character) and (localPos - ent.RootPart.Position).Magnitude <= rayRange
-									if doAttack then
-										break
-									end
-								end
+					local ent, doAttack
+					if entitylib.isAlive and (not GUI.Enabled or not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN)) and (not Mouse.Enabled or inputService:IsMouseButtonPressed(0)) then
+						if (not Limit.Enabled or store.hand.toolType == 'sword') and bedwars.DaoController.chargingMaid == nil then
+							local attackRange = math.clamp(Range.Value, 0, getReach(store.hand.tool) * 2)
+							ent = getTarget(entitylib.character.RootPart.Position, attackRange, Angle.Value)
+							doAttack = ent ~= nil
+							if not doAttack and Region.Enabled then
+								doAttack = bedwars.SwordController:getTargetInRegion(attackRange, 0) ~= nil
 							end
 	
-							doAttack = doAttack or bedwars.SwordController:getTargetInRegion(attackRange or 3.8 * 3, 0)
+							if ent then
+								targetinfo.Targets[ent] = tick() + 1
+							end
+	
 							if doAttack and canSwing() then
 								bedwars.SwordController:swingSwordAtMouse()
 							end
+						end
+					end
+	
+					if box then
+						box.Adornee = ent and ent.RootPart or nil
+						tweenService:Create(box, TweenInfo.new(BoxSpeed.Value, Enum.EasingStyle[BoxTween.Value]), {
+							Size = ent and Vector3.new(4, 6, 4) or Vector3.zero
+						}):Play()
+						if ent then
+							box.Color3 = Color3.fromHSV(BoxColor.Hue, BoxColor.Sat, BoxColor.Value)
+							box.Transparency = 1 - BoxColor.Opacity
 						end
 					end
 	
@@ -2783,12 +3058,96 @@ run(function()
 		end,
 		Tooltip = 'Automatically swings when hovering over a entity'
 	})
+	
+	Targets = TriggerBot:CreateTargets({
+		Players = true,
+		NPCs = true,
+		Walls = true
+	})
+	Range = TriggerBot:CreateSlider({
+		Name = 'Range',
+		Min = 1,
+		Max = 18,
+		Default = 18,
+		Decimal = 10,
+		Suffix = function(val)
+			return val <= 1 and 'stud' or 'studs'
+		end,
+		Tooltip = 'Clamped by the reach of whatever you are holding'
+	})
+	Angle = TriggerBot:CreateSlider({
+		Name = 'Angle',
+		Min = 0,
+		Max = 1000,
+		Default = 0,
+		Tooltip = 'Swings at entities near the middle of your screen instead of only the one under your cursor'
+	})
 	CPS = TriggerBot:CreateTwoSlider({
 		Name = 'CPS',
 		Min = 1,
 		Max = 9,
 		DefaultMin = 7,
 		DefaultMax = 7
+	})
+	Limit = TriggerBot:CreateToggle({
+		Name = 'Limit to items',
+		Default = true,
+		Tooltip = 'Only swings when the sword is held'
+	})
+	Region = TriggerBot:CreateToggle({
+		Name = 'Region check',
+		Default = true,
+		Tooltip = 'Also swings when the game reports anything inside your sword region'
+	})
+	Mouse = TriggerBot:CreateToggle({Name = 'Require mouse down'})
+	GUI = TriggerBot:CreateToggle({Name = 'GUI check'})
+	TriggerBot:CreateToggle({
+		Name = 'Show target',
+		Function = function(callback)
+			BoxColor.Object.Visible = callback
+			BoxTween.Object.Visible = callback
+			BoxSpeed.Object.Visible = callback
+			if callback then
+				box = Instance.new('BoxHandleAdornment')
+				box.Adornee = nil
+				box.AlwaysOnTop = true
+				box.Size = Vector3.zero
+				box.CFrame = CFrame.new(0, -0.5, 0)
+				box.ZIndex = 0
+				box.Parent = vape.gui
+			elseif box then
+				box:Destroy()
+				box = nil
+			end
+		end
+	})
+	local animlist = {'Bounce'}
+	for _, v in Enum.EasingStyle:GetEnumItems() do
+		if not table.find(animlist, v.Name) then
+			table.insert(animlist, v.Name)
+		end
+	end
+	BoxTween = TriggerBot:CreateDropdown({
+		Name = 'Box Animation',
+		List = animlist,
+		Darker = true,
+		Visible = false
+	})
+	BoxSpeed = TriggerBot:CreateSlider({
+		Name = 'Animation Speed',
+		Min = 0,
+		Max = 10,
+		Default = 0.9,
+		Decimal = 30,
+		Darker = true,
+		Visible = false
+	})
+	BoxColor = TriggerBot:CreateColorSlider({
+		Name = 'Target Color',
+		Darker = true,
+		DefaultHue = 0.6,
+		DefaultOpacity = 0.5,
+		Visible = false
 	})
 end)
 
@@ -3244,8 +3603,133 @@ run(function()
 end)
 
 run(function()
+	local DeathAdderAimbot
+	local Mode
+	local BedRange
+	local Targets
+	local Sort
+	local TargetPart
+	local FOV
+	
+	local old
+	
+	local function getBed(localPosition)
+		local closest, magnitude = nil, BedRange.Value
+		for _, bed in collectionService:GetTagged('bed') do
+			if not bed:GetAttribute(`Team{lplr:GetAttribute('Team') or -1}NoBreak`) then
+				local mag = (localPosition - bed.Position).Magnitude
+				if mag <= magnitude then
+					closest, magnitude = bed, mag
+				end
+			end
+		end
+		return closest
+	end
+	
+	local function getAim(localPosition)
+		if Mode.Value == 'Bed' then
+			local bed = getBed(localPosition)
+			return bed and bed.Position or nil
+		end
+	
+		local ent = entitylib.EntityMouse({
+			Range = FOV.Value,
+			Part = 'RootPart',
+			Wallcheck = Targets.Walls.Enabled,
+			Players = Targets.Players.Enabled,
+			NPCs = Targets.NPCs.Enabled,
+			Origin = localPosition,
+			Sort = sortmethods[Sort.Value]
+		})
+		if not ent then return nil end
+	
+		targetinfo.Targets[ent] = tick() + 1
+		local tierdata = bedwars.SorcererBalance.getSorcererTierData(bedwars.SorcererBalance.getSorcererTier(lplr))
+		local aim = ent[TargetPart.Value].Position
+		local speed = tierdata and tierdata.projectileVelocity or 70
+		return aim + (ent.RootPart.AssemblyLinearVelocity * ((aim - localPosition).Magnitude / speed))
+	end
+	
+	DeathAdderAimbot = vape.Categories.Blatant:CreateModule({
+		Name = 'DeathAdderAimbot',
+		Function = function(callback)
+			if callback then
+				old = bedwars.SorcererController.getProjectileDirection
+				bedwars.SorcererController.getProjectileDirection = function(self, ...)
+					if entitylib.isAlive then
+						local localPosition = entitylib.character.RootPart.Position
+						local aim = getAim(localPosition)
+						if aim and aim ~= localPosition then
+							return (aim - localPosition).Unit
+						end
+					end
+	
+					return old(self, ...)
+				end
+			else
+				bedwars.SorcererController.getProjectileDirection = old
+			end
+		end,
+		Tooltip = 'Silently aims Death Adder\'s spell at a bed or a player'
+	})
+	Mode = DeathAdderAimbot:CreateDropdown({
+		Name = 'Mode',
+		List = {'Player', 'Bed'},
+		Function = function(val)
+			if BedRange then
+				BedRange.Object.Visible = val == 'Bed'
+				FOV.Object.Visible = val == 'Player'
+				TargetPart.Object.Visible = val == 'Player'
+				Sort.Object.Visible = val == 'Player'
+			end
+		end,
+		Tooltip = 'Bed aims at the closest enemy bed, Player leads the closest enemy'
+	})
+	BedRange = DeathAdderAimbot:CreateSlider({
+		Name = 'Bed range',
+		Min = 1,
+		Max = 60,
+		Default = 60,
+		Darker = true,
+		Visible = false,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	Targets = DeathAdderAimbot:CreateTargets({
+		Players = true,
+		Walls = true
+	})
+	local methods = {'Distance', 'Damage'}
+	for i in sortmethods do
+		if not table.find(methods, i) then
+			table.insert(methods, i)
+		end
+	end
+	Sort = DeathAdderAimbot:CreateDropdown({
+		Name = 'Target mode',
+		List = methods,
+		Default = 'Distance',
+		Darker = true
+	})
+	TargetPart = DeathAdderAimbot:CreateDropdown({
+		Name = 'Part',
+		List = {'RootPart', 'Head'},
+		Darker = true
+	})
+	FOV = DeathAdderAimbot:CreateSlider({
+		Name = 'FOV',
+		Min = 1,
+		Max = 1000,
+		Default = 1000,
+		Darker = true
+	})
+end)
+
+run(function()
 	local FastBreak
 	local BedCheck
+	local HiveCheck
 	local Blacklist
 	local Blacklisted
 	local Time
@@ -3270,7 +3754,7 @@ run(function()
 					pcall(function()
 						local block, info = nil, self.clientManager:getBlockSelector():getMouseInfo(1, {ray = params})
 						block = info and info.target and info.target.blockInstance or nil
-						if block and (not Blacklist.Enabled or not find(newlist, block.Name)) and (not BedCheck.Enabled or block.Name ~= 'bed') then
+						if block and (not Blacklist.Enabled or not find(newlist, block.Name)) and (not BedCheck.Enabled or block.Name ~= 'bed') and (not HiveCheck.Enabled or block.Name ~= 'beehive') then
 							bedwars.BlockBreakController.blockBreaker:setCooldown(Time.Value)
 						end
 					end)
@@ -3308,6 +3792,10 @@ run(function()
 	BedCheck = FastBreak:CreateToggle({
 		Name = 'Bed Check',
 		Tooltip = 'Doesn\'t increase speed if ur breaking a bed'
+	})
+	HiveCheck = FastBreak:CreateToggle({
+		Name = 'Blacklist Beehive',
+		Tooltip = 'Doesn\'t increase speed if ur breaking a beehive'
 	})
 	Blacklist = FastBreak:CreateToggle({
 		Name = 'Use blacklist',
@@ -4138,7 +4626,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				repeat
-					if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.3 then
+					if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.5 then
 						local ent = entitylib.EntityPosition({
 							Part = 'RootPart',
 							Range = Range.Value,
@@ -4252,7 +4740,7 @@ run(function()
 			if callback then
 				Speed:Clean(runService.PreSimulation:Connect(function(dt)
 					bedwars.StatefulEntityKnockbackController.lastImpulseTime = callback and math.huge or time()
-					if entitylib.isAlive and not Fly.Enabled and not (vape.Modules.InfiniteFly or {}).Enabled and not LongJump.Enabled and isnetworkowner(entitylib.character.RootPart) then
+					if entitylib.isAlive and not Fly.Enabled and not LongJump.Enabled and isnetworkowner(entitylib.character.RootPart) then
 						local state = entitylib.character.Humanoid:GetState()
 						if state == Enum.HumanoidStateType.Climbing then return end
 	
@@ -12839,7 +13327,19 @@ run(function()
 	
 	local function canBreak()
 		if not LimitItem.Enabled then return true end
-		return store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock ~= nil
+		local itemmeta = store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name]
+		return itemmeta ~= nil and itemmeta.breakBlock ~= nil
+	end
+	
+	local function breakCannon(block)
+		local deadline = tick() + 0.6 + (store.ping.total or 0)
+	
+		repeat
+			if not AutoDavey.Enabled or not entitylib.isAlive or not canBreak() then return end
+			if (block.Position - entitylib.character.RootPart.Position).Magnitude > 30 then return end
+			bedwars.breakBlock(block, true, true, nil, Switch.Enabled)
+			task.wait(0.1)
+		until not block.Parent or tick() > deadline
 	end
 	
 	AutoDavey = vape.Categories.Minigames:CreateModule({
@@ -12850,12 +13350,8 @@ run(function()
 				bedwars.CannonController.startAiming = function(self, block, ...)
 					local call = oldAim(self, block, ...)
 	
-					if Break.Enabled and block and block.Parent and entitylib.isAlive and canBreak() then
-						task.spawn(function()
-							if getBlockHits(block, block.Position) > 1 then
-								bedwars.breakBlock(block, true, true, nil, Switch.Enabled)
-							end
-						end)
+					if Break.Enabled and block and block.Parent and entitylib.isAlive and canBreak() and getBlockHits(block, block.Position) > 1 then
+						task.spawn(breakCannon, block)
 					end
 	
 					return call
@@ -12863,11 +13359,11 @@ run(function()
 	
 				old = bedwars.CannonHandController.launchSelf
 				bedwars.CannonHandController.launchSelf = function(self, block, ...)
-					local call = old(self, block, ...)
-	
 					if Break.Enabled and block and block.Parent and entitylib.isAlive and (block.Position - entitylib.character.RootPart.Position).Magnitude <= 30 and canBreak() then
-						task.spawn(bedwars.breakBlock, block, true, true, nil, Switch.Enabled)
+						task.spawn(breakCannon, block)
 					end
+	
+					local call = old(self, block, ...)
 	
 					if Jump.Enabled and entitylib.isAlive then
 						entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -13818,17 +14314,20 @@ run(function()
 	local Sort
 	local SwingRange
 	local AttackRange
-	local Perfect
-	local Distance
+	local Spell
+	local SpellMode
+	local SpellCharge
+	local SpellRange
 	local Swing
 	local Limit
 	local Mouse
 	local GUI
 	
+	local casting = 0
+	
 	local function getClaw()
 		if Limit.Enabled then
-			local hand = store.hand
-			return hand.tool and bedwars.IsItemClaw(hand.tool.Name) and hand or nil
+			return store.hand.tool and bedwars.IsItemClaw(store.hand.tool.Name) and store.hand or nil
 		end
 	
 		for _, item in store.inventory.inventory.items do
@@ -13839,14 +14338,43 @@ run(function()
 		return nil
 	end
 	
-	local function getAttackData()
-		if Mouse.Enabled and not inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-			return nil
+	local function getSpellTarget()
+		local localPosition = entitylib.character.RootPart.Position
+		if SpellMode.Value == 'Camera' then
+			local point = bedwars.AbilityIndicatorUtil:calculateBlockTargetPoint(gameCamera.CFrame.Position, gameCamera.CFrame.LookVector, 300, nil, {allowArenaBarrierTarget = false})
+			return point and (point - localPosition).Magnitude <= SpellRange.Value and point or nil
 		end
-		if GUI.Enabled and bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then
-			return nil
+	
+		local ent = entitylib.EntityPosition({
+			Range = SpellRange.Value,
+			Part = 'RootPart',
+			Players = Targets.Players.Enabled,
+			NPCs = Targets.NPCs.Enabled,
+			Sort = sortmethods[Sort.Value]
+		})
+		if not ent then return nil end
+	
+		local point = bedwars.AbilityIndicatorUtil:calculateBlockTargetPoint(ent.RootPart.Position + Vector3.new(0, 3, 0), Vector3.new(0, -1, 0), 30, nil, {allowArenaBarrierTarget = false})
+		return point and (point - localPosition).Magnitude <= SpellRange.Value and point or ent.RootPart.Position
+	end
+	
+	local function castSpell()
+		local target = getSpellTarget()
+		if not target or not bedwars.AbilityController:canUseAbility('summoner_start_charging', {disableBlockedAbilityAlert = true}) then return end
+	
+		casting = tick() + 6
+		bedwars.AbilityController:useAbility('summoner_start_charging', nil, {targetPosition = target})
+	
+		local level = bedwars.SummonerUtil.summoner_getPlayerSpellLevel(lplr) or 1
+		local charge = math.max(bedwars.SummonerUtil.summoner_getTotalCastTimeRequired(level) * (SpellCharge.Value / 100), bedwars.SummonerKitBalance.SPELL_MINIMUM_CAST_TIME)
+		local deadline = tick() + charge
+	
+		repeat task.wait() until tick() >= deadline or not AutoKaida.Enabled or not entitylib.isAlive or not bedwars.SummonerKitController:isPlayerCastingSpell(lplr)
+	
+		if AutoKaida.Enabled and entitylib.isAlive and bedwars.SummonerKitController:isPlayerCastingSpell(lplr) then
+			bedwars.AbilityController:useAbility('summoner_finish_charging')
 		end
-		return getClaw()
+		casting = 0
 	end
 	
 	AutoKaida = vape.Categories.Minigames:CreateModule({
@@ -13854,9 +14382,13 @@ run(function()
 		Function = function(callback)
 			if callback then
 				repeat
-					if entitylib.isAlive and (workspace:GetServerTimeNow() - bedwars.SummonerClawHandController.lastAttackTime) > (bedwars.SummonerKitBalance.CLAW_COOLDOWN or 0.55) then
-						local claw = getAttackData()
-						local ent = claw and entitylib.EntityPosition({
+					if entitylib.isAlive and store.equippedKit == 'summoner' then
+						if Spell.Enabled and tick() > casting and not bedwars.SummonerKitController:isPlayerCastingSpell(lplr) then
+							task.spawn(castSpell)
+						end
+	
+						local claw = (not Mouse.Enabled or inputService:IsMouseButtonPressed(0)) and (not GUI.Enabled or not bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN)) and getClaw()
+						local ent = claw and (workspace:GetServerTimeNow() - bedwars.SummonerClawHandController.lastAttackTime) > bedwars.SummonerKitBalance.CLAW_COOLDOWN and (Swing.Enabled or not bedwars.SummonerKitController:isPlayerCastingSpell(lplr)) and entitylib.EntityPosition({
 							Range = SwingRange.Value,
 							Wallcheck = Targets.Walls.Enabled or nil,
 							Part = 'RootPart',
@@ -13868,36 +14400,28 @@ run(function()
 						if ent then
 							local selfpos = entitylib.character.RootPart.Position
 							local delta = ent.RootPart.Position - selfpos
-	
-							if Perfect.Enabled and delta.Magnitude <= Distance.Value and bedwars.AbilityController:canUseAbility('summoner_start_charging', {disableBlockedAbilityAlert = true}) and bedwars.AbilityController:canUseAbility('summoner_finish_charging', {disableBlockedAbilityAlert = true}) then
-								bedwars.AbilityController:useAbility('summoner_start_charging')
-								task.wait(0.5)
-								if AutoKaida.Enabled and entitylib.isAlive then
-									bedwars.AbilityController:useAbility('summoner_finish_charging')
-								end
+							local dir = CFrame.lookAt(selfpos, ent.RootPart.Position).LookVector
+							targetinfo.Targets[ent] = tick() + 1
+							switchItem(claw.tool, 0)
+							if delta.Magnitude <= AttackRange.Value then
+								bedwars.Handler:Get('SummonerClawAttackRequest'):Fire(nil, {
+									position = selfpos + dir * math.max(delta.Magnitude - 16.399, 0),
+									direction = dir,
+									clientTime = workspace:GetServerTimeNow()
+								})
 							end
-	
-							if AutoKaida.Enabled and entitylib.isAlive and (Swing.Enabled or not bedwars.SummonerKitController:isPlayerCastingSpell(lplr)) then
-								local dir = CFrame.lookAt(selfpos, ent.RootPart.Position).LookVector
-								switchItem(claw.tool, 0)
-								if delta.Magnitude <= AttackRange.Value then
-									bedwars.Handler:Get('SummonerClawAttackRequest'):Fire(nil, {
-										position = selfpos + dir * math.max(delta.Magnitude - 16.399, 0),
-										direction = dir,
-										clientTime = workspace:GetServerTimeNow()
-									})
-								end
-								bedwars.SummonerClawHandController.lastAttackTime = workspace:GetServerTimeNow()
-								bedwars.SummonerClawController:clawAttack(lplr, selfpos, dir, claw.tool.Name)
-							end
+							bedwars.SummonerClawHandController.lastAttackTime = workspace:GetServerTimeNow()
+							bedwars.SummonerClawController:clawAttack(lplr, selfpos, dir, claw.tool.Name)
 						end
 					end
 	
 					task.wait(0.1)
 				until not AutoKaida.Enabled
+			else
+				casting = 0
 			end
 		end,
-		Tooltip = 'Automatically attacks with the Kaida claw'
+		Tooltip = 'Automatically attacks with the Kaida claw and casts her summon circle'
 	})
 	Targets = AutoKaida:CreateTargets({Players = true})
 	local methods = {'Distance', 'Damage'}
@@ -13928,22 +14452,45 @@ run(function()
 			return val <= 1 and 'stud' or 'studs'
 		end
 	})
-	Perfect = AutoKaida:CreateToggle({
-		Name = 'Perfect ability',
+	Spell = AutoKaida:CreateToggle({
+		Name = 'Auto summon',
 		Function = function(callback)
-			Distance.Object.Visible = callback
-		end
+			if SpellMode then
+				SpellMode.Object.Visible = callback
+				SpellCharge.Object.Visible = callback
+				SpellRange.Object.Visible = callback
+			end
+		end,
+		Tooltip = 'Charges and drops the summon circle on its own'
 	})
-	Distance = AutoKaida:CreateSlider({
-		Name = 'Distance',
-		Min = 3,
-		Max = 15,
-		Default = 6,
+	SpellMode = AutoKaida:CreateDropdown({
+		Name = 'Summon at',
+		List = {'Target', 'Camera'},
+		Darker = true,
+		Visible = false,
+		Tooltip = 'Target drops the circle on the closest enemy, Camera drops it where you are looking'
+	})
+	SpellCharge = AutoKaida:CreateSlider({
+		Name = 'Charge',
+		Min = 1,
+		Max = 100,
+		Default = 100,
+		Darker = true,
+		Visible = false,
+		Suffix = '%',
+		Tooltip = 'How far to charge before releasing, 100% is the full radius for your spell level'
+	})
+	SpellRange = AutoKaida:CreateSlider({
+		Name = 'Summon Range',
+		Min = 1,
+		Max = 39,
+		Default = 39,
 		Darker = true,
 		Visible = false,
 		Suffix = function(val)
 			return val <= 1 and 'stud' or 'studs'
-		end
+		end,
+		Tooltip = 'The game refuses anything past 39 studs'
 	})
 	Swing = AutoKaida:CreateToggle({
 		Name = 'Swing during ability',
@@ -18332,6 +18879,23 @@ run(function()
 			end
 		end,
 		Default = true
+	})
+end)
+
+run(function()
+	local FPSUnlocker
+	local cap = getfpscap and getfpscap() or nil
+	
+	FPSUnlocker = vape.Legit:CreateModule({
+	    Name = 'FPSUnlocker',
+	    Function = function(callback)
+	        if cap then
+	            setfpscps(callback and 9999 or cap)
+	        elseif callback then
+	            setfpscap(9999)
+	            notif('FPSUnlocker', 'You have to restart ur game inorder to disable this.', 8, 'info')
+	        end
+	    end
 	})
 end)
 
