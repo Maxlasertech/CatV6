@@ -9531,7 +9531,7 @@ function mainapi:LoadOptions(object, savedoptions)
 		if mainapi.ThreadFix then
 			setthreadidentity(8)
 		end
-		option:Load(v)
+		pcall(option.Load, option, v)
 	end
 end
 
