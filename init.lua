@@ -141,7 +141,7 @@ if not shared.VapeDeveloper then
 		end
 	end
 
-	if not isfile('catsix/profiles/commit.txt') or readfile('catsix/profiles/commit.txt') ~= Commit then
+	if not isfile('catsix/profiles/commit.txt') or readfile('catsix/profiles/commit.txt') ~= Commit or #listfiles('catsix') <= 7 then
         local Contents: GotContents = GetGithubContents()
 		local Success: boolean = DownloadAssets(Contents)
 		if not Success then
