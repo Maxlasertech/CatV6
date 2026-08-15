@@ -96,12 +96,36 @@ local function DownloadAssets(Contents: GotContents): boolean
 	return Contents.Success
 end
 
+local function CreateDownloader(Text: string): TextLabel
+	local Downloader: TextLabel = Instance.new('TextLabel')
+	Downloader.Size = UDim2.new(1, 0, 0, 40)
+	Downloader.BackgroundTransparency = 1
+	Downloader.TextStrokeTransparency = 0
+	Downloader.TextSize = 20
+	Downloader.TextColor3 = Color3.new(1, 1, 1)
+	Downloader.Font = Enum.Font.Arial
+	Downloader.Text = Text
+	Downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or cloneref(game:GetService('CoreGui')))
+
+	task.delay(280, Downloader.Destroy, Downloader)
+	return {
+		Text = Downloader,
+		GetText = function(self): string
+			return Downloader.Text
+		end,
+		ChangeText = function(self, NewText: string): ()
+			Downloader.Text = NewText
+		end
+	}
+end
+
 for _, Folder: string in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
 	if not isfolder(Folder) then
 		makefolder(Folder)
 	end
 end
 
+local Downloader: {Text: TextLabel, GetText: (self: any) -> string, ChangeText: (self: any, NewText: string) -> ()}?
 if not shared.VapeDeveloper then
 	local Commit: string? = Licence.Commit
 	if not Commit then
@@ -121,6 +145,7 @@ if not shared.VapeDeveloper then
         local Contents: GotContents = GetGithubContents()
 		local Success: boolean = DownloadAssets(Contents)
 		if not Success then
+			Downloader = CreateDownloader(`Failed to update to {Commit} - {Contents.Data}`)
 			warn(`Failed to update to {Commit} - {Contents.Data}`)
         else
             warn(`Successfully updated to {Commit}`)
@@ -130,6 +155,13 @@ if not shared.VapeDeveloper then
 end
 
 if not isfile('catsix/main.lua') then
+	local NewText: string = `{Downloader and Downloader:GetText() .. " - " or ""}Failed to load catvape, missing dependencies`
+	if Downloader then
+		Downloader:ChangeText(NewText)
+	else
+		CreateDownloader(NewText)
+	end
+
     return warn(`Failed to load catvape, missing dependencies`)
 end
 
