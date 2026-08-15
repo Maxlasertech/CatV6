@@ -37,7 +37,19 @@ local function GetGithubContents(Path: string): GotContents
 
     if Success then
         local SuccessfulJSONDecode, JSON = pcall(HttpService.JSONDecode, HttpService, Result)
-        return {
+		if SuccessfulJSONDecode and JSON.errors then
+            local Message: string = ""
+            for i,v in JSON.errors[1] do 
+                Message = `{i} - {v}`
+            end
+
+			return {
+				Success = false,
+				Data = Message
+			}
+		end
+
+		return {
             Success = SuccessfulJSONDecode,
             Data = JSON
         }
@@ -106,15 +118,19 @@ if not shared.VapeDeveloper then
 	end
 
 	if not isfile('catsix/profiles/commit.txt') or readfile('catsix/profiles/commit.txt') ~= Commit then
-		local Success: boolean = DownloadAssets(GetGithubContents())
+        local Contents: GotContents = GetGithubContents()
+		local Success: boolean = DownloadAssets(Contents)
 		if not Success then
-			warn(`Failed to update to {Commit}`)
-		else
-			warn(`Successfully updated to {Commit}`)
+			warn(`Failed to update to {Commit} - {Contents.Data}`)
+        else
+            warn(`Successfully updated to {Commit}`)
+            writefile('catsix/profiles/commit.txt', Commit)
 		end
-
-		writefile('catsix/profiles/commit.txt', Commit)
 	end
+end
+
+if not isfile('catsix/main.lua') then
+    return warn(`Failed to load catvape, missing dependencies`)
 end
 
 return loadstring(readfile('catsix/main.lua'), 'main')(Licence)
