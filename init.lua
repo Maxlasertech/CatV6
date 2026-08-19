@@ -1,14 +1,15 @@
 --!nocheck
-local Licence = ... or {}
-Licence.Key = script_key or Licence.Key
+
+local Licence = { }
+Licence.Key = Licence.Key or script_key or [[KEY-HERE]]
 
 local cloneref:(<T>(T) -> T) | (<a>(a) -> a) = cloneref or function(Reference: any) return Reference end
 local isfile: (string) -> boolean = isfile or function(File: string): boolean
-	local Success: boolean, Result = pcall(function()
-		return readfile(File)
-	end)
+    local Success: boolean, Result = pcall(function()
+        return readfile(File)
+    end)
 
-	return Success and Result
+    return Success and Result
 end
 
 local HttpService: HttpService = cloneref(game:GetService("HttpService"))
@@ -26,8 +27,8 @@ type GotContents = {Success: boolean, Data: Contents}
 
 local CryptHash: (Content: string, Algorithm: string) -> string = (crypt and crypt.hash)
 if not CryptHash then
-	local HashLibrary = loadstring(game:HttpGet('https://api.catvape.dev/download/src/libraries/hash.lua'))()
-	CryptHash = HashLibrary.sha1
+    local HashLibrary = loadstring(game:HttpGet('https://api.catvape.dev/download/src/libraries/hash.lua'))()
+    CryptHash = HashLibrary.sha1
 end
 
 local function GetGithubContents(Path: string): GotContents
@@ -37,19 +38,7 @@ local function GetGithubContents(Path: string): GotContents
 
     if Success then
         local SuccessfulJSONDecode, JSON = pcall(HttpService.JSONDecode, HttpService, Result)
-		if SuccessfulJSONDecode and JSON.errors then
-            local Message: string = ""
-            for i,v in JSON.errors[1] do 
-                Message = `{i} - {v}`
-            end
-
-			return {
-				Success = false,
-				Data = Message
-			}
-		end
-
-		return {
+        return {
             Success = SuccessfulJSONDecode,
             Data = JSON
         }
@@ -82,87 +71,50 @@ end
 local function DownloadAssets(Contents: GotContents): boolean
     if Contents.Success then
         for i: number, v: {content: string, path: string?, sha: string} in Contents.Data.files do
-			if v.path:find("/profiles/") then
-				continue
-			end
+            if v.path:find("/profiles/") then
+                continue
+            end
 
-			local CurrentSHA: string = GetCurrentSHA(v.path)
+            local CurrentSHA: string = GetCurrentSHA(v.path)
             if CurrentSHA ~= v.sha then
                 DownloadAsset(v)
             end
         end
     end
 
-	return Contents.Success
-end
-
-local function CreateDownloader(Text: string): TextLabel
-	local Downloader: TextLabel = Instance.new('TextLabel')
-	Downloader.Size = UDim2.new(1, 0, 0, 40)
-	Downloader.BackgroundTransparency = 1
-	Downloader.TextStrokeTransparency = 0
-	Downloader.TextSize = 20
-	Downloader.TextColor3 = Color3.new(1, 1, 1)
-	Downloader.Font = Enum.Font.Arial
-	Downloader.Text = Text
-	Downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or cloneref(game:GetService('CoreGui')))
-
-	task.delay(280, Downloader.Destroy, Downloader)
-	return {
-		Text = Downloader,
-		GetText = function(self): string
-			return Downloader.Text
-		end,
-		ChangeText = function(self, NewText: string): ()
-			Downloader.Text = NewText
-		end
-	}
+    return Contents.Success
 end
 
 for _, Folder: string in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
-	if not isfolder(Folder) then
-		makefolder(Folder)
-	end
+    if not isfolder(Folder) then
+        makefolder(Folder)
+    end
 end
 
-local Downloader: {Text: TextLabel, GetText: (self: any) -> string, ChangeText: (self: any, NewText: string) -> ()}?
 if not shared.VapeDeveloper then
-	local Commit: string? = Licence.Commit
-	if not Commit then
-		local Success: boolean, Result: string = pcall(function() 
-			return game:HttpGet('https://api.catvape.dev/commit') 
-		end)
+    local Commit: string? = Licence.Commit
+    if not Commit then
+        local Success: boolean, Result: string = pcall(function() 
+            return game:HttpGet('https://api.catvape.dev/commit') 
+        end)
 
-		if Success then
-			local SuccessJSON, JSON = pcall(HttpService.JSONDecode, HttpService, Result)
-			if SuccessJSON then
-				Commit = JSON.sha
-			end
-		end
-	end
+        if Success then
+            local SuccessJSON, JSON = pcall(HttpService.JSONDecode, HttpService, Result)
+            if SuccessJSON then
+                Commit = JSON.sha
+            end
+        end
+    end
 
-	if not isfile('catsix/profiles/commit.txt') or readfile('catsix/profiles/commit.txt') ~= Commit or #listfiles('catsix') <= 7 then
-        local Contents: GotContents = GetGithubContents()
-		local Success: boolean = DownloadAssets(Contents)
-		if not Success then
-			Downloader = CreateDownloader(`Failed to update to {Commit} - {Contents.Data}`)
-			warn(`Failed to update to {Commit} - {Contents.Data}`)
-        else
-            warn(`Successfully updated to {Commit}`)
-            writefile('catsix/profiles/commit.txt', Commit)
-		end
-	end
-end
+    if not isfile('catsix/profiles/commit.txt') or readfile('catsix/profiles/commit.txt') ~= Commit then
+        local Success: boolean = DownloadAssets(GetGithubContents())
+        if not Success then
+            warn(`Failed to update to {Commit}`)
+        end
 
-if not isfile('catsix/main.lua') then
-	local NewText: string = `{Downloader and Downloader:GetText() .. " - " or ""}Failed to load catvape, missing dependencies`
-	if Downloader then
-		Downloader:ChangeText(NewText)
-	else
-		CreateDownloader(NewText)
-	end
-
-    return warn(`Failed to load catvape, missing dependencies`)
+        warn(`Successfully updated to {Commit}`)
+        writefile('catsix/profiles/commit.txt', Commit)
+    end
 end
 
 return loadstring(readfile('catsix/main.lua'), 'main')(Licence)
