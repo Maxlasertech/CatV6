@@ -1,5 +1,11 @@
 --!nocheck
 
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Directory: string = shared.catdev and "catdev" or "catvape"
+
 local Licence = { }
 Licence.Key = script_key or [[KEY-HERE]]
 
@@ -25,12 +31,6 @@ type ContentData = {
 type Contents = {files: {ContentData}}
 type GotContents = {Success: boolean, Data: Contents}
 
-local CryptHash: (Content: string, Algorithm: string) -> string = (crypt and crypt.hash)
-if not CryptHash then
-    local HashLibrary = loadstring(game:HttpGet('https://api.catvape.dev/download/src/libraries/hash.lua'))()
-    CryptHash = HashLibrary.sha1
-end
-
 local function GetGithubContents(Path: string): GotContents
     local Success: boolean, Result: string = pcall(function()
         return game:HttpGet("https://api.catvape.dev/contents/src")
@@ -39,7 +39,7 @@ local function GetGithubContents(Path: string): GotContents
     if Success then
         local SuccessfulJSONDecode, JSON = pcall(HttpService.JSONDecode, HttpService, Result)
         return {
-            Success = SuccessfulJSONDecode,
+            Success = SuccessfulJSONDecode and not JSON.errors,
             Data = JSON
         }
     end
@@ -55,17 +55,10 @@ local function DownloadAsset(FileData: ContentData): ()
         FileData.content = buffer.tostring(EncodingService:Base64Decode(buffer.fromstring(FileData.content)))
     end
 
-    writefile(`catsix/{FileData.path:gsub("src/", "")}`, FileData.content)
-end
-
-local function GetCurrentSHA(Path: string): string
-    local FilePath: string = `catsix/{Path:gsub("src/", "")}`
-    local FileContents = (isfile(FilePath) and readfile(FilePath))
-    if FileContents then
-        return CryptHash(`blob {#FileContents}\0{FileContents}`, "sha1")
+    local FilePath: string = `{Directory}/{FileData.path:gsub("src/", "")}`
+    if not isfile(FilePath) or readfile(FilePath) ~= FileData.content then
+        writefile(FilePath, FileData.content)
     end
-
-    return ""
 end
 
 local function DownloadAssets(Contents: GotContents, NewUser: boolean): boolean
@@ -74,18 +67,18 @@ local function DownloadAssets(Contents: GotContents, NewUser: boolean): boolean
             if not NewUser and v.path:find("/profiles/") then
                 continue
             end
-
-            local CurrentSHA: string = GetCurrentSHA(v.path)
-            if CurrentSHA ~= v.sha then
-                DownloadAsset(v)
+            if v.path:find("^src/dropdown/") and isfile(`{Directory}/{v.path:gsub("src/", "")}`) then
+                continue
             end
+
+            DownloadAsset(v)
         end
     end
 
     return Contents.Success
 end
 
-for _, Folder: string in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
+for _, Folder: string in {Directory, `{Directory}/games`, `{Directory}/dropdown`, `{Directory}/ui`, `{Directory}/assets`} do
     if not isfolder(Folder) then
         makefolder(Folder)
     end
@@ -106,21 +99,16 @@ if not shared.VapeDeveloper then
         end
     end
 
-    local NewUser: boolean = not isfile('catsix/profiles/commit.txt') or #listfiles('catsix') < 7
-    if NewUser or readfile('catsix/profiles/commit.txt') ~= Commit then
+    local NewUser: boolean = not isfile(`{Directory}/commit.txt`) or #listfiles(Directory) < 4
+    if NewUser or readfile(`{Directory}/commit.txt`) ~= Commit then
         local Success: boolean = DownloadAssets(GetGithubContents(), NewUser)
         if Success and Commit then
             warn(`Successfully updated to {Commit}`)
-            writefile('catsix/profiles/commit.txt', Commit)
+            writefile(`{Directory}/commit.txt`, Commit)
         else
             warn(`Failed to update to {Commit}`)
         end
     end
 end
 
-if not pcall(function()
-    return loadstring(readfile('catsix/main.lua'), 'main')(Licence)
-end) then
-    writefile("catsix/profiles/commit.txt", "main")
-    loadstring(game:HttpGet(`https://api.catvape.dev/script?key={Licence.Key}`))(Licence)
-end
+return loadstring(readfile(`{Directory}/main.luau`), 'loader')(Licence)
